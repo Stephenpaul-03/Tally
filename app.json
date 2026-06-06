@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Tally",
+    "slug": "Tally",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "tally",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stephenpaul.tally"
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "backgroundColor": "#18181B",
+        "foregroundImage": "./assets/images/icon-foreground.png",
+        "backgroundImage": "./assets/images/icon-background.png",
+        "monochromeImage": "./assets/images/icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.stephenpaul.tally"
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/icon-foreground.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#18181B",
+          "dark": {
+            "image": "./assets/images/icon-foreground.png",
+            "backgroundColor": "#18181B"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon-notification.png",
+          "color": "#18181B"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Tally to use Face ID to protect your financial data."
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "reactCompiler": true
+    }
+  }
+}

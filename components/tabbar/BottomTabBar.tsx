@@ -1,9 +1,6 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
-import { FloatingTabBar, FloatingTabRoute } from "@/components/floatingtabbar";
 import {
-  EdgeButtons,
   useSetTabBarHeight,
-  useTabBarEdgeButton,
   useTabBarHidden,
 } from "@/components/tabbar/TabBarContext";
 import { typography } from "@/theme/typography";
@@ -20,8 +17,6 @@ export type BottomTabRoute = {
   title: string;
   icon: (props: { color: string; size: number }) => React.ReactNode;
 };
-
-export type TabBarMode = "basic" | "floating";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -263,29 +258,11 @@ export function BottomTabBar({
   routes,
   activeIndex,
   onTabPress,
-  mode = "basic",
-  edgeButtons,
 }: {
   routes: BottomTabRoute[];
   activeIndex: number;
   onTabPress: (index: number) => void;
-  mode?: TabBarMode;
-  edgeButtons?: EdgeButtons | null;
 }) {
-  const contextEdgeButtons = useTabBarEdgeButton();
-  const resolvedEdgeButtons = edgeButtons ?? contextEdgeButtons;
-
-  if (mode === "floating") {
-    return (
-      <FloatingTabBar
-        routes={routes as FloatingTabRoute[]}
-        activeIndex={activeIndex}
-        onTabPress={onTabPress}
-        edgeButtons={resolvedEdgeButtons}
-      />
-    );
-  }
-
   return (
     <BasicTabBar
       routes={routes}

@@ -1,9 +1,9 @@
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
-import type { Transaction } from "@/modules/Common/Utils/Types";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
+import type { Transaction } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";
@@ -185,65 +185,66 @@ export function CategoryTransactionsSheet({
       >
         {transactions.length > 0 ? (
           transactions.map((txn, index) => (
-            <Animated.View
-              key={txn.id ?? index}
-              style={getAnimStyle(index)}
-            >
+            <Animated.View key={txn.id ?? index} style={getAnimStyle(index)}>
               <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingVertical: 13,
-                borderBottomWidth: index < transactions.length - 1 ? 0.5 : 0,
-                borderBottomColor: outline,
-              }}
-            >
-              {/* Left: title + date · account */}
-              <View style={{ gap: 3, flex: 1, marginRight: 16 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{ fontSize: 14, fontWeight: "500", color: textColor }}
-                >
-                  {txn.title}
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, color: muted }}>
-                    {formatDate(txn.date)}
-                  </Text>
-                  {/* Dot separator */}
-                  <View
-                    style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: 99,
-                      backgroundColor: muted,
-                      opacity: 0.4,
-                    }}
-                  />
-                  <Text style={{ fontSize: 12, color: muted }}>
-                    {txn.account}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Right: amount */}
-              <Text
                 style={{
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: mode === "income" ? "#8FC8B0" : textColor,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 13,
+                  borderBottomWidth: index < transactions.length - 1 ? 0.5 : 0,
+                  borderBottomColor: outline,
                 }}
               >
-                {mode === "income" ? "+" : ""}
-                {formatInr(txn.amount)}
-              </Text>
+                {/* Left: title + date · account */}
+                <View style={{ gap: 3, flex: 1, marginRight: 16 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "500",
+                      color: textColor,
+                    }}
+                  >
+                    {txn.title}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: muted }}>
+                      {formatDate(txn.date)}
+                    </Text>
+                    {/* Dot separator */}
+                    <View
+                      style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: 99,
+                        backgroundColor: muted,
+                        opacity: 0.4,
+                      }}
+                    />
+                    <Text style={{ fontSize: 12, color: muted }}>
+                      {txn.account}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Right: amount */}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: mode === "income" ? "#8FC8B0" : textColor,
+                  }}
+                >
+                  {mode === "income" ? "+" : ""}
+                  {formatInr(txn.amount)}
+                </Text>
               </View>
             </Animated.View>
           ))

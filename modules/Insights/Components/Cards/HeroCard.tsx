@@ -1,7 +1,7 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, View } from "react-native";
@@ -109,11 +109,6 @@ export function HeroCard({
         paddingBottom: 18,
         gap: 14,
         marginBottom: 12,
-        shadowColor: "#000000",
-        shadowOpacity: 0.22,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 8,
         opacity: animStyle.opacity,
         transform: animStyle.transform,
       }}

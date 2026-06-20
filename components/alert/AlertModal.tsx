@@ -1,18 +1,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { ReactNode } from "react";
 import {
-  Animated,
-  PanResponder,
-  Platform,
-  ScrollView,
-  View,
-  useWindowDimensions,
+    Animated,
+    PanResponder,
+    Platform,
+    ScrollView,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import { Button, Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { typography } from "@/theme/typography";
-import { getContrastColor } from "@/utils/colorHelpers";
+import { getContrastColor } from "@/utils/ColorHelpers";
 import { styles } from "./AlertModalStyles";
 
 type ConfirmMode = "button" | "slide";
@@ -141,8 +141,7 @@ function SlideConfirmControl({
     return PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_event, gesture) =>
-        Math.abs(gesture.dx) > 6 &&
-        Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderGrant: () => {
         translateX.stopAnimation();
       },

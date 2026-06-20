@@ -1,11 +1,11 @@
 import { BackButton } from "@/components/backbutton/BackButton";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { CustomColorPickerModal } from "@/modules/Common/Components/CategoryManagement/Molecules/ColorPickerModal";
-import { DeleteScreen } from "@/modules/Common/Components/CategoryManagement/Screens/DeleteScreen";
-import { CategoryEditScreen } from "@/modules/Common/Components/CategoryManagement/Screens/EditScreen";
-import { ListScreen } from "@/modules/Common/Components/CategoryManagement/Screens/ListScreen";
-import { CategoryManagementStyles } from "@/modules/Common/Components/CategoryManagement/Styles";
-import { useCategoryManagement } from "@/modules/Common/Hooks/UseCategoryManagement";
+import { useBreakpoint } from "@/hooks/use-breakpoints";
+import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { CustomColorPickerModal } from "@/modules/Management/Category/Components/ColorPickerModal";
+import { DeleteScreen } from "@/modules/Management/Category/Screens/DeleteScreen";
+import { CategoryEditScreen } from "@/modules/Management/Category/Screens/EditScreen";
+import { ListScreen } from "@/modules/Management/Category/Screens/ListScreen";
+import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";

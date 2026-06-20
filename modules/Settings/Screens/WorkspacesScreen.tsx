@@ -1,28 +1,19 @@
+import { ActionRow } from "@/components/ActionRow";
 import { AlertModal } from "@/components/alert/AlertModal";
-import { AnimatedPaperModal } from "@/components/modal/modal";
-import { toast } from "@/components/toast/toast";
-import { CustomColorPickerModal } from "@/modules/Common/Components/CategoryManagement/Molecules/ColorPickerModal";
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
-import { SheetCard } from "@/modules/Common/Components/SheetCard";
-import { useAppDispatch, useAppSelector } from "@/modules/Common/Hooks/Redux";
-import type { Workspace } from "@/modules/Common/Repository/SQLiteRepo";
+import { SheetCard } from "@/components/SheetCard";
+import { toast } from "@/components/toast/ToastProvider";
+import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
+import type { Workspace } from "@/modules/Data/Repository/SQLiteRepo";
 import {
-    createWorkspaceAndSwitch,
-    deleteWorkspaceAndReload,
-    selectActiveWorkspaceId,
-    selectWorkspaces,
-    switchWorkspaceAndReload,
-    updateWorkspaceAsync,
-} from "@/modules/Common/Slices/WorkspaceSlice";
-import {
-    getAccountIconOptions,
-    getCategoryColorOptions,
-} from "@/modules/Common/Utils/Helpers";
-import { typography } from "@/theme/typography";
+  deleteWorkspaceAndReload,
+  selectActiveWorkspaceId,
+  selectWorkspaces,
+  switchWorkspaceAndReload,
+} from "@/modules/Data/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -30,7 +21,6 @@ import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
-import { WorkspaceEditScreen } from "./WorkspaceEditScreen";
 
 const ICON_GRID = {
   columns: 6,
@@ -48,100 +38,16 @@ export function WorkspacesScreen() {
   const workspaces = useAppSelector(selectWorkspaces);
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
 
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceIcon, setWorkspaceIcon] = useState("briefcase-outline");
-  const [workspaceColor, setWorkspaceColor] = useState("#6366F1");
-  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(
-    null,
-  );
-  const [showWorkspaceColorPicker, setShowWorkspaceColorPicker] =
-    useState(false);
   const [workspaceDeleteTarget, setWorkspaceDeleteTarget] =
     useState<Workspace | null>(null);
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
-  const workspaceIconOptions = useMemo(
-    () =>
-      [
-        ...new Set([
-          "briefcase-outline",
-          "home-outline",
-          "account-outline",
-          "account-group-outline",
-          "heart-outline",
-          "star-outline",
-          "wallet-outline",
-          "piggy-bank-outline",
-          ...getAccountIconOptions(),
-        ]),
-      ].slice(0, 24),
-    [],
-  );
-  const workspaceColorOptions = useMemo(() => getCategoryColorOptions(), []);
-
-  const canSaveWorkspace = workspaceName.trim().length > 0;
-
-  const resetWorkspaceForm = () => {
-    setEditingWorkspace(null);
-    setWorkspaceName("");
-    setWorkspaceIcon("briefcase-outline");
-    setWorkspaceColor("#6366F1");
-  };
-
   const openWorkspaceModal = () => {
-    resetWorkspaceForm();
-    setWorkspaceModalOpen(true);
+    navigation.navigate("WorkspaceEdit");
   };
 
   const openEditWorkspaceModal = (workspace: Workspace) => {
-    setEditingWorkspace(workspace);
-    setWorkspaceName(workspace.name);
-    setWorkspaceIcon(workspace.icon);
-    setWorkspaceColor(workspace.color);
-    setWorkspaceModalOpen(true);
-  };
-
-  const closeWorkspaceModal = () => {
-    setWorkspaceModalOpen(false);
-  };
-
-  const handleSaveWorkspace = async () => {
-    if (!canSaveWorkspace) return;
-
-    try {
-      if (editingWorkspace) {
-        await dispatch(
-          updateWorkspaceAsync({
-            id: editingWorkspace.id,
-            data: {
-              name: workspaceName,
-              icon: workspaceIcon,
-              color: workspaceColor,
-            },
-          }) as any,
-        );
-        toast.success(`${workspaceName.trim()} updated`);
-      } else {
-        const workspace = await dispatch(
-          createWorkspaceAndSwitch({
-            name: workspaceName,
-            icon: workspaceIcon,
-            color: workspaceColor,
-          }) as any,
-        );
-        toast.success(`Switched to ${workspace.name}`);
-      }
-      closeWorkspaceModal();
-      resetWorkspaceForm();
-    } catch (error) {
-      toast.error(
-        editingWorkspace
-          ? "Couldn't update workspace"
-          : "Couldn't create workspace",
-        error instanceof Error ? error.message : undefined,
-      );
-    }
+    navigation.navigate("WorkspaceEdit", { workspace });
   };
 
   const handleDeleteWorkspace = (workspace: Workspace) => {
@@ -318,75 +224,6 @@ export function WorkspacesScreen() {
         </SheetCard>
       </ScrollView>
 
-      <AnimatedPaperModal
-        contentContainerStyle={{
-          backgroundColor: theme.colors.elevation.level1,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          overflow: "hidden",
-        }}
-        onDismiss={closeWorkspaceModal}
-        presentation="sheet"
-        visible={workspaceModalOpen}
-      >
-        <View
-          style={{ paddingTop: 12, paddingBottom: 4, alignItems: "center" }}
-        >
-          <View
-            style={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: theme.colors.outlineVariant,
-            }}
-          />
-        </View>
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <WorkspaceEditScreen
-            allColors={workspaceColorOptions}
-            allIcons={workspaceIconOptions}
-            background={theme.colors.elevation.level1}
-            canSubmit={canSaveWorkspace}
-            headerSubtitle={editingWorkspace?.name}
-            iconGrid={ICON_GRID}
-            isEditing={Boolean(editingWorkspace)}
-            onChangeColor={setWorkspaceColor}
-            onChangeIcon={setWorkspaceIcon}
-            onChangeName={setWorkspaceName}
-            onDelete={
-              editingWorkspace
-                ? () => handleDeleteWorkspace(editingWorkspace)
-                : undefined
-            }
-            onSubmit={handleSaveWorkspace}
-            renderHeader={({ title, subtitle }) => (
-              <Text
-                style={[
-                  SettingsStyles.sectionLabel,
-                  {
-                    ...typography.editorial.sectionLabel,
-                    color: theme.colors.onSurfaceVariant,
-                    marginTop: 8,
-                    marginBottom: 10,
-                    fontSize: 22,
-                    textAlign: "center",
-                  },
-                ]}
-              >
-                {title}
-              </Text>
-            )}
-            theme={theme}
-            workspaceColor={workspaceColor}
-            workspaceIcon={workspaceIcon}
-            workspaceName={workspaceName}
-          />
-        </ScrollView>
-      </AnimatedPaperModal>
-
       {workspaceDeleteTarget ? (
         <AlertModal
           cancelLabel="Cancel"
@@ -407,14 +244,6 @@ export function WorkspacesScreen() {
           title={`Delete ${workspaceDeleteTarget.name}?`}
         />
       ) : null}
-
-      <CustomColorPickerModal
-        initialColor={workspaceColor}
-        onDismiss={() => setShowWorkspaceColorPicker(false)}
-        onSelect={setWorkspaceColor}
-        theme={theme}
-        visible={showWorkspaceColorPicker}
-      />
     </SafeAreaView>
   );
 }

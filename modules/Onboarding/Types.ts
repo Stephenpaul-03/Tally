@@ -1,6 +1,6 @@
 import type { ThemeMode } from "@/hooks/use-theme-mode";
 import type { ThemeId } from "@/theme/presets";
-import type { TransactionType } from "@/modules/Common/Utils/Types";
+import type { TransactionType } from "@/utils/Types";
 
 export type OnboardingSetupType = "simple" | "advanced";
 

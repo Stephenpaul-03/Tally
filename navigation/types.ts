@@ -1,5 +1,5 @@
 export type RootParamList = {
-  Calculator: undefined;
+  Calendar: undefined;
   Transactions:
     | {
         source?: "notification";

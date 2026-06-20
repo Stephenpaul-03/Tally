@@ -1,12 +1,12 @@
 import {
     selectExpenseTransactions,
     selectIncomeTransactions,
-} from "@/modules/Common/Slices/TransactionSlice";
+} from "@/modules/Data/Slices/TransactionSlice";
 import {
     formatAccountLabel,
     getCategoryColor,
     getCategoryIconName,
-} from "@/modules/Common/Utils/Helpers";
+} from "@/utils/Helpers";
 import type { BreakdownItem, HeatmapCell, MonthSummary } from "./Types";
 
 export const PAYMENT_METHOD_META = {

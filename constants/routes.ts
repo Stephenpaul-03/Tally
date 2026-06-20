@@ -1,11 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 
+import { CalendarScreen } from "@/screens/CalendarScreen";
 import { InsightsScreen } from "@/screens/InsightsScreen";
 import { TransactionsScreen } from "@/screens/TransactionsScreen";
-
 import type { RootParamList } from "@/navigation/types";
-import { CalculatorScreen } from "@/screens/CalculatorScreen";
 
 export type AppRouteName = keyof RootParamList;
 
@@ -20,17 +19,17 @@ export type AppRoute = {
 
 export const APP_ROUTES: AppRoute[] = [
   {
-    name: "Calculator",
-    title: "Calculator",
-    focusedIcon: "Calculator",
-    unfocusedIcon: "Calculator-outline",
+    name: "Calendar",
+    title: "Calendar",
+    focusedIcon: "calendar",
+    unfocusedIcon: "calendar-outline",
     icon: ({ color, size }) =>
       React.createElement(MaterialCommunityIcons, {
-        name: "view-dashboard",
+        name: "calendar",
         color,
         size,
       }),
-    component: CalculatorScreen,
+    component: CalendarScreen,
   },
   {
     name: "Transactions",

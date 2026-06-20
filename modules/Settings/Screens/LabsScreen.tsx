@@ -1,5 +1,5 @@
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
-import { SheetCard } from "@/modules/Common/Components/SheetCard";
+import { ActionRow } from "@/components/ActionRow";
+import { SheetCard } from "@/components/SheetCard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";

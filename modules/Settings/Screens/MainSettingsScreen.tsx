@@ -1,6 +1,6 @@
+import { ActionRow } from "@/components/ActionRow";
 import { PermissionRequestModal } from "@/components/alert/PermissionRequestModal";
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
-import { SheetCard } from "@/modules/Common/Components/SheetCard";
+import { SheetCard } from "@/components/SheetCard";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";

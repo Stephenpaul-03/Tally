@@ -1,5 +1,7 @@
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
-import { SheetCard } from "@/modules/Common/Components/SheetCard";
+import { ActionRow } from "@/components/ActionRow";
+import { SheetCard } from "@/components/SheetCard";
+import { toast } from "@/components/toast/ToastProvider";
+import { useTransactionUiPrefs } from "@/hooks/use-transaction-ui-prefs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -10,7 +12,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppearanceSection } from "../Components/AppearanceSection";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import { TAB_BAR_MODE_OPTIONS } from "../Constants";
 import { useSettings } from "../hooks";
 import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
@@ -25,13 +26,14 @@ export function AppearanceScreen() {
     themeOptions,
     activeModeId,
     handleModeSelect,
-    tabBarMode,
-    setTabBarMode,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
-    animationsEnabled,
-    handleAnimationsToggle,
   } = useSettings();
+  const {
+    datePickerCalendarMode,
+    isHydrated: isPrefsHydrated,
+    toggleDatePickerCalendarMode,
+  } = useTransactionUiPrefs();
 
   return (
     <SafeAreaView
@@ -80,42 +82,44 @@ export function AppearanceScreen() {
               </Pressable>
             }
           />
+
           <ActionRow
-            icon="motion-play-outline"
-            label="Animations"
-            description="Turn all motion on or off across Tally"
-            onPress={() => handleAnimationsToggle(!animationsEnabled)}
-            theme={theme}
-            showChevron={false}
-            rightElement={
-              <Pressable onPress={() => handleAnimationsToggle(!animationsEnabled)}>
-                <MaterialCommunityIcons
-                  name={animationsEnabled ? "check-circle" : "circle-outline"}
-                  size={18}
-                  color={
-                    animationsEnabled
-                      ? theme.colors.primary
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              </Pressable>
-            }
-          />
-          <ActionRow
-            icon="dock-bottom"
-            label="Navigation bar"
-            description="Choose the tab bar layout"
+            icon="calendar-outline"
+            label="Date picker"
+            description="Choose the calendar picker layout"
             onPress={() => {}}
             theme={theme}
             showChevron={false}
             rightElement={
               <View style={{ flexDirection: "row", gap: 6 }}>
-                {TAB_BAR_MODE_OPTIONS.map((opt) => {
-                  const active = tabBarMode === opt.id;
+                {[
+                  { id: "strip", label: "Strip", icon: "view-week-outline" },
+                  {
+                    id: "calendar",
+                    label: "Calendar",
+                    icon: "calendar-month-outline",
+                  },
+                ].map((opt) => {
+                  const active =
+                    opt.id === "calendar"
+                      ? datePickerCalendarMode
+                      : !datePickerCalendarMode;
                   return (
                     <Pressable
                       key={opt.id}
-                      onPress={() => setTabBarMode(opt.id)}
+                      onPress={() => {
+                        if (!isPrefsHydrated) return;
+                        if (opt.id === "calendar" && !datePickerCalendarMode) {
+                          toggleDatePickerCalendarMode();
+                          toast.success("Date picker set to Calendar mode");
+                        } else if (
+                          opt.id === "strip" &&
+                          datePickerCalendarMode
+                        ) {
+                          toggleDatePickerCalendarMode();
+                          toast.success("Date picker set to Strip mode");
+                        }
+                      }}
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 8,

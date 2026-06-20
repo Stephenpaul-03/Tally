@@ -1,17 +1,17 @@
 import {
-  addAccountAsync,
-  addCategoryAsync,
-  fetchAccounts,
-  fetchCategories,
-  fetchTransactions,
-} from "@/modules/Common/Slices/TransactionSlice";
+    addAccountAsync,
+    addCategoryAsync,
+    fetchAccounts,
+    fetchCategories,
+    fetchTransactions,
+} from "@/modules/Data/Slices/TransactionSlice";
 import {
-  createWorkspaceAndSwitch,
-  deleteWorkspaceAsync,
-  fetchWorkspaces,
-} from "@/modules/Common/Slices/WorkspaceSlice";
-import type { AppDispatch } from "@/modules/Common/Store";
-import type { TransactionType } from "@/modules/Common/Utils/Types";
+    createWorkspaceAndSwitch,
+    deleteWorkspaceAsync,
+    fetchWorkspaces,
+} from "@/modules/Data/Slices/WorkspaceSlice";
+import type { AppDispatch } from "@/modules/Data/Store";
+import type { TransactionType } from "@/utils/Types";
 import type { OnboardingDraft, StarterPill } from "./Types";
 
 type StarterCategory = {

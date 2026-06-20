@@ -1,8 +1,8 @@
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";

@@ -2,17 +2,17 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import { useStagger } from "@/components/animations/UseStagger";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
-import { PercentDeltaPill } from "../../../Addons/BetterAnalytics/Index";
+import { PercentDeltaPill } from "../../../Labs/BetterAnalytics/Index";
 import type {
-  BreakdownItem,
-  CategoryComparisonRow,
-  MonthSummary,
+    BreakdownItem,
+    CategoryComparisonRow,
+    MonthSummary,
 } from "../../Types";
 import { formatInr } from "../../Utils";
 import { BreakdownBottomSheet } from "../BottomSheets/BreakdownListSheet";
@@ -255,11 +255,6 @@ export function BreakdownCard({
           paddingBottom: 16,
           gap: 16,
           marginBottom: 12,
-          shadowColor: "#000000",
-          shadowOpacity: 0.2,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 10 },
-          elevation: 7,
           opacity: animStyle.opacity,
           transform: animStyle.transform,
         }}

@@ -8,15 +8,10 @@ type TransactionUiPrefsContextValue = {
   isHydrated: boolean;
   setDatePickerCalendarMode: (next: boolean) => void;
   toggleDatePickerCalendarMode: () => void;
-  /** When true, the Transactions view shows Month mode instead of Day. */
-  monthMode: boolean;
-  setMonthMode: (next: boolean) => void;
-  toggleMonthMode: () => void;
 };
 
 const STORAGE_KEYS = {
   datePickerCalendarMode: "transactionsDatePickerCalendarMode",
-  monthMode: "transactionsMonthMode",
 } as const;
 
 const TransactionUiPrefsContext =
@@ -37,22 +32,18 @@ export function TransactionUiPrefsProvider({
 }) {
   const [datePickerCalendarMode, setDatePickerCalendarModeState] =
     React.useState(false);
-  const [monthMode, setMonthModeState] = React.useState(false);
   const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        const [storedDate, storedMonth] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEYS.datePickerCalendarMode),
-          AsyncStorage.getItem(STORAGE_KEYS.monthMode),
-        ]);
+        const storedDate = await AsyncStorage.getItem(
+          STORAGE_KEYS.datePickerCalendarMode,
+        );
         const parsedDate = parseStoredBoolean(storedDate);
-        const parsedMonth = parseStoredBoolean(storedMonth);
         if (!isMounted) return;
         if (parsedDate != null) setDatePickerCalendarModeState(parsedDate);
-        if (parsedMonth != null) setMonthModeState(parsedMonth);
       } finally {
         if (isMounted) setIsHydrated(true);
       }
@@ -73,17 +64,6 @@ export function TransactionUiPrefsProvider({
     return () => clearTimeout(id);
   }, [datePickerCalendarMode, isHydrated]);
 
-  React.useEffect(() => {
-    if (!isHydrated) return;
-    const id = setTimeout(() => {
-      void AsyncStorage.setItem(
-        STORAGE_KEYS.monthMode,
-        monthMode ? "true" : "false",
-      );
-    }, 150);
-    return () => clearTimeout(id);
-  }, [monthMode, isHydrated]);
-
   const setDatePickerCalendarMode = React.useCallback((next: boolean) => {
     setDatePickerCalendarModeState(next);
   }, []);
@@ -92,32 +72,18 @@ export function TransactionUiPrefsProvider({
     setDatePickerCalendarModeState((prev) => !prev);
   }, []);
 
-  const setMonthMode = React.useCallback((next: boolean) => {
-    setMonthModeState(next);
-  }, []);
-
-  const toggleMonthMode = React.useCallback(() => {
-    setMonthModeState((prev) => !prev);
-  }, []);
-
   const value = React.useMemo(
     () => ({
       datePickerCalendarMode,
       isHydrated,
       setDatePickerCalendarMode,
       toggleDatePickerCalendarMode,
-      monthMode,
-      setMonthMode,
-      toggleMonthMode,
     }),
     [
       datePickerCalendarMode,
       isHydrated,
       setDatePickerCalendarMode,
       toggleDatePickerCalendarMode,
-      monthMode,
-      setMonthMode,
-      toggleMonthMode,
     ],
   );
 

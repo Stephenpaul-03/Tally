@@ -83,21 +83,17 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           storedGuidedChat,
           storedBetterAnalytics,
           storedMinimalIcons,
-          storedAnimations,
           storedInsightsCardOrder,
         ] = await Promise.all([
           AsyncStorage.getItem(GUIDED_CHAT_STORAGE_KEY),
           AsyncStorage.getItem(BETTER_ANALYTICS_STORAGE_KEY),
           AsyncStorage.getItem(MINIMAL_ICONS_STORAGE_KEY),
-          AsyncStorage.getItem(ANIMATIONS_STORAGE_KEY),
           AsyncStorage.getItem(INSIGHTS_CARD_ORDER_STORAGE_KEY),
         ]);
 
         const parsedGuidedChat = parseStoredBoolean(storedGuidedChat);
         const parsedBetterAnalytics = parseStoredBoolean(storedBetterAnalytics);
         const parsedMinimalIcons = parseStoredBoolean(storedMinimalIcons);
-        const parsedAnimations = parseStoredBoolean(storedAnimations);
-
         let parsedInsightsCardOrder: string[] | null = null;
         if (storedInsightsCardOrder) {
           try {
@@ -116,8 +112,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           setBetterAnalyticsEnabledState(parsedBetterAnalytics);
         if (parsedMinimalIcons != null)
           setMinimalIconsEnabledState(parsedMinimalIcons);
-        if (parsedAnimations != null)
-          setAnimationsEnabledState(parsedAnimations);
+        setAnimationsEnabledState(true);
         if (parsedInsightsCardOrder != null)
           setInsightsCardOrderState(parsedInsightsCardOrder);
       } finally {
@@ -165,10 +160,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isHydrated) return;
     const id = setTimeout(() => {
-      void AsyncStorage.setItem(
-        ANIMATIONS_STORAGE_KEY,
-        animationsEnabled ? "true" : "false",
-      );
+      void AsyncStorage.setItem(ANIMATIONS_STORAGE_KEY, "true");
     }, 150);
     return () => clearTimeout(id);
   }, [animationsEnabled, isHydrated]);
@@ -196,8 +188,8 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
     setMinimalIconsEnabledState(next);
   }, []);
 
-  const setAnimationsEnabled = useCallback((next: boolean) => {
-    setAnimationsEnabledState(next);
+  const setAnimationsEnabled = useCallback((_next: boolean) => {
+    setAnimationsEnabledState(true);
   }, []);
 
   const setInsightsCardOrder = useCallback((next: string[]) => {
@@ -218,7 +210,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleAnimationsEnabled = useCallback(() => {
-    setAnimationsEnabledState((prev) => !prev);
+    setAnimationsEnabledState(true);
   }, []);
 
   const value = useMemo(

@@ -1,4 +1,3 @@
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
 
@@ -47,7 +46,6 @@ export function useStagger({
   autoPlay = true,
   replayOnCountChange = true,
 }: UseStaggerOptions): UseStaggerReturn {
-  const { animationsEnabled } = useAddonPrefs();
   const opacities = useRef<Animated.Value[]>([]);
   const translates = useRef<Animated.Value[]>([]);
   const previousDataKey = useRef<unknown>(dataKey);
@@ -67,14 +65,6 @@ export function useStagger({
   };
 
   function play() {
-    if (!animationsEnabled) {
-      for (let i = 0; i < count; i++) {
-        opacities.current[i].setValue(1);
-        translates.current[i].setValue(0);
-      }
-      return;
-    }
-
     for (let i = 0; i < count; i++) {
       opacities.current[i].setValue(0);
       translates.current[i].setValue(distance);
@@ -108,31 +98,26 @@ export function useStagger({
   // Replay whenever dataKey changes (covers same-count data changes)
   // or count changes (covers list growing/shrinking)
   useEffect(() => {
-    if (animationsEnabled) {
-      const dataKeyChanged = previousDataKey.current !== dataKey;
-      const countChanged = previousCount.current !== count;
+    const dataKeyChanged = previousDataKey.current !== dataKey;
+    const countChanged = previousCount.current !== count;
 
-      if (dataKeyChanged) {
-        previousDataKey.current = dataKey;
-        previousCount.current = count;
-        if (autoPlay) play();
-        return;
-      }
-
+    if (dataKeyChanged) {
+      previousDataKey.current = dataKey;
       previousCount.current = count;
-
-      if (countChanged && !replayOnCountChange) {
-        syncVisible();
-        return;
-      }
-
       if (autoPlay) play();
       return;
     }
 
-    syncVisible();
+    previousCount.current = count;
+
+    if (countChanged && !replayOnCountChange) {
+      syncVisible();
+      return;
+    }
+
+    if (autoPlay) play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animationsEnabled, autoPlay, count, dataKey, replayOnCountChange]);
+  }, [autoPlay, count, dataKey, replayOnCountChange]);
 
   function getAnimStyle(index: number) {
     return {

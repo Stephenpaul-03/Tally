@@ -1,5 +1,6 @@
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
-import { SheetCard } from "@/modules/Common/Components/SheetCard";
+import { ActionRow } from "@/components/ActionRow";
+import { SheetCard } from "@/components/SheetCard";
+import { useThemedAsset } from "@/hooks/use-themed-insights";
 import { DevSheet } from "@/modules/Settings/Components/DevSheet";
 import { useDevTools, useSettings } from "@/modules/Settings/hooks";
 import { typography } from "@/theme/typography";
@@ -30,7 +31,7 @@ export function AboutScreen() {
   const devTools = useDevTools();
   const { handleSeedData, handleClearAllTransactions } = useSettings();
   const [devSheetOpen, setDevSheetOpen] = React.useState(false);
-
+  const logoSource = useThemedAsset("logo");
   return (
     <SafeAreaView
       style={[
@@ -60,7 +61,7 @@ export function AboutScreen() {
             ]}
           >
             <Image
-              source={require("@/assets/images/icon.png")}
+              source={logoSource}
               style={styles.appImage}
               resizeMode="contain"
             />
@@ -86,22 +87,10 @@ export function AboutScreen() {
         <SectionLabel label="Support" />
         <SheetCard theme={theme}>
           <ActionRow
-            icon="coffee-outline"
-            label="Buy Me a Coffee"
-            description="Support development"
+            icon="heart-outline"
+            label="Support Development"
+            description="Help fund future updates"
             onPress={() => Linking.openURL("https://buymeacoffee.com")}
-            theme={theme}
-            showChevron
-          />
-          <ActionRow
-            icon="star-outline"
-            label="Rate Tally"
-            description="Leave a review on Play Store"
-            onPress={() =>
-              Linking.openURL(
-                "https://play.google.com/store/apps/details?id=com.tally",
-              )
-            }
             theme={theme}
             showChevron
           />
@@ -110,6 +99,18 @@ export function AboutScreen() {
             label="Report an Issue"
             description="Help improve Tally"
             onPress={() => Linking.openURL("mailto:support@tally.app")}
+            theme={theme}
+            showChevron
+          />
+          <ActionRow
+            icon="lightbulb-outline"
+            label="Suggest a Feature"
+            description="Share your ideas with us"
+            onPress={() =>
+              Linking.openURL(
+                "mailto:support@tally.app?subject=Feature Suggestion",
+              )
+            }
             theme={theme}
             showChevron
           />
@@ -201,8 +202,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   appImage: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
   },
   appName: {
     fontWeight: "700",

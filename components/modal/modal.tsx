@@ -1,4 +1,3 @@
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import React, { ReactNode, useEffect, useMemo, useRef } from "react";
 import {
   Animated,
@@ -13,7 +12,7 @@ import {
 } from "react-native";
 import { Modal, Portal } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEscapeToClose } from "../../hooks/useEscapeToClose";
+import { useEscapeToClose } from "../../hooks/use-escape-to-close";
 
 type Presentation = "modal" | "sheet";
 
@@ -44,7 +43,6 @@ export function AnimatedPaperModal({
 }: Props) {
   const { height } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
-  const { animationsEnabled } = useAddonPrefs();
   const hiddenTranslateY = Math.max(0, Math.floor(height));
   const sheetTranslateY = useRef(new Animated.Value(hiddenTranslateY)).current;
   const gestureStartTranslateY = useRef(0);
@@ -71,11 +69,6 @@ export function AnimatedPaperModal({
 
   useEffect(() => {
     if (presentation !== "sheet") return;
-    if (!animationsEnabled) {
-      sheetTranslateY.setValue(visible ? 0 : hiddenTranslateY);
-      return;
-    }
-
     Animated.timing(sheetTranslateY, {
       toValue: visible ? 0 : hiddenTranslateY,
       duration: visible ? 750 : 750,
@@ -83,7 +76,6 @@ export function AnimatedPaperModal({
       useNativeDriver: true,
     }).start();
   }, [
-    animationsEnabled,
     hiddenTranslateY,
     presentation,
     sheetTranslateY,
@@ -124,11 +116,6 @@ export function AnimatedPaperModal({
           onDismiss();
         }
 
-        if (!animationsEnabled) {
-          sheetTranslateY.setValue(shouldDismiss ? hiddenTranslateY : 0);
-          return;
-        }
-
         Animated.timing(sheetTranslateY, {
           toValue: shouldDismiss ? hiddenTranslateY : 0,
           duration: shouldDismiss ? 180 : 220,
@@ -139,11 +126,6 @@ export function AnimatedPaperModal({
         }).start();
       },
       onPanResponderTerminate: () => {
-        if (!animationsEnabled) {
-          sheetTranslateY.setValue(0);
-          return;
-        }
-
         Animated.timing(sheetTranslateY, {
           toValue: 0,
           duration: 220,
@@ -157,7 +139,6 @@ export function AnimatedPaperModal({
     height,
     hiddenTranslateY,
     onDismiss,
-    animationsEnabled,
     presentation,
     sheetTranslateY,
   ]);

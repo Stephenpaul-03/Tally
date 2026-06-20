@@ -1,8 +1,8 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import { useStagger } from "@/components/animations/UseStagger";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { Animated, Pressable, View } from "react-native";
@@ -204,11 +204,6 @@ export function PaymentMethodBreakdownCard({
           paddingBottom: 16,
           gap: 16,
           marginBottom: 12,
-          shadowColor: "#000000",
-          shadowOpacity: 0.2,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 10 },
-          elevation: 7,
           opacity: animStyle.opacity,
           transform: animStyle.transform,
         }}

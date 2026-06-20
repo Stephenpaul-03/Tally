@@ -15,7 +15,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#18181B",
-        "foregroundImage": "./assets/images/icon-foreground.png",
+        "foregroundImage": "./assets/images/icon-foreground-Gold.png",
         "backgroundImage": "./assets/images/icon-background.png",
         "monochromeImage": "./assets/images/icon-monochrome.png"
       },
@@ -30,12 +30,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon-foreground.png",
+          "image": "./assets/images/icon-foreground-Gold.png",
           "imageWidth": 220,
           "resizeMode": "contain",
           "backgroundColor": "#18181B",
           "dark": {
-            "image": "./assets/images/icon-foreground.png",
+            "image": "./assets/images/icon-foreground-Gold.png",
             "backgroundColor": "#18181B"
           }
         }
@@ -53,7 +53,8 @@
           "faceIDPermission": "Allow Tally to use Face ID to protect your financial data."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-asset"
     ],
     "experiments": {
       "reactCompiler": true

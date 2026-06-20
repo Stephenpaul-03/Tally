@@ -1,4 +1,3 @@
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
 
@@ -39,7 +38,6 @@ export function useFadeSlide({
   delay = 0,
   autoPlay = true,
 }: UseFadeSlideOptions = {}): UseFadeSlideReturn {
-  const { animationsEnabled } = useAddonPrefs();
   const startOffset = offsetFrom(from, distance);
 
   const opacity = useRef(new Animated.Value(0)).current;
@@ -52,13 +50,6 @@ export function useFadeSlide({
   });
 
   function slideIn(onDone?: () => void) {
-    if (!animationsEnabled) {
-      opacity.setValue(1);
-      translate.setValue(0);
-      onDone?.();
-      return;
-    }
-
     const { duration, delay } = optsRef.current;
 
     opacity.setValue(0);
@@ -88,13 +79,6 @@ export function useFadeSlide({
   }
 
   function slideOut(onDone?: () => void) {
-    if (!animationsEnabled) {
-      opacity.setValue(0);
-      translate.setValue(startOffset);
-      onDone?.();
-      return;
-    }
-
     const outDuration = 280;
 
     Animated.parallel([
@@ -117,15 +101,9 @@ export function useFadeSlide({
 
   // autoPlay — runs after first render, slideIn is stable so no stale closure
   useEffect(() => {
-    if (animationsEnabled) {
-      if (autoPlay) slideIn();
-      return;
-    }
-
-    opacity.setValue(1);
-    translate.setValue(0);
+    if (autoPlay) slideIn();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animationsEnabled]);
+  }, [autoPlay]);
 
   const isVertical = from === "top" || from === "bottom";
 

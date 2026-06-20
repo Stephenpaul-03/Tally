@@ -73,13 +73,13 @@ export function useSetTabBarEdgeButton() {
   return useContext(TabBarContext)?.setEdgeButtons ?? (() => {});
 }
 
-/** Returns true when the tab bar has been hidden by a screen. */
+/** Returns true when the main tab bar has been hidden by a screen. */
 export function useTabBarHidden() {
   return useContext(TabBarContext)?.hidden ?? false;
 }
 
 /**
- * Returns a setter to imperatively hide/show the floating tab bar.
+ * Returns a setter to imperatively hide/show the tab bar.
  * Call setHidden(true) on mount and setHidden(false) (or use the cleanup)
  * on unmount — or just use the `useHideTabBar` convenience hook below.
  */
@@ -88,7 +88,7 @@ export function useSetTabBarHidden() {
 }
 
 /**
- * Convenience hook: hides the floating tab bar for the lifetime of the
+ * Convenience hook: hides the tab bar for the lifetime of the
  * calling component. Pass `active` to conditionally hide (default true).
  *
  * Usage:

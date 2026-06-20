@@ -1,9 +1,7 @@
 import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
 import { useSetTabBarHeight } from "@/components/tabbar/TabBarContext";
-import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { APP_ROUTES, TAB_ROUTES } from "@/constants/routes";
 import { SettingsScreen } from "@/modules/Settings/Index";
-import { SwipeableTabScreen } from "@/navigation/SwipeableTabScreen";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -20,7 +18,6 @@ function TabBarHeightResetter() {
 }
 
 function MobileTabsNavigator() {
-  const { tabBarMode } = useTabBarModePreference();
   return (
     <Tab.Navigator
       initialRouteName="Transactions"
@@ -47,7 +44,6 @@ function MobileTabsNavigator() {
         return (
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
             <BottomTabBar
-              mode={tabBarMode as any}
               routes={visibleRoutes}
               activeIndex={activeIndex}
               onTabPress={(index) => {
@@ -78,11 +74,7 @@ function MobileTabsNavigator() {
               tabBarIcon: route.icon,
             }}
           >
-            {() => (
-              <SwipeableTabScreen>
-                <ScreenComponent />
-              </SwipeableTabScreen>
-            )}
+            {() => <ScreenComponent />}
           </Tab.Screen>
         );
       })}

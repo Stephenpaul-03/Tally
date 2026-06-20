@@ -2,12 +2,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 
-export type TabBarMode = "basic" | "floating";
+export type TabBarMode = "basic";
 const STORAGE_KEY = "appTabBarMode";
 const DEFAULT_MODE: TabBarMode = "basic";
 
 function isTabBarMode(value: string): value is TabBarMode {
-  return value === "basic" || value === "floating";
+  return value === "basic";
 }
 
 type TabBarModePreferenceContextValue = {
@@ -35,6 +35,7 @@ export function TabBarModePreferenceProvider({
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (!isMounted) return;
         if (stored && isTabBarMode(stored)) setTabBarModeState(stored);
+        else setTabBarModeState(DEFAULT_MODE);
       } finally {
         if (isMounted) setIsHydrated(true);
       }

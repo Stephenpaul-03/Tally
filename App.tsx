@@ -3,6 +3,7 @@ import {
   ToastProvider,
   pushOffsetAnimValue,
 } from "@/components/toast/ToastProvider";
+import { useAppDispatch } from "@/hooks/Redux";
 import { AddonPrefsProvider } from "@/hooks/use-addon-prefs";
 import { AppThemeProvider, useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -11,13 +12,12 @@ import {
 } from "@/hooks/use-biometric-lock";
 import { ThemeModeProvider, useThemeMode } from "@/hooks/use-theme-mode";
 import { TransactionUiPrefsProvider } from "@/hooks/use-transaction-ui-prefs";
-import { useAppDispatch } from "@/modules/Common/Hooks/Redux";
 import {
   fetchAccounts,
   fetchCategories,
   fetchTransactions,
-} from "@/modules/Common/Slices/TransactionSlice";
-import { store } from "@/modules/Common/Store";
+} from "@/modules/Data/Slices/TransactionSlice";
+import { store } from "@/modules/Data/Store";
 import { OnboardingScreen } from "@/modules/Onboarding/Index";
 import {
   OnboardingProvider,
@@ -43,7 +43,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider as ReduxProvider } from "react-redux";
 import { TabBarModePreferenceProvider } from "./components/tabbar/TabBarModePreference";
 import "./global";
-import { BiometricLockScreen } from "./modules/Addons/Biometric/BiometricLockScreen";
+import { BiometricLockScreen } from "./modules/Labs/Biometric/BiometricLockScreen";
 
 void SplashScreen.preventAutoHideAsync();
 

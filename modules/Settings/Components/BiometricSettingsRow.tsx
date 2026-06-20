@@ -1,12 +1,14 @@
-import { toast } from "@/components/toast/toast";
+import { ActionRow } from "@/components/ActionRow";
+import { toast } from "@/components/toast/ToastProvider";
 import { useBiomettricLock } from "@/hooks/use-biometric-lock";
-import { ActionRow } from "@/modules/Common/Components/HeaderMenuModal/Molecules/ActionRow";
 import React from "react";
 import { View } from "react-native";
 import { Switch, Text, useTheme } from "react-native-paper";
 
 function getUnavailableCopy(
-  reason: ReturnType<typeof useBiomettricLock>["availability"]["unavailableReason"],
+  reason: ReturnType<
+    typeof useBiomettricLock
+  >["availability"]["unavailableReason"],
 ) {
   if (reason === "no-hardware") {
     return "This device does not support biometric authentication.";

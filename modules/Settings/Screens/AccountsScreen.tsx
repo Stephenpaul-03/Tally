@@ -1,8 +1,8 @@
-import { useAccountModalState } from "@/modules/Common/Components/AccountManagement/Hooks";
-import { AccountDeleteScreen } from "@/modules/Common/Components/AccountManagement/Screens/DeleteScreen";
-import { AccountEditScreen } from "@/modules/Common/Components/AccountManagement/Screens/EditScreen";
-import { AccountListScreen } from "@/modules/Common/Components/AccountManagement/Screens/ListScreen";
-import { useAccountManagement } from "@/modules/Common/Hooks/UseAccountManagement";
+import { useAccountManagement } from "@/hooks/use-account-manangement";
+import { useAccountModalState } from "@/modules/Management/Account/Hooks";
+import { AccountDeleteScreen } from "@/modules/Management/Account/Screens/DeleteScreen";
+import { AccountEditScreen } from "@/modules/Management/Account/Screens/EditScreen";
+import { AccountListScreen } from "@/modules/Management/Account/Screens/ListScreen";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";

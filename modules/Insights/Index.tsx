@@ -1,25 +1,16 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { PageHeader } from "@/components/pageheader/PageHeader";
-import {
-  useSetTabBarEdgeButton,
-  useTabBarHeight,
-} from "@/components/tabbar/TabBarContext";
-import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
+import { useTabBarHeight } from "@/components/tabbar/TabBarContext";
+import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
-import GuidedChat from "@/modules/Addons/QueryEngine/GuidedChat";
-import { AccountManagementModal } from "@/modules/Common/Components/AccountManagement/Index";
-import { CategoryManagementModal } from "@/modules/Common/Components/CategoryManagement/Index";
-import {
-  HeaderMenuButton,
-  HeaderMenuSheet,
-} from "@/modules/Common/Components/HeaderMenuModal/Index";
-import { useAccountManagement } from "@/modules/Common/Hooks/UseAccountManagement";
-import { useCategoryManagement } from "@/modules/Common/Hooks/UseCategoryManagement";
+import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import GuidedChat from "@/modules/Labs/QueryEngine/GuidedChat";
+import { AccountManagementModal } from "@/modules/Management/Account/Index";
+import { CategoryManagementModal } from "@/modules/Management/Category/Index";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import React, {
   useCallback,
   useEffect,
@@ -36,11 +27,11 @@ import {
 } from "react-native";
 import { FAB, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { EmptyState } from "../../components/EmptyStates";
 import {
   IncomeVsExpensesCard,
   SpendingTrendCard,
-} from "../Addons/BetterAnalytics/Index";
-import { EmptyState } from "../Common/Components/EmptyStates";
+} from "../Labs/BetterAnalytics/Index";
 import { AccountTransactionsSheet } from "./Components/BottomSheets/AccountTransactionsSheet";
 import { BreakdownBottomSheet } from "./Components/BottomSheets/BreakdownListSheet";
 import { CategoryTransactionsSheet } from "./Components/BottomSheets/BreakdownTransactionSheet";
@@ -91,19 +82,14 @@ export default function InsightsPage() {
 
   const { height: windowHeight } = useWindowDimensions();
   const tabBarHeight = useTabBarHeight();
-  const setTabBarEdgeButton = useSetTabBarEdgeButton();
-  const { tabBarMode } = useTabBarModePreference();
   const usableSpace = tabBarHeight + 12;
-  const addButtonSpacing = tabBarMode === "floating" ? 0 : 50;
+  const addButtonSpacing = 50;
   const { guidedChatEnabled, betterAnalyticsEnabled } = useAddonPrefs();
-  const { isMobileLayout: isMobile } = useBreakpoint();
   const t = buildInsightsTokens(theme);
-  const [isHeaderSheetOpen, setIsHeaderSheetOpen] = useState(false);
   const [isGuidedChatOpen, setIsGuidedChatOpen] = useState(false);
   const [guidedChatSessionKey, setGuidedChatSessionKey] = useState(0);
   const categoryManagement = useCategoryManagement("expense");
   const accountManagement = useAccountManagement();
-  const emptyStateAnimatedRef = useRef(false);
   const paymentMethodVisuals = useMemo(
     () =>
       Object.fromEntries(
@@ -271,38 +257,6 @@ export default function InsightsPage() {
     }
   }, [guidedChatEnabled, isGuidedChatOpen]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!isMobile) return;
-      if (tabBarMode !== "floating") return;
-
-      setTabBarEdgeButton({
-        left: guidedChatEnabled
-          ? {
-              onPress: handleOpenGuidedChat,
-              icon: ({ color, size }) => (
-                <MaterialCommunityIcons
-                  name="message-text-outline"
-                  color={color}
-                  size={size}
-                />
-              ),
-              accessibilityLabel: "Ask Tally",
-            }
-          : null,
-        right: null,
-      });
-
-      return () => setTabBarEdgeButton(null);
-    }, [
-      guidedChatEnabled,
-      handleOpenGuidedChat,
-      isMobile,
-      setTabBarEdgeButton,
-      tabBarMode,
-    ]),
-  );
-
   return (
     <View style={{ flex: 1, marginBottom: usableSpace }}>
       <SafeAreaView
@@ -310,32 +264,12 @@ export default function InsightsPage() {
         style={{ flex: 1, backgroundColor: t.bg }}
       >
         <PageHeader
+          variant="date"
           title="Insights"
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
-          pickerMode="month-strip"
-          left={{
-            type: "custom",
-            render: () => (
-              <HeaderMenuButton
-                accessibilityLabel="Open insights menu"
-                onPress={() => setIsHeaderSheetOpen(true)}
-              />
-            ),
-          }}
-          right={{ type: "date" }}
+          initialPickerMode="month-strip"
           backgroundColor={t.bg}
-        />
-
-        <HeaderMenuSheet
-          visible={isHeaderSheetOpen}
-          onDismiss={() => setIsHeaderSheetOpen(false)}
-          onOpenCategories={() =>
-            categoryManagement.handleOpenManagement("expense")
-          }
-          onOpenAccounts={accountManagement.handleOpenManagement}
-          insightsSummary={summary}
-          insightsMonthLabel={categorySheetMonthLabel}
         />
 
         {isEmpty ? (
@@ -351,10 +285,6 @@ export default function InsightsPage() {
               icon="chart-bar-stacked"
               title="No transactions"
               subtitle={`Nothing recorded for this month \n Add a transaction to see your insights.`}
-              skipInitialAnim={emptyStateAnimatedRef.current}
-              onAnimated={() => {
-                emptyStateAnimatedRef.current = true;
-              }}
             />
           </View>
         ) : (
@@ -407,7 +337,7 @@ export default function InsightsPage() {
           onRowPress={openCategorySheetFromBreakdownSheet}
         />
 
-        {guidedChatEnabled && tabBarMode === "basic" ? (
+        {guidedChatEnabled ? (
           <Animated.View style={animStyle}>
             <View
               pointerEvents="box-none"

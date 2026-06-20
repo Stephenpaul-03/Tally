@@ -1,11 +1,11 @@
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
+import { withOpacity } from "@/utils/Helpers";
 import React, { useRef, useState } from "react";
 import {
-  Animated,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  View,
-  useWindowDimensions,
+    Animated,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    View,
+    useWindowDimensions,
 } from "react-native";
 
 type AdvancedInsightsCarouselProps = {

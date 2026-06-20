@@ -3,8 +3,8 @@ import {
   getAccountIconName,
   getCategoryColor,
   getCategoryIconName,
-} from "@/modules/Common/Utils/Helpers";
-import type { TransactionType } from "@/modules/Common/Utils/Types";
+} from "@/utils/Helpers";
+import type { TransactionType } from "@/utils/Types";
 import type { QuickStartSelection, StarterPill } from "./Types";
 
 export const MIN_STARTER_SELECTION_COUNT = 3;

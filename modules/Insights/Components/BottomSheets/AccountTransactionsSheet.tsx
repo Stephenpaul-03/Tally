@@ -1,8 +1,7 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { withOpacity } from "@/modules/Common/Utils/Helpers";
-import type { Transaction } from "@/modules/Common/Utils/Types";
 import { typography } from "@/theme/typography";
+import { withOpacity } from "@/utils/Helpers";
+import type { Transaction } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -41,11 +40,8 @@ export function AccountTransactionsSheet({
   muted,
 }: AccountTransactionsSheetProps) {
   const theme = useTheme();
-  const { minimalIconsEnabled } = useAddonPrefs();
   const accentColor = accountColor ?? "#A99BDE";
-  const iconAccentColor = minimalIconsEnabled
-    ? theme.colors.primary
-    : accentColor;
+  const iconAccentColor = accentColor;
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -92,9 +88,7 @@ export function AccountTransactionsSheet({
                 width: 44,
                 height: 44,
                 borderRadius: 14,
-                backgroundColor: minimalIconsEnabled
-                  ? theme.colors.surfaceVariant
-                  : withOpacity(iconAccentColor, "18"),
+                backgroundColor: withOpacity(iconAccentColor, "18"),
                 alignItems: "center",
                 justifyContent: "center",
               }}

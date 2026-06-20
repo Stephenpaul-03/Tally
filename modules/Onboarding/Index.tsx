@@ -1,44 +1,49 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
+    Animated,
+    Easing,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAppDispatch } from "@/hooks/Redux";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemeMode } from "@/hooks/use-theme-mode";
-import { useAppDispatch } from "@/modules/Common/Hooks/Redux";
-import {
-  getAccountIconOptions,
-  getCategoryColorOptions,
-} from "@/modules/Common/Utils/Helpers";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
+import {
+    getAccountIconOptions,
+    getCategoryColorOptions,
+} from "@/utils/Helpers";
 import { AnimatedPage } from "./Components/AnimatedPage";
 import { HintBox } from "./Components/HintBox";
 import { ONBOARDING_STEPS } from "./Constants";
 import {
-  DEFAULT_QUICK_START_SELECTION,
-  hasValidQuickStartSelection,
-  MIN_STARTER_SELECTION_COUNT,
+    DEFAULT_QUICK_START_SELECTION,
+    hasValidQuickStartSelection,
+    MIN_STARTER_SELECTION_COUNT,
 } from "./Defaults";
 import { AppearanceScreen } from "./Screens/AppearanceScreen";
 import { CompletionScreen } from "./Screens/CompletionScreen";
 import { QuickStartScreen } from "./Screens/QuickStartScreen";
-import { WelcomeScreen } from "./Screens/WelcomeScreen";
+import { WelcomeScreen, type SplashOrigin } from "./Screens/WelcomeScreen";
 import { WorkspaceScreen } from "./Screens/WorkspaceScreen";
 import { completeSimpleSetup } from "./Setup";
 import { createStyles } from "./Styles";
 import type {
-  OnboardingDraft,
-  OnboardingThemePreference,
-  QuickStartSelection,
-  StarterPill,
-  StarterSetupTab,
+    OnboardingDraft,
+    OnboardingThemePreference,
+    QuickStartSelection,
+    StarterPill,
+    StarterSetupTab,
 } from "./Types";
 
 type Props = {
@@ -64,6 +69,7 @@ export function OnboardingScreen({ onComplete }: Props) {
   const dispatch = useAppDispatch();
   const { setMode, resetToSystem } = useThemeMode();
   const { themeId: currentThemeId, setThemeId } = useAppTheme();
+  const { width, height } = useWindowDimensions();
 
   const workspaceIconOptions = React.useMemo(
     () =>
@@ -108,13 +114,61 @@ export function OnboardingScreen({ onComplete }: Props) {
   const [isCompleting, setIsCompleting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const rippleSize = Math.max(width, height) * 2.6;
+  const rippleScale = React.useRef(new Animated.Value(0)).current;
+  const rippleOpacity = React.useRef(new Animated.Value(0)).current;
+  const [rippleVisible, setRippleVisible] = React.useState(false);
+  const [revealOrigin, setRevealOrigin] = React.useState<SplashOrigin | null>(
+    null,
+  );
+
+  const expandRipple = React.useCallback(
+    (origin: SplashOrigin, onFullyCovered: () => void) => {
+      setRevealOrigin(origin);
+      rippleScale.setValue(0);
+      rippleOpacity.setValue(1);
+      setRippleVisible(true);
+
+      Animated.timing(rippleScale, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) onFullyCovered();
+      });
+    },
+    [rippleOpacity, rippleScale],
+  );
+
+  const contractRipple = React.useCallback(() => {
+    Animated.parallel([
+      Animated.timing(rippleScale, {
+        toValue: 0,
+        duration: 650,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.timing(rippleOpacity, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => setRippleVisible(false));
+  }, [rippleOpacity, rippleScale]);
+
   const completedRef = React.useRef(false);
 
   const step = ONBOARDING_STEPS[stepIndex];
+  const isWelcomeStep = step.id === "welcome";
   const isWorkspaceInvalid = workspaceTouched && !workspaceName.trim();
   const isFinalStep = step.id === "complete";
   const footerHint = getFooterHint(step.id);
-  const showFooter = step.id !== "welcome" && step.id !== "complete";
+  const showFooter = !isWelcomeStep && step.id !== "complete";
 
   const ctaLabel = React.useMemo(() => {
     if (step.id === "welcome") return "Let's Go";
@@ -161,11 +215,21 @@ export function OnboardingScreen({ onComplete }: Props) {
     setStepIndex((current) => Math.max(0, current - 1));
   }, [isCompleting, stepIndex]);
 
-  const handleWelcomeContinue = React.useCallback(() => {
-    setStepIndex((current) =>
-      Math.min(ONBOARDING_STEPS.length - 1, current + 1),
-    );
-  }, []);
+  const handleWelcomeContinue = React.useCallback(
+    (origin: SplashOrigin) => {
+      expandRipple(origin, () => {
+        // Switch the step while fully covered — WelcomeScreen stays mounted,
+        // just hidden via display:none, so there is no unmount/remount flash.
+        setStepIndex((current) =>
+          Math.min(ONBOARDING_STEPS.length - 1, current + 1),
+        );
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => contractRipple());
+        });
+      });
+    },
+    [contractRipple, expandRipple],
+  );
 
   const handleThemePreferenceSelect = React.useCallback(
     (preference: OnboardingThemePreference) => {
@@ -202,7 +266,6 @@ export function OnboardingScreen({ onComplete }: Props) {
       setThemeId(selectedThemeId);
       await completeSimpleSetup(dispatch, draft);
       completedRef.current = true;
-      await onComplete();
     } catch (nextError) {
       const message =
         nextError instanceof Error
@@ -215,7 +278,6 @@ export function OnboardingScreen({ onComplete }: Props) {
   }, [
     applyThemePreference,
     dispatch,
-    onComplete,
     quickStart,
     selectedThemeId,
     setThemeId,
@@ -251,134 +313,193 @@ export function OnboardingScreen({ onComplete }: Props) {
     );
   }, [completeOnboarding, isFinalStep, quickStart, step.id, workspaceName]);
 
-  return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+  const origin = revealOrigin ?? { x: width / 2, y: height * 0.85 };
+  const rippleLeft = origin.x - rippleSize / 2;
+  const rippleTop = origin.y - rippleSize / 2;
+
+  const rippleOverlay = rippleVisible ? (
+    <Modal
+      visible={rippleVisible}
+      transparent
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={() => {}}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          s.ripple,
+          {
+            width: rippleSize,
+            height: rippleSize,
+            borderRadius: rippleSize / 2,
+            backgroundColor: theme.colors.primary,
+            opacity: rippleOpacity,
+            transform: [{ scale: rippleScale }],
+            left: rippleLeft,
+            top: rippleTop,
+          },
+        ]}
+      />
+    </Modal>
+  ) : null;
+
+  return (
+    <>
+      {/*
+       * Both WelcomeScreen and the main flow live in the tree at all times.
+       * We toggle display:none instead of unmounting so there is zero
+       * layout/paint work happening during the ripple transition.
+       */}
+      <View
+        style={[StyleSheet.absoluteFill, isWelcomeStep ? s.visible : s.hidden]}
       >
-        <View style={styles.topBar}>
-          <Pressable
-            disabled={stepIndex === 0 || isCompleting}
-            onPress={goBack}
-            style={[
-              styles.backButton,
-              (stepIndex === 0 || isCompleting) && styles.hiddenBackButton,
-            ]}
-          >
-            <MaterialCommunityIcons
-              color={theme.colors.onSurface}
-              name="chevron-left"
-              size={26}
-            />
-          </Pressable>
+        <WelcomeScreen
+          onContinue={handleWelcomeContinue}
+          styles={styles}
+          theme={theme}
+        />
+      </View>
 
-          <View style={styles.progressRow}>
-            {ONBOARDING_STEPS.map((item, index) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.progressDot,
-                  {
-                    backgroundColor:
-                      index <= stepIndex
-                        ? theme.colors.primary
-                        : theme.colors.outlineVariant,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-
-          <View style={styles.backButton} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <View
+        style={[StyleSheet.absoluteFill, isWelcomeStep ? s.hidden : s.visible]}
+      >
+        <SafeAreaView
+          style={[
+            styles.safeArea,
+            { backgroundColor: theme.colors.background },
+          ]}
         >
-          <AnimatedPage key={step.id}>
-            {step.id === "welcome" ? (
-              <WelcomeScreen
-                onContinue={handleWelcomeContinue}
-                styles={styles}
-                theme={theme}
-              />
-            ) : null}
-            {step.id === "appearance" ? (
-              <AppearanceScreen
-                accentOptions={accentOptions}
-                onAccentSelect={handleAccentSelect}
-                onThemePreferenceSelect={handleThemePreferenceSelect}
-                selectedThemeId={selectedThemeId}
-                styles={styles}
-                theme={theme}
-                themePreference={themePreference}
-              />
-            ) : null}
-            {step.id === "workspace" ? (
-              <WorkspaceScreen
-                colorOptions={colorOptions}
-                isWorkspaceInvalid={isWorkspaceInvalid}
-                setWorkspaceColor={setWorkspaceColor}
-                setWorkspaceIcon={setWorkspaceIcon}
-                setWorkspaceName={setWorkspaceName}
-                setWorkspaceTouched={setWorkspaceTouched}
-                styles={styles}
-                theme={theme}
-                workspaceColor={workspaceColor}
-                workspaceIcon={workspaceIcon}
-                workspaceIconOptions={workspaceIconOptions}
-                workspaceName={workspaceName}
-              />
-            ) : null}
-            {step.id === "quick-start" ? (
-              <QuickStartScreen
-                quickStart={quickStart}
-                setStarterTab={setStarterTab}
-                starterTab={starterTab}
-                styles={styles}
-                theme={theme}
-                toggleStarterPill={toggleStarterPill}
-              />
-            ) : null}
-            {step.id === "complete" ? (
-              <CompletionScreen
-                isCompleting={isCompleting}
-                onStartTracking={completeOnboarding}
-                styles={styles}
-                theme={theme}
-              />
-            ) : null}
-          </AnimatedPage>
-        </ScrollView>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.keyboardView}
+          >
+            <View style={styles.topBar}>
+              <Pressable
+                disabled={stepIndex === 0 || isCompleting}
+                onPress={goBack}
+                style={[
+                  styles.backButton,
+                  (stepIndex === 0 || isCompleting) && styles.hiddenBackButton,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  color={theme.colors.onSurface}
+                  name="chevron-left"
+                  size={26}
+                />
+              </Pressable>
 
-        {showFooter ? (
-          <View style={styles.footer}>
-            {footerHint ? (
-              <HintBox
-                color={theme.colors.primary}
-                label={footerHint}
-                styles={styles}
-              />
-            ) : null}
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <Button
-              contentStyle={styles.ctaContent}
-              disabled={ctaDisabled}
-              loading={isCompleting}
-              mode="contained"
-              onPress={goNext}
-              style={styles.ctaButton}
+              <View style={styles.progressRow}>
+                {ONBOARDING_STEPS.map((item, index) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.progressDot,
+                      {
+                        backgroundColor:
+                          index <= stepIndex
+                            ? theme.colors.primary
+                            : theme.colors.outlineVariant,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.backButton} />
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              {ctaLabel}
-            </Button>
-          </View>
-        ) : null}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <AnimatedPage key={step.id}>
+                {step.id === "appearance" ? (
+                  <AppearanceScreen
+                    accentOptions={accentOptions}
+                    onAccentSelect={handleAccentSelect}
+                    onThemePreferenceSelect={handleThemePreferenceSelect}
+                    selectedThemeId={selectedThemeId}
+                    styles={styles}
+                    theme={theme}
+                    themePreference={themePreference}
+                  />
+                ) : null}
+                {step.id === "workspace" ? (
+                  <WorkspaceScreen
+                    colorOptions={colorOptions}
+                    isWorkspaceInvalid={isWorkspaceInvalid}
+                    setWorkspaceColor={setWorkspaceColor}
+                    setWorkspaceIcon={setWorkspaceIcon}
+                    setWorkspaceName={setWorkspaceName}
+                    setWorkspaceTouched={setWorkspaceTouched}
+                    styles={styles}
+                    theme={theme}
+                    workspaceColor={workspaceColor}
+                    workspaceIcon={workspaceIcon}
+                    workspaceIconOptions={workspaceIconOptions}
+                    workspaceName={workspaceName}
+                  />
+                ) : null}
+                {step.id === "quick-start" ? (
+                  <QuickStartScreen
+                    quickStart={quickStart}
+                    setStarterTab={setStarterTab}
+                    starterTab={starterTab}
+                    styles={styles}
+                    theme={theme}
+                    toggleStarterPill={toggleStarterPill}
+                  />
+                ) : null}
+                {step.id === "complete" ? (
+                  <CompletionScreen
+                    isCompleting={isCompleting}
+                    onBegin={() => {
+                      void completeOnboarding();
+                    }}
+                    onSplashDone={onComplete} // ← pass onComplete directly
+                    styles={styles}
+                    theme={theme}
+                  />
+                ) : null}
+              </AnimatedPage>
+            </ScrollView>
+
+            {showFooter ? (
+              <View style={styles.footer}>
+                {footerHint ? (
+                  <HintBox
+                    color={theme.colors.primary}
+                    label={footerHint}
+                    styles={styles}
+                  />
+                ) : null}
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <Button
+                  contentStyle={styles.ctaContent}
+                  disabled={ctaDisabled}
+                  loading={isCompleting}
+                  mode="contained"
+                  onPress={goNext}
+                  style={styles.ctaButton}
+                >
+                  {ctaLabel}
+                </Button>
+              </View>
+            ) : null}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+
+      {rippleOverlay}
+    </>
   );
 }
+
+const s = StyleSheet.create({
+  ripple: { position: "absolute" },
+  visible: { display: "flex" },
+  hidden: { display: "none" },
+});

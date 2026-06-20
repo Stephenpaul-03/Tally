@@ -45,7 +45,7 @@ export const toast = {
   hide: () => {},
 };
 
-const BANNER_HEIGHT = 30;
+const BANNER_HEIGHT = 52;
 const HIDE_DURATION = 300;
 const VISIBLE_MS = 2800;
 const SPRING_CONFIG = { tension: 65, friction: 11, useNativeDriver: true };

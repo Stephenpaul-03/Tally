@@ -1,4 +1,4 @@
-import type { Workspace } from "@/modules/Common/Repository/SQLiteRepo";
+import type { Workspace } from "@/modules/Data/Repository/SQLiteRepo";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import { AboutScreen } from "./Screens/AboutScreen";

@@ -1,20 +1,19 @@
-import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
-import { toast } from "@/components/toast/toast";
+import { toast } from "@/components/toast/ToastProvider";
+import { useAppDispatch } from "@/hooks/Redux";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemeMode } from "@/hooks/use-theme-mode";
-import { useAppDispatch } from "@/modules/Common/Hooks/Redux";
 import {
-  clearAllTransactionsAsync,
-  fetchTransactions,
-} from "@/modules/Common/Slices/TransactionSlice";
-import { seedTestData } from "@/modules/Common/Utils/SeedData";
+    clearAllTransactionsAsync,
+    fetchTransactions,
+} from "@/modules/Data/Slices/TransactionSlice";
 import type { RootParamList } from "@/navigation/types";
 import {
-  NotificationPermissionStatus,
-  useNotifications,
+    NotificationPermissionStatus,
+    useNotifications,
 } from "@/src/services/notifications";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
+import { seedTestData } from "@/utils/SeedData";
 import type { NavigationProp } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
@@ -119,16 +118,13 @@ export function useSettings() {
     guidedChatEnabled,
     betterAnalyticsEnabled,
     minimalIconsEnabled,
-    animationsEnabled,
     insightsCardOrder,
     setGuidedChatEnabled,
     setBetterAnalyticsEnabled,
     setMinimalIconsEnabled,
-    setAnimationsEnabled,
     setInsightsCardOrder,
   } = useAddonPrefs();
   const { mode, isFollowingSystem, setMode, resetToSystem } = useThemeMode();
-  const { tabBarMode, setTabBarMode } = useTabBarModePreference();
   const [notificationAccessPromptOpen, setNotificationAccessPromptOpen] =
     useState(false);
 
@@ -281,11 +277,6 @@ export function useSettings() {
     );
   };
 
-  const handleAnimationsToggle = (enabled: boolean) => {
-    setAnimationsEnabled(enabled);
-    toast.success(enabled ? "Animations turned on" : "Animations turned off");
-  };
-
   return {
     themeId,
     setThemeId,
@@ -295,8 +286,6 @@ export function useSettings() {
     handleBack,
     handleClearAllTransactions,
     handleSeedData,
-    tabBarMode,
-    setTabBarMode,
     dailyReminderEnabled: dailyReminderConfig.enabled,
     dailyReminderFormattedTime: formattedDailyReminderTime,
     dailyReminderSelectedTime: dailyReminderTime,
@@ -311,8 +300,6 @@ export function useSettings() {
     handleBetterAnalyticsToggle,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
-    animationsEnabled,
-    handleAnimationsToggle,
     insightsCardOrder,
     setInsightsCardOrder,
   };

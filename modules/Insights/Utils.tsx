@@ -1,11 +1,11 @@
 import {
-    selectExpenseTransactions,
-    selectIncomeTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
+  selectExpenseTransactions,
+  selectIncomeTransactions,
+} from "@/modules/Core/Slices/TransactionSlice";
 import {
-    formatAccountLabel,
-    getCategoryColor,
-    getCategoryIconName,
+  formatAccountLabel,
+  getCategoryColor,
+  getCategoryIconName,
 } from "@/utils/Helpers";
 import type { BreakdownItem, HeatmapCell, MonthSummary } from "./Types";
 
@@ -79,12 +79,30 @@ export function softenInsightColor(
   return mixHexColors(color, neutral, weight);
 }
 
-export function formatInr(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+const INDIAN_DIGIT_GROUPING_CURRENCIES = new Set([
+  "INR",
+  "BDT",
+  "NPR",
+  "PKR",
+  "LKR",
+]);
+
+export function getCurrencyLocale(currencyCode = "INR") {
+  return INDIAN_DIGIT_GROUPING_CURRENCIES.has(currencyCode.toUpperCase())
+    ? "en-IN"
+    : "en-US";
+}
+
+export function formatAmount(
+  value: number,
+  currencyCode: string,
+  currencySymbol: string,
+) {
+  const formatted = new Intl.NumberFormat(getCurrencyLocale(currencyCode), {
     maximumFractionDigits: 0,
   }).format(Math.round(value));
+
+  return `${currencySymbol}${formatted}`;
 }
 
 export function formatMonthKey(date: Date) {
@@ -130,6 +148,37 @@ export function formatShortDay(dateString: string) {
   }).format(date);
 }
 
+export function formatOrdinalDay(day: number) {
+  const remainderTen = day % 10;
+  const remainderHundred = day % 100;
+
+  if (remainderTen === 1 && remainderHundred !== 11) return `${day}st`;
+  if (remainderTen === 2 && remainderHundred !== 12) return `${day}nd`;
+  if (remainderTen === 3 && remainderHundred !== 13) return `${day}rd`;
+  return `${day}th`;
+}
+
+export function formatWeekTitle(
+  weekNumber: number,
+  visibleStart: number,
+  visibleEnd: number,
+  monthKey: string,
+) {
+  return `Week ${weekNumber} [${formatWeekRangeLabel(visibleStart, visibleEnd, monthKey)}]`;
+}
+
+export function formatWeekRangeLabel(
+  visibleStart: number,
+  visibleEnd: number,
+  monthKey: string,
+) {
+  const monthLabel = new Intl.DateTimeFormat("en-IN", {
+    month: "long",
+  }).format(monthStart(monthKey));
+
+  return `${formatOrdinalDay(visibleStart)} of ${monthLabel} -> ${formatOrdinalDay(visibleEnd)} of ${monthLabel}`;
+}
+
 export function formatPercentChange(
   current: number,
   previous: number,
@@ -165,6 +214,8 @@ export function formatChange(
   current: number,
   previous: number,
   monthKey: string,
+  currencySymbol: string,
+  currencyCode: string,
 ) {
   if (previous <= 0 && current <= 0)
     return { direction: "flat" as const, text: "No expense in either month" };
@@ -184,7 +235,7 @@ export function formatChange(
   return {
     direction: delta > 0 ? ("up" as const) : ("down" as const),
     text: `${rounded}% ${delta > 0 ? "more" : "less"} than ${formatMonthLabel(shiftMonth(monthKey, -1))}`,
-    previousLabel: formatInr(previous),
+    previousLabel: formatAmount(previous, currencyCode, currencySymbol),
   };
 }
 

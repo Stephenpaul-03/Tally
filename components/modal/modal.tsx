@@ -1,7 +1,8 @@
-import React, { ReactNode, useEffect, useMemo, useRef } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -46,6 +47,7 @@ export function AnimatedPaperModal({
   const hiddenTranslateY = Math.max(0, Math.floor(height));
   const sheetTranslateY = useRef(new Animated.Value(hiddenTranslateY)).current;
   const gestureStartTranslateY = useRef(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEscapeToClose(visible && escapeEnabled, onDismiss);
 
@@ -75,12 +77,30 @@ export function AnimatedPaperModal({
       easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [
-    hiddenTranslateY,
-    presentation,
-    sheetTranslateY,
-    visible,
-  ]);
+  }, [hiddenTranslateY, presentation, sheetTranslateY, visible]);
+
+  useEffect(() => {
+    if (!keyboardAware || presentation !== "sheet" || !visible) {
+      setKeyboardHeight(0);
+      return;
+    }
+
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [keyboardAware, presentation, visible]);
 
   const sheetPanResponder = useMemo(() => {
     if (presentation !== "sheet" || !dismissable) return null;
@@ -146,31 +166,39 @@ export function AnimatedPaperModal({
   const combinedContentContainerStyle = useMemo(() => {
     if (presentation !== "sheet") return contentContainerStyle;
     return [
-      { alignSelf: "stretch", width: "100%", paddingBottom: bottom },
+      {
+        alignSelf: "stretch",
+        width: "100%",
+        paddingBottom:
+          keyboardAware && keyboardHeight > 0
+            ? Math.max(bottom, keyboardHeight + 20)
+            : bottom,
+      },
       contentContainerStyle,
       { transform: [{ translateY: sheetTranslateY }] },
     ] as any;
-  }, [bottom, contentContainerStyle, presentation, sheetTranslateY]);
+  }, [
+    bottom,
+    contentContainerStyle,
+    keyboardAware,
+    keyboardHeight,
+    presentation,
+    sheetTranslateY,
+  ]);
 
-  // Wrap children in KeyboardAvoidingView for both sheet and modal when
-  // keyboardAware is true. For sheets, offset is 0 since the sheet is
-  // bottom-anchored. For modals, a small offset accounts for the header.
-  const wrappedChildren = keyboardAware ? (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={
-        Platform.OS === "ios"
-          ? presentation === "sheet"
-            ? 0
-            : 16
-          : 24
-      }
-    >
-      {children}
-    </KeyboardAvoidingView>
-  ) : (
-    children
-  );
+  // Sheet modals avoid the keyboard by lifting the bottom-anchored container.
+  // Center modals still use KeyboardAvoidingView around their content.
+  const wrappedChildren =
+    keyboardAware && presentation !== "sheet" ? (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 24}
+      >
+        {children}
+      </KeyboardAvoidingView>
+    ) : (
+      children
+    );
 
   return (
     <Portal>

@@ -24,10 +24,32 @@ export type CategoryComparisonRow = {
   currentAmount: number;
   previousAmount: number;
   percentChange: number | null;
+  deltaAmount: number;
+  lastMonthAmount: number;
+  changePercent: number | null;
+  differenceAmount: number;
   currentShare: number;
   previousShare: number;
   color: string;
   icon: string;
+};
+
+export type CategoryTrendPoint = {
+  monthKey: string;
+  label: string;
+  amount: number;
+};
+
+export type CategoryTrendRow = {
+  category: string;
+  currentAmount: number;
+  averageAmount: number;
+  differenceAmount: number;
+  changePercent: number | null;
+  budgetAmount?: number;
+  color: string;
+  icon: string;
+  points: CategoryTrendPoint[];
 };
 
 export type AnalyticsData = {
@@ -48,6 +70,47 @@ export type AnalyticsData = {
     hasPreviousMonthData: boolean;
     currentMonthTotal: number;
     previousMonthTotal: number;
+    currentMonthLabel: string;
+    lastMonthLabel: string;
+  };
+  categoryTrends: {
+    rows: CategoryTrendRow[];
+    hasEnoughHistory: boolean;
+    monthKeys: string[];
+    comparisonStartLabel: string;
+    comparisonEndLabel: string;
+  };
+  weeklySpending: {
+    weeks: {
+      key: string;
+      label: string;
+      title: string;
+      rangeLabel: string;
+      amount: number;
+      isCurrentWeek: boolean;
+    }[];
+    currentWeekAmount: number;
+    averageWeekAmount: number;
+    hasData: boolean;
+  };
+  spendingPace: {
+    projectedAmount: number;
+    lastMonthAmount: number;
+    deltaAmount: number;
+    direction: "over" | "under" | "flat";
+    progressPercent: number;
+    totalSpentSoFar: number;
+    hasProjection: boolean;
+  };
+  unusualSpending: {
+    rows: {
+      category: string;
+      currentAmount: number;
+      usualAmount: number;
+      direction: "up" | "down";
+      color: string;
+    }[];
+    hasHistory: boolean;
   };
 };
 

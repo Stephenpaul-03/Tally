@@ -30,8 +30,10 @@ export function DateChip({
       style={({ pressed }) => [
         styles.dateChip,
         {
-          backgroundColor: expanded ? theme.colors.primary : backgroundColor,
-          borderColor: theme.colors.outlineVariant,
+          backgroundColor: expanded
+            ? theme.colors.primary
+            : theme.colors.surface,
+          borderColor: expanded ? theme.colors.primary : theme.colors.surface,
         },
         pressed && { opacity: 0.75 },
       ]}
@@ -43,7 +45,7 @@ export function DateChip({
           {
             ...typography.editorial.sectionLabel,
             fontSize: 12,
-            color: expanded ? palette.black : theme.colors.onSurface,
+            color: expanded ? palette.white : theme.colors.onSurface,
           },
         ]}
       >
@@ -51,7 +53,7 @@ export function DateChip({
       </Text>
       <AnimatedChevron
         expanded={expanded}
-        color={expanded ? palette.black : theme.colors.onSurface}
+        color={expanded ? palette.white : theme.colors.onSurface}
       />
     </Pressable>
   );
@@ -62,13 +64,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    maxWidth: 176,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   dateChipText: {
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
 });

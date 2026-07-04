@@ -1,13 +1,13 @@
-import { useThemedAsset } from "@/hooks/use-themed-insights";
+import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
-    Animated,
-    Easing,
-    Image,
-    Pressable,
-    StyleSheet,
-    View,
+  Animated,
+  Easing,
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 import { Text, type MD3Theme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,7 +32,7 @@ type Props = {
 export function WelcomeScreen({ styles, theme, onContinue }: Props) {
   const buttonRef = React.useRef<View>(null);
   const blobOpacity = React.useRef(new Animated.Value(0.13)).current;
-  const LOGO_SOURCE = useThemedAsset("logo");
+  const LOGO_SOURCE = require("@/assets/images/icon.png");
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -130,7 +130,7 @@ export function WelcomeScreen({ styles, theme, onContinue }: Props) {
               style={[s.eyebrow, { color: primary }]}
               accessibilityRole="text"
             >
-              Simple money tracking
+              TALLY
             </Text>
             <Text
               style={[s.headline, { color: theme.colors.onSurface }]}
@@ -185,8 +185,14 @@ export function WelcomeScreen({ styles, theme, onContinue }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Get started"
           >
-            <Text style={s.ctaText}>{"Let's go"}</Text>
-            <MaterialCommunityIcons color="#fff" name="arrow-right" size={18} />
+            <Text style={[s.ctaText, { color: theme.colors.onPrimary }]}>
+              {"Let's go"}
+            </Text>
+            <MaterialCommunityIcons
+              color={theme.colors.onPrimary}
+              name="arrow-right"
+              size={18}
+            />
           </Pressable>
 
           <Text style={[s.subtext, { color: theme.colors.onSurfaceVariant }]}>
@@ -215,12 +221,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 32,
   },
-  logoImage: { width: 52, height: 52 },
+  logoImage: { width: 64, height: 64 },
   copyBlock: { marginBottom: 28, gap: 8 },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: "500",
-    letterSpacing: 1,
+    ...typography.editorial.sectionLabel,
+    fontSize: 48,
+    letterSpacing: 0.6,
+    lineHeight: 52,
     textTransform: "uppercase",
     opacity: 0.85,
     marginBottom: 4,
@@ -252,6 +259,6 @@ const s = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 100,
   },
-  ctaText: { fontSize: 16, fontWeight: "500", color: "#fff" },
+  ctaText: { ...typography.editorial.sectionLabel, fontSize: 16 },
   subtext: { fontSize: 12, textAlign: "center", opacity: 0.6 },
 });

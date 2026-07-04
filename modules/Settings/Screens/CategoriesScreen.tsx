@@ -349,7 +349,7 @@ export function CategoriesScreen() {
           bg={theme.colors.background}
           theme={theme}
           onSubmit={handleSubmit}
-          renderHeader={renderHeader}
+          onBack={handleBack}
         />
       ) : management.isDeleteOpen ? (
         <DeleteScreen

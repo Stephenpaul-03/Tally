@@ -33,12 +33,12 @@ export const APP_ROUTES: AppRoute[] = [
   },
   {
     name: "Transactions",
-    title: "Transactions",
-    focusedIcon: "cash-multiple",
-    unfocusedIcon: "cash-multiple",
+    title: "Tally",
+    focusedIcon: "home",
+    unfocusedIcon: "home-outline",
     icon: ({ color, size }) =>
       React.createElement(MaterialCommunityIcons, {
-        name: "cash-multiple",
+        name: "home",
         color,
         size,
       }),

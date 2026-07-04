@@ -29,6 +29,12 @@ const STARTER_OPTIONS: Record<StarterSetupTab, StarterPill[]> = {
   accounts: STARTER_ACCOUNTS,
 };
 
+const OTHER_PILL_NAME: Record<StarterSetupTab, string> = {
+  income: "Other Income",
+  expense: "Other Expense",
+  accounts: "Other Account",
+};
+
 const COLS = 2; // ← changed from 3 to 2
 const GRID_GAP = 8;
 const BOX_PADDING = 10;
@@ -42,8 +48,7 @@ const AVAILABLE_ROW_H = 58;
 const AVAILABLE_VISIBLE_ROWS = 4;
 const AVAILABLE_BOX_H =
   AVAILABLE_ROW_H * AVAILABLE_VISIBLE_ROWS +
-  GRID_GAP * (AVAILABLE_VISIBLE_ROWS - 1) +
-  BOX_PADDING * 2;
+  GRID_GAP * (AVAILABLE_VISIBLE_ROWS - 5);
 
 type Props = {
   quickStart: QuickStartSelection;
@@ -54,6 +59,16 @@ type Props = {
   theme: MD3Theme;
 };
 
+function sortStarterPills(
+  pills: StarterPill[],
+  tab: StarterSetupTab,
+): StarterPill[] {
+  const otherName = OTHER_PILL_NAME[tab];
+  const otherPills = pills.filter((pill) => pill.name === otherName);
+  const regularPills = pills.filter((pill) => pill.name !== otherName);
+  return [...regularPills, ...otherPills];
+}
+
 export function QuickStartScreen({
   quickStart,
   starterTab,
@@ -62,9 +77,20 @@ export function QuickStartScreen({
   styles,
   theme,
 }: Props) {
-  const selected = quickStart[starterTab];
-  const available = STARTER_OPTIONS[starterTab].filter(
-    (pill) => !selected.some((item) => item.name === pill.name),
+  const selected = React.useMemo(
+    () => sortStarterPills(quickStart[starterTab], starterTab),
+    [quickStart, starterTab],
+  );
+  const available = React.useMemo(
+    () =>
+      sortStarterPills(
+        STARTER_OPTIONS[starterTab].filter(
+          (pill) =>
+            !quickStart[starterTab].some((item) => item.name === pill.name),
+        ),
+        starterTab,
+      ),
+    [quickStart, starterTab],
   );
   const needsMore = selected.length < MIN_STARTER_SELECTION_COUNT;
 
@@ -241,6 +267,7 @@ export function QuickStartScreen({
 const s = StyleSheet.create({
   root: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   description: {
     marginTop: 6,
@@ -268,6 +295,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   sectionLabel: {
+    paddingHorizontal: 20,
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 0.9,

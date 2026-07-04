@@ -1,16 +1,16 @@
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
 import { withOpacity } from "@/utils/ColorHelpers";
+import { TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import {
-    Gesture,
-    GestureDetector,
-    GestureHandlerRootView,
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import { Text, useTheme, type MD3Theme } from "react-native-paper";
-import { TransactionType } from "../Utils/Types";
 
 export function TypeToggle({
   value,
@@ -78,8 +78,7 @@ export function TypeToggle({
     })
     .onEnd((e) => {
       const currentX = dragX.current + e.translationX;
-      const midpoint = tabWidth / 2;
-      const shouldBeIncome = currentX > midpoint;
+      const shouldBeIncome = currentX > tabWidth / 2;
       const newType: TransactionType = shouldBeIncome ? "income" : "expense";
       slideTo(newType);
       if (newType !== value) onChange(newType);
@@ -89,8 +88,8 @@ export function TypeToggle({
     .runOnJS(true)
     .onEnd((e) => {
       if (trackWidth === 0) return;
-      const tappedIncome = e.x > trackWidth / 2;
-      const newType: TransactionType = tappedIncome ? "income" : "expense";
+      const newType: TransactionType =
+        e.x > trackWidth / 2 ? "income" : "expense";
       slideTo(newType);
       if (newType !== value) onChange(newType);
     });
@@ -113,8 +112,7 @@ export function TypeToggle({
             styles.track,
             mini && styles.trackMini,
             {
-              backgroundColor: c.elevation.level1,
-              borderColor: c.outlineVariant,
+              backgroundColor: c.surface,
               padding: trackPadding,
             },
           ]}
@@ -176,6 +174,8 @@ const styles = StyleSheet.create({
   },
   track: {
     flexDirection: "row",
+    alignSelf: "stretch",
+    width: "100%",
     borderRadius: 14,
     borderWidth: 0.5,
     padding: 4,
@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

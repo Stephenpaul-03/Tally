@@ -1,25 +1,11 @@
 export enum NotificationType {
   DailyFinanceReminder = "daily_reminder",
   MonthlyInsightPrompt = "monthly-insight-prompt",
-  PendingUpiTransactionRecovery = "pending-upi-transaction-recovery",
-  FailedTransactionFollowUp = "failed-transaction-follow-up",
 }
 
 export enum NotificationChannelId {
   Reminders = "tally-reminders",
-  Transactions = "tally-transactions",
   Insights = "tally-insights",
-}
-
-export enum NotificationCategoryId {
-  PendingUpiRecovery = "pending-upi-recovery",
-}
-
-export enum NotificationActionId {
-  Default = "default",
-  ConfirmSuccess = "confirm-success",
-  MarkFailed = "mark-failed",
-  RemindLater = "remind-later",
 }
 
 export enum DailyFinanceReminderFrequency {
@@ -74,29 +60,20 @@ export interface MonthlyInsightPromptPayload extends BaseNotificationPayload {
   year: number;
 }
 
-export interface PendingUpiTransactionRecoveryPayload
-  extends BaseNotificationPayload {
-  type: NotificationType.PendingUpiTransactionRecovery;
-  transactionId: string;
-}
-
-export interface FailedTransactionFollowUpPayload extends BaseNotificationPayload {
-  type: NotificationType.FailedTransactionFollowUp;
-  transactionId: string;
-}
-
 export type AppNotificationPayload =
   | DailyFinanceReminderPayload
-  | MonthlyInsightPromptPayload
-  | PendingUpiTransactionRecoveryPayload
-  | FailedTransactionFollowUpPayload;
+  | MonthlyInsightPromptPayload;
 
 export interface DailyFinanceReminderConfig {
   enabled: boolean;
-  hour: number;
-  minute: number;
+  reminders: ReminderTime[];
   frequency: DailyFinanceReminderFrequency;
 }
+
+export type ReminderTime = {
+  hour: number;
+  minute: number;
+};
 
 export interface MonthlyInsightPromptConfig {
   enabled: boolean;
@@ -143,7 +120,6 @@ export interface SchedulerNotificationContent {
   body: string;
   data: AppNotificationPayload;
   channelId: NotificationChannelId;
-  categoryId?: NotificationCategoryId;
 }
 
 export type SchedulerTriggerSpec =
@@ -182,27 +158,9 @@ export interface NativePermissionSnapshot {
   granted: boolean;
 }
 
-export interface PendingUpiRecoveryActionContext {
-  payload: PendingUpiTransactionRecoveryPayload;
-  actionIdentifier: NotificationActionId;
-}
-
-export interface PhaseTwoNotificationActionHandlers {
-  onPendingUpiConfirmSuccess?: (
-    context: PendingUpiRecoveryActionContext,
-  ) => Promise<void> | void;
-  onPendingUpiMarkFailed?: (
-    context: PendingUpiRecoveryActionContext,
-  ) => Promise<void> | void;
-  onPendingUpiRemindLater?: (
-    context: PendingUpiRecoveryActionContext,
-  ) => Promise<void> | void;
-}
-
 export const DEFAULT_DAILY_FINANCE_REMINDER: DailyFinanceReminderConfig = {
   enabled: false,
-  hour: 21,
-  minute: 0,
+  reminders: [{ hour: 21, minute: 0 }],
   frequency: DailyFinanceReminderFrequency.Daily,
 };
 

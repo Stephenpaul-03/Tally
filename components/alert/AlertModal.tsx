@@ -259,7 +259,7 @@ export function AlertModal({
   title,
   message,
   confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  cancelLabel,
   tertiaryLabel,
   onConfirm,
   onCancel,
@@ -297,6 +297,7 @@ export function AlertModal({
       };
 
   const showTertiaryRow = Boolean(tertiaryLabel && onTertiary);
+  const showTopActionRow = Boolean(cancelLabel || showTertiaryRow);
 
   return (
     <AnimatedPaperModal
@@ -384,30 +385,34 @@ export function AlertModal({
         {children}
 
         <View style={styles.actions}>
-          <View style={styles.actionsTopRow}>
-            <Button
-              mode="outlined"
-              onPress={onCancel}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-              textColor={getContrastColor(theme.colors.elevation.level1)}
-            >
-              {cancelLabel}
-            </Button>
+          {showTopActionRow ? (
+            <View style={styles.actionsTopRow}>
+              {cancelLabel ? (
+                <Button
+                  mode="outlined"
+                  onPress={onCancel}
+                  style={styles.actionButton}
+                  contentStyle={styles.actionButtonContent}
+                  textColor={getContrastColor(theme.colors.elevation.level1)}
+                >
+                  {cancelLabel}
+                </Button>
+              ) : null}
 
-            {showTertiaryRow && (
-              <Button
-                mode="outlined"
-                onPress={onTertiary}
-                disabled={tertiaryDisabled}
-                style={[styles.actionButton, styles.tertiaryButton]}
-                contentStyle={styles.actionButtonContent}
-                textColor={getContrastColor(theme.colors.elevation.level1)}
-              >
-                {tertiaryLabel}
-              </Button>
-            )}
-          </View>
+              {showTertiaryRow && (
+                <Button
+                  mode="outlined"
+                  onPress={onTertiary}
+                  disabled={tertiaryDisabled}
+                  style={[styles.actionButton, styles.tertiaryButton]}
+                  contentStyle={styles.actionButtonContent}
+                  textColor={getContrastColor(theme.colors.elevation.level1)}
+                >
+                  {tertiaryLabel}
+                </Button>
+              )}
+            </View>
+          ) : null}
 
           {confirmMode === "slide" ? (
             <SlideConfirmControl

@@ -5,15 +5,13 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import {
     clearAllTransactionsAsync,
-    fetchTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
+} from "@/modules/Core/Slices/TransactionSlice";
 import type { RootParamList } from "@/navigation/types";
 import {
     NotificationPermissionStatus,
     useNotifications,
 } from "@/src/services/notifications";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
-import { seedTestData } from "@/utils/SeedData";
 import type { NavigationProp } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
@@ -84,26 +82,12 @@ export function useDevTools() {
     );
   };
 
-  const handleTestPendingUpiRecovery = async () => {
-    await triggerTestNotification("Testing pending UPI recovery", () =>
-      notifications.sendTestPendingUpiRecovery(),
-    );
-  };
-
-  const handleTestFailedTransactionFollowUp = async () => {
-    await triggerTestNotification("Testing failed transaction follow-up", () =>
-      notifications.sendTestFailedTransactionFollowUp(),
-    );
-  };
-
   return {
     notificationPermissionLabel,
     handleRefreshNotificationPermission,
     handleOpenNotificationSettings,
     handleTestDailyReminder,
     handleTestMonthlyInsight,
-    handleTestPendingUpiRecovery,
-    handleTestFailedTransactionFollowUp,
   };
 }
 
@@ -118,10 +102,12 @@ export function useSettings() {
     guidedChatEnabled,
     betterAnalyticsEnabled,
     minimalIconsEnabled,
+    labsNoticeDismissed,
     insightsCardOrder,
     setGuidedChatEnabled,
     setBetterAnalyticsEnabled,
     setMinimalIconsEnabled,
+    setLabsNoticeDismissed,
     setInsightsCardOrder,
   } = useAddonPrefs();
   const { mode, isFollowingSystem, setMode, resetToSystem } = useThemeMode();
@@ -130,17 +116,17 @@ export function useSettings() {
 
   const activeModeId: ModeOption = isFollowingSystem ? "system" : mode;
   const dailyReminderConfig = notifications.dailyFinanceReminder.config;
-  const dailyReminderTime = new Date();
-  dailyReminderTime.setHours(
-    dailyReminderConfig.hour,
-    dailyReminderConfig.minute,
-    0,
-    0,
-  );
+  const dailyReminderTimes = dailyReminderConfig.reminders.map((reminder) => {
+    const date = new Date();
+    date.setHours(reminder.hour, reminder.minute, 0, 0);
 
-  const formattedDailyReminderTime = dailyReminderTime.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
+    return {
+      formattedTime: date.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      selectedTime: date,
+    };
   });
 
   useEffect(() => {
@@ -178,29 +164,6 @@ export function useSettings() {
     );
   };
 
-  const handleSeedData = () => {
-    Alert.alert(
-      "Seed Test Data",
-      "Generate 60+ realistic INR transactions for March & April 2024? This will add to existing data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Seed",
-          style: "default",
-          onPress: async () => {
-            try {
-              await seedTestData(dispatch);
-              toast.success("Test data seeded successfully");
-              dispatch(fetchTransactions() as any);
-            } catch {
-              toast.error("Failed to seed data");
-            }
-          },
-        },
-      ],
-    );
-  };
-
   const themeOptions = Object.entries(THEME_PRESETS) as [
     ThemeId,
     (typeof THEME_PRESETS)[ThemeId],
@@ -224,12 +187,30 @@ export function useSettings() {
   const handleDailyReminderTimeChange = async (time: {
     hour: number;
     minute: number;
-  }) => {
+  }, index = 0) => {
     try {
-      await notifications.setDailyReminderTime(time);
+      await notifications.setDailyReminderTime(time, index);
       toast.success("Reminder time updated");
     } catch {
       toast.error("Couldn't update reminder time");
+    }
+  };
+
+  const handleAddDailyReminderTime = async () => {
+    try {
+      await notifications.addDailyReminderTime();
+      toast.success("Reminder added");
+    } catch {
+      toast.error("Couldn't add reminder");
+    }
+  };
+
+  const handleRemoveDailyReminderTime = async (index: number) => {
+    try {
+      await notifications.removeDailyReminderTime(index);
+      toast.success("Reminder removed");
+    } catch {
+      toast.error("Couldn't remove reminder");
     }
   };
 
@@ -285,12 +266,12 @@ export function useSettings() {
     handleModeSelect,
     handleBack,
     handleClearAllTransactions,
-    handleSeedData,
     dailyReminderEnabled: dailyReminderConfig.enabled,
-    dailyReminderFormattedTime: formattedDailyReminderTime,
-    dailyReminderSelectedTime: dailyReminderTime,
+    dailyReminderTimes,
     handleDailyReminderToggle,
     handleDailyReminderTimeChange,
+    handleAddDailyReminderTime,
+    handleRemoveDailyReminderTime,
     notificationAccessPromptOpen,
     setNotificationAccessPromptOpen,
     handleRequestNotificationAccessAgain,
@@ -300,6 +281,8 @@ export function useSettings() {
     handleBetterAnalyticsToggle,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
+    labsNoticeDismissed,
+    setLabsNoticeDismissed,
     insightsCardOrder,
     setInsightsCardOrder,
   };

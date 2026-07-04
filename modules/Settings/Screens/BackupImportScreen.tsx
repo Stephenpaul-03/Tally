@@ -626,7 +626,7 @@ export function BackupImportScreen() {
         style={[
           styles.bottomBar,
           {
-            paddingBottom: Math.max(insets.bottom, 16),
+            paddingBottom: Math.max(insets.bottom + 12, 16),
             backgroundColor: theme.colors.background,
             borderTopColor: theme.colors.outlineVariant,
           },

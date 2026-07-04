@@ -30,6 +30,10 @@ export type QuickStartSelection = {
 export type OnboardingDraft = {
   setupType: OnboardingSetupType;
   workspaceName: string;
+  workspaceOwnerName: string;
+  workspaceCurrencyCode: string;
+  workspaceCurrencySymbol: string;
+  workspaceCurrencyName: string;
   workspaceIcon: string;
   workspaceColor: string;
   quickStart: QuickStartSelection;

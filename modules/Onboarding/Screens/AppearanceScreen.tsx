@@ -57,7 +57,7 @@ export function AppearanceScreen({
   const [gridWidth, setGridWidth] = React.useState(0);
   const cardWidth =
     gridWidth > 0
-      ? (gridWidth - ACCENT_GAP * (ACCENT_COLS - 1)) / ACCENT_COLS
+      ? Math.floor((gridWidth - ACCENT_GAP * (ACCENT_COLS - 1)) / ACCENT_COLS)
       : undefined;
 
   const primary = theme.colors.primary;
@@ -180,11 +180,28 @@ export function AppearanceScreen({
       </View>
 
       {/* Accent — strict 3-per-row using measured container width */}
-      <Text
-        style={[local.sectionLabel, { color: theme.colors.onSurfaceVariant }]}
-      >
-        Accent colour
-      </Text>
+      <View style={local.accentDivider}>
+        <View
+          style={[
+            local.accentDividerLine,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+        <Text
+          style={[
+            local.accentDividerText,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          Accent colors
+        </Text>
+        <View
+          style={[
+            local.accentDividerLine,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+      </View>
       <View
         style={local.accentGrid}
         onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
@@ -203,7 +220,7 @@ export function AppearanceScreen({
                     ? theme.colors.primaryContainer
                     : theme.colors.elevation.level1,
                   borderColor: active ? primary : theme.colors.outlineVariant,
-                  borderWidth: active ? 1.5 : 1,
+                  borderWidth: 1,
                 },
               ]}
             >
@@ -285,8 +302,36 @@ const local = StyleSheet.create({
     width: 20,
   },
   modeCircle: { borderRadius: 9, borderWidth: 1.5, height: 18, width: 18 },
-  accentGrid: { flexDirection: "row", flexWrap: "wrap", gap: ACCENT_GAP },
-  accentCard: { borderRadius: 16, gap: 8, padding: 12 },
+  accentDivider: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+    marginTop: -6,
+  },
+  accentDividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  accentDividerText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  accentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: ACCENT_GAP,
+    rowGap: ACCENT_GAP,
+  },
+  accentCard: {
+    borderRadius: 16,
+    gap: 8,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   swatchDot: {
     alignItems: "center",
     borderRadius: 14,

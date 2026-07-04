@@ -8,6 +8,7 @@ import {
   type MonthlyInsightPromptConfig,
   type NotificationPermissionSnapshot,
   type NotificationScheduleRecord,
+  type ReminderTime,
   type StoredNotificationPreference,
 } from "./notification.types";
 
@@ -78,16 +79,10 @@ const STORAGE_KEYS = {
   hasRequestedPermission: "notifications.permission.hasRequested",
 } as const;
 
-function formatTimeValue(hour: number, minute: number) {
-  return `${hour.toString().padStart(2, "0")}:${minute
-    .toString()
-    .padStart(2, "0")}`;
-}
-
 function parseTimeValue(
   value: string | undefined,
-  defaults: DailyFinanceReminderConfig,
-) {
+  defaults: ReminderTime,
+): ReminderTime {
   if (!value) {
     return {
       hour: defaults.hour,
@@ -114,6 +109,48 @@ function parseTimeValue(
     hour: defaults.hour,
     minute: defaults.minute,
   };
+}
+
+function parseReminderTimes(value: string | undefined): ReminderTime[] {
+  const fallback = DEFAULT_DAILY_FINANCE_REMINDER.reminders;
+
+  if (!value) {
+    return fallback;
+  }
+
+  const parsedJson = readJson<ReminderTime[]>(STORAGE_KEYS.dailyReminderTime);
+
+  if (Array.isArray(parsedJson)) {
+    const validTimes = parsedJson.filter((time) => {
+      return (
+        Number.isInteger(time.hour) &&
+        Number.isInteger(time.minute) &&
+        time.hour >= 0 &&
+        time.hour <= 23 &&
+        time.minute >= 0 &&
+        time.minute <= 59
+      );
+    });
+
+    return validTimes.length > 0 ? validTimes.slice(0, 3) : fallback;
+  }
+
+  return [parseTimeValue(value, fallback[0])];
+}
+
+function parseScheduleIds(value: string | undefined) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((id): id is string => typeof id === "string");
+    }
+  } catch {
+    return [value];
+  }
+
+  return [value];
 }
 
 function readJson<T>(key: string): T | null {
@@ -155,12 +192,11 @@ export const notificationStorage = {
   },
 
   getDailyFinanceReminder(): StoredNotificationPreference<DailyFinanceReminderConfig> {
-    const { hour, minute } = parseTimeValue(
+    const reminders = parseReminderTimes(
       storage.getString(STORAGE_KEYS.dailyReminderTime),
-      DEFAULT_DAILY_FINANCE_REMINDER,
     );
-    const notificationId = storage.getString(
-      STORAGE_KEYS.dailyReminderNotificationId,
+    const notificationIds = parseScheduleIds(
+      storage.getString(STORAGE_KEYS.dailyReminderNotificationId),
     );
 
     return {
@@ -169,12 +205,11 @@ export const notificationStorage = {
           storage.getBoolean?.(STORAGE_KEYS.dailyReminderEnabled) ??
           DEFAULT_DAILY_FINANCE_REMINDER.enabled,
         frequency: DEFAULT_DAILY_FINANCE_REMINDER.frequency,
-        hour,
-        minute,
+        reminders,
       },
-      schedule: notificationId
+      schedule: notificationIds.length > 0
         ? {
-            ids: [notificationId],
+            ids: notificationIds,
             scheduledAt: "",
           }
         : null,
@@ -215,13 +250,16 @@ export const notificationStorage = {
     storage.set(STORAGE_KEYS.dailyReminderEnabled, value.config.enabled);
     storage.set(
       STORAGE_KEYS.dailyReminderTime,
-      formatTimeValue(value.config.hour, value.config.minute),
+      JSON.stringify(value.config.reminders.map(({ hour, minute }) => ({ hour, minute }))),
     );
 
-    const notificationId = value.schedule?.ids[0];
+    const notificationIds = value.schedule?.ids;
 
-    if (notificationId) {
-      storage.set(STORAGE_KEYS.dailyReminderNotificationId, notificationId);
+    if (notificationIds?.length) {
+      storage.set(
+        STORAGE_KEYS.dailyReminderNotificationId,
+        JSON.stringify(notificationIds),
+      );
     } else {
       storage.delete(STORAGE_KEYS.dailyReminderNotificationId);
     }

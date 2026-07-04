@@ -4,6 +4,7 @@ export type BasicPageHeaderProps = {
   variant?: "basic";
   title: string;
   rightSlot?: React.ReactNode;
+  bottomSlot?: React.ReactNode;
   backgroundColor?: string;
 };
 
@@ -16,6 +17,12 @@ export type DatePageHeaderProps = {
   onDateSelect: (iso: string) => void;
   initialPickerMode?: DatePickerMode;
   backgroundColor?: string;
+  rightSlot?: React.ReactNode;
+  bottomSlot?: React.ReactNode;
+  externalOverlayVisible?: boolean;
+  onExternalOverlayClose?: () => void;
+  onDatePickerVisibilityChange?: (visible: boolean) => void;
+  datePickerCloseRequestToken?: number;
 };
 
 export type PageHeaderProps = BasicPageHeaderProps | DatePageHeaderProps;

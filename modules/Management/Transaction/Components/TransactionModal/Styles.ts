@@ -185,8 +185,6 @@ export const mainContent = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 12,
     gap: 8,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
   },
   headerTitle: {
     fontWeight: "700",
@@ -334,9 +332,11 @@ export const mainContent = StyleSheet.create({
   notesCollapsed: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderTopWidth: 0.5,
+    gap: 8,
   },
   // ── Footer ───────────────────────────────────────────────────────────────
   footer: {

@@ -373,7 +373,7 @@ export function AccountListScreen({
         </Text>
       </View>
 
-      <View style={{ height: listHeight, marginHorizontal: 12 }}>
+      <View style={{ flex: 1, marginHorizontal: 12 }}>
         {reorderMode ? (
           <ScrollView
             showsVerticalScrollIndicator={false}

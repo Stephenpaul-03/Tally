@@ -4,6 +4,8 @@ import { notificationService } from "./notification.service";
 
 const notificationsApi = {
   attachListeners: notificationService.attachListeners.bind(notificationService),
+  addDailyReminderTime:
+    notificationService.addDailyReminderTime.bind(notificationService),
   cancelDailyFinanceReminder:
     notificationService.cancelDailyFinanceReminder.bind(notificationService),
   cancelMonthlyInsightPrompt:
@@ -17,8 +19,8 @@ const notificationsApi = {
     notificationService.reconcileScheduledNotificationsAsync.bind(notificationService),
   refreshPermissionStatus:
     notificationService.refreshPermissionStatusAsync.bind(notificationService),
-  registerPhaseTwoHandlers:
-    notificationService.registerPhaseTwoHandlers.bind(notificationService),
+  removeDailyReminderTime:
+    notificationService.removeDailyReminderTime.bind(notificationService),
   scheduleDailyFinanceReminder:
     notificationService.scheduleDailyFinanceReminder.bind(notificationService),
   scheduleDailyReminder:
@@ -27,12 +29,8 @@ const notificationsApi = {
     notificationService.scheduleMonthlyInsightPrompt.bind(notificationService),
   sendTestDailyFinanceReminder:
     notificationService.sendTestDailyFinanceReminderAsync.bind(notificationService),
-  sendTestFailedTransactionFollowUp:
-    notificationService.sendTestFailedTransactionFollowUpAsync.bind(notificationService),
   sendTestMonthlyInsightPrompt:
     notificationService.sendTestMonthlyInsightPromptAsync.bind(notificationService),
-  sendTestPendingUpiRecovery:
-    notificationService.sendTestPendingUpiRecoveryAsync.bind(notificationService),
   setDailyReminderEnabled:
     notificationService.setDailyReminderEnabled.bind(notificationService),
   setDailyReminderTime:

@@ -1,15 +1,20 @@
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import { useAppSelector } from "@/hooks/Redux";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { typography } from "@/theme/typography";
 import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
-import { PercentDeltaPill } from "../../../Labs/BetterAnalytics/Index";
 import type { BreakdownItem, CategoryComparisonRow } from "../../Types";
-import { formatInr } from "../../Utils";
+import { formatAmount } from "../../Utils";
+
+type CustomSheetRow = {
+  key: string;
+};
 
 type BreakdownBottomSheetProps = {
   visible: boolean;
@@ -24,93 +29,67 @@ type BreakdownBottomSheetProps = {
   onModeChange: (mode: "expense" | "income") => void;
   onRowPress: (item: BreakdownItem) => void;
   categoryComparison?: CategoryComparisonRow[];
+  title?: string;
+  showModeToggle?: boolean;
+  interactiveRows?: boolean;
+  showChevron?: boolean;
+  customRows?: CustomSheetRow[];
+  renderCustomRow?: (props: {
+    item: CustomSheetRow;
+    index: number;
+    textColor: string;
+    muted: string;
+    currencyCode: string;
+    minimalIconsEnabled: boolean;
+    primaryColor: string;
+    surfaceVariant: string;
+    onPress: () => void;
+  }) => React.ReactNode;
 };
 
 const ICON_SIZE = 40;
-const BAR_HEIGHT = 8;
-const BAR_RADIUS = 4;
-
-function ProgressBar({
-  percentage,
-  color,
-  track,
-}: {
-  percentage: number;
-  color: string;
-  track: string;
-}) {
-  const clamped = Math.min(Math.max(percentage, 0), 100);
-
-  return (
-    <View
-      style={{
-        height: BAR_HEIGHT,
-        borderRadius: BAR_RADIUS,
-        backgroundColor: track,
-        overflow: "hidden",
-        width: "100%",
-      }}
-    >
-      <View
-        style={{
-          height: "100%",
-          width: `${clamped}%`,
-          borderRadius: BAR_RADIUS,
-          backgroundColor: color,
-        }}
-      />
-    </View>
-  );
-}
 
 function CategoryRow({
   item,
   textColor,
   muted,
-  trackColor,
   onPress,
   minimalIconsEnabled,
   primaryColor,
   surfaceVariant,
-  comparisonRow,
-  maxAmount,
+  currencyCode,
+  currencySymbol,
+  interactive,
+  showChevron,
 }: {
   item: BreakdownItem;
   textColor: string;
   muted: string;
-  trackColor: string;
   onPress: () => void;
   minimalIconsEnabled: boolean;
   primaryColor: string;
   surfaceVariant: string;
-  comparisonRow?: CategoryComparisonRow;
-  maxAmount: number;
+  currencyCode: string;
+  interactive: boolean;
+  showChevron: boolean;
+  currencySymbol: string;
 }) {
   const accent = item.color;
   const iconAccent = minimalIconsEnabled ? primaryColor : accent;
-  const showComparison = !!comparisonRow;
-
-  const currentBarPct = showComparison
-    ? ((item.amount as number) / maxAmount) * 100
-    : item.percentage;
-
-  const previousBarPct = showComparison
-    ? (comparisonRow!.previousAmount / maxAmount) * 100
-    : 0;
 
   return (
     <Pressable
+      disabled={!interactive}
       onPress={onPress}
       style={({ pressed }) => ({
-        borderRadius: 14,
-        backgroundColor: withOpacity(textColor, pressed ? "0A" : "00"),
-        paddingVertical: 10,
-        paddingHorizontal: 8,
-        gap: 10,
-        opacity: pressed ? 0.85 : 1,
+        backgroundColor: withOpacity(
+          textColor,
+          interactive && pressed ? "0A" : "00",
+        ),
+        paddingVertical: 6,
+        opacity: interactive && pressed ? 0.85 : 1,
       })}
     >
-      {/* Top row: icon, name, amount */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View
           style={{
@@ -121,65 +100,42 @@ function CategoryRow({
             justifyContent: "center",
             backgroundColor: minimalIconsEnabled
               ? surfaceVariant
-              : withOpacity(iconAccent, "18"),
+              : withOpacity(iconAccent, "14"),
           }}
         >
           <MaterialCommunityIcons
             name={item.icon as any}
-            size={20}
+            size={24}
             color={iconAccent}
           />
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, gap: 2 }}>
           <Text
             numberOfLines={1}
-            style={{ fontSize: 15, fontWeight: "600", color: textColor }}
+            style={{ fontSize: 14, fontWeight: "500", color: textColor }}
           >
             {item.category}
           </Text>
-          {showComparison && (
-            <Text style={{ fontSize: 12, color: muted, marginTop: 2 }}>
-              {`Last ${formatInr(comparisonRow!.previousAmount)}`}
-            </Text>
-          )}
         </View>
 
-        <View style={{ alignItems: "flex-end", gap: 4 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: textColor }}>
-            {formatInr(Math.round(item.amount as number))}
+        <View style={{ alignItems: "flex-end", gap: 2 }}>
+          <Text style={{ fontSize: 14, fontWeight: "500", color: textColor }}>
+            {formatAmount(
+              Math.round(item.amount as number),
+              currencyCode,
+              currencySymbol,
+            )}
           </Text>
-          {showComparison ? (
-            <PercentDeltaPill value={comparisonRow!.percentChange} />
-          ) : (
-            <Text style={{ fontSize: 12, color: muted }}>
-              {Math.round(item.percentage)}%
-            </Text>
-          )}
         </View>
+        {showChevron ? (
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={26}
+            color={withOpacity(muted, "CC")}
+          />
+        ) : null}
       </View>
-
-      {/* Progress bar(s) */}
-      {showComparison ? (
-        <View style={{ gap: 6 }}>
-          <ProgressBar
-            percentage={currentBarPct}
-            color={accent}
-            track={trackColor}
-          />
-          <ProgressBar
-            percentage={previousBarPct}
-            color={muted}
-            track={trackColor}
-          />
-        </View>
-      ) : (
-        <ProgressBar
-          percentage={item.percentage}
-          color={accent}
-          track={trackColor}
-        />
-      )}
     </Pressable>
   );
 }
@@ -196,43 +152,33 @@ export function BreakdownBottomSheet({
   trackColor,
   onModeChange,
   onRowPress,
-  categoryComparison,
+  title,
+  showModeToggle = true,
+  interactiveRows = true,
+  showChevron = true,
+  customRows,
+  renderCustomRow,
 }: BreakdownBottomSheetProps) {
   const theme = useTheme();
-  const { minimalIconsEnabled, betterAnalyticsEnabled } = useAddonPrefs();
+  const { minimalIconsEnabled } = useAddonPrefs();
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const currencyCode = activeWorkspace?.currencyCode ?? "INR";
+  const currencySymbol = activeWorkspace?.currencySymbol ?? "";
 
-  const rows = breakdown.map((item) => ({ ...item }));
-
-  // Build lookup map for comparison rows — only when the feature is enabled
-  const comparisonMap = React.useMemo(() => {
-    if (!betterAnalyticsEnabled || !categoryComparison) return {};
-    return Object.fromEntries(
-      categoryComparison.map((row) => [row.category, row]),
-    );
-  }, [betterAnalyticsEnabled, categoryComparison]);
-
-  const showComparison = betterAnalyticsEnabled && !!categoryComparison;
-
-  // Normalise bar widths against the largest amount we'll display
-  // (either this month or last month) so current vs previous bars
-  // are visually comparable across categories.
-  const maxAmount = React.useMemo(() => {
-    if (!showComparison) return 1;
-    let max = 0;
-    rows.forEach((item) => {
-      max = Math.max(max, item.amount as number);
-      const row = comparisonMap[item.category];
-      if (row) max = Math.max(max, row.previousAmount);
-    });
-    return max || 1;
-  }, [rows, comparisonMap, showComparison]);
+  const rows = React.useMemo(
+    () =>
+      customRows?.length
+        ? customRows
+        : breakdown.map((item) => ({ ...item, key: item.category })),
+    [breakdown, customRows],
+  );
 
   const { getAnimStyle } = useStagger({
     count: rows.length,
     stagger: 100,
     distance: 20,
     duration: 750,
-    dataKey: `${visible}:${rows.map((item) => item.category).join("|")}`,
+    dataKey: `${visible}:${rows.map((item) => item.key).join("|")}`,
   });
 
   return (
@@ -286,80 +232,50 @@ export function BreakdownBottomSheet({
               color: textColor,
             }}
           >
-            Categories
+            {title}
           </Text>
           <Pressable onPress={onDismiss} hitSlop={10}>
             <MaterialCommunityIcons name="close" size={20} color={muted} />
           </Pressable>
         </View>
 
-        {/* Mode toggle */}
-        <View
-          style={{
-            flexDirection: "row",
-            backgroundColor: trackColor,
-            borderRadius: 11,
-            padding: 3,
-            gap: 2,
-          }}
-        >
-          {(["expense", "income"] as const).map((itemMode) => {
-            const active = mode === itemMode;
-            return (
-              <Pressable
-                key={itemMode}
-                onPress={() => onModeChange(itemMode)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 9,
-                  alignItems: "center",
-                  backgroundColor: active ? bg : "transparent",
-                }}
-              >
-                <Text
+        {/* Mode toggle — only shown when requested */}
+        {showModeToggle && (
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor: trackColor,
+              borderRadius: 11,
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {(["expense", "income"] as const).map((itemMode) => {
+              const active = mode === itemMode;
+              return (
+                <Pressable
+                  key={itemMode}
+                  onPress={() => onModeChange(itemMode)}
                   style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 14,
-                    color: active ? textColor : muted,
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 9,
+                    alignItems: "center",
+                    backgroundColor: active ? bg : "transparent",
                   }}
                 >
-                  {itemMode === "expense" ? "Expenses" : "Income"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Legend — only shown when comparison data is available */}
-        {showComparison && rows.length > 0 && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: BAR_HEIGHT,
-                  borderRadius: BAR_RADIUS,
-                  backgroundColor: theme.colors.primary,
-                }}
-              />
-              <Text style={{ fontSize: 12, color: muted }}>This month</Text>
-            </View>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: BAR_HEIGHT,
-                  borderRadius: BAR_RADIUS,
-                  backgroundColor: muted,
-                }}
-              />
-              <Text style={{ fontSize: 12, color: muted }}>Last month</Text>
-            </View>
+                  <Text
+                    style={{
+                      ...typography.editorial.sectionLabel,
+                      fontSize: 14,
+                      color: active ? textColor : muted,
+                    }}
+                  >
+                    {itemMode === "expense" ? "Expenses" : "Income"}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </View>
@@ -371,7 +287,6 @@ export function BreakdownBottomSheet({
           paddingHorizontal: 14,
           paddingTop: 8,
           paddingBottom: 36,
-          gap: 4,
         }}
       >
         {rows.length === 0 ? (
@@ -387,19 +302,41 @@ export function BreakdownBottomSheet({
           </Text>
         ) : (
           rows.map((item, index) => (
-            <Animated.View key={item.category} style={getAnimStyle(index)}>
-              <CategoryRow
-                item={item}
-                textColor={textColor}
-                muted={muted}
-                trackColor={trackColor}
-                onPress={() => onRowPress(item)}
-                minimalIconsEnabled={minimalIconsEnabled}
-                primaryColor={theme.colors.primary}
-                surfaceVariant={theme.colors.surfaceVariant}
-                comparisonRow={comparisonMap[item.category]}
-                maxAmount={maxAmount}
-              />
+            <Animated.View key={item.key} style={[getAnimStyle(index)]}>
+              {renderCustomRow && customRows ? (
+                renderCustomRow({
+                  item,
+                  index,
+                  textColor,
+                  muted,
+                  currencyCode,
+                  minimalIconsEnabled,
+                  primaryColor: theme.colors.primary,
+                  surfaceVariant: theme.colors.surfaceVariant,
+                  onPress: () => {
+                    const matchedBreakdown = breakdown.find(
+                      (breakdownItem) => breakdownItem.category === item.key,
+                    );
+                    if (matchedBreakdown) {
+                      onRowPress(matchedBreakdown);
+                    }
+                  },
+                })
+              ) : (
+                <CategoryRow
+                  item={item as unknown as BreakdownItem}
+                  textColor={textColor}
+                  muted={muted}
+                  onPress={() => onRowPress(item as unknown as BreakdownItem)}
+                  minimalIconsEnabled={minimalIconsEnabled}
+                  primaryColor={theme.colors.primary}
+                  surfaceVariant={theme.colors.surfaceVariant}
+                  currencyCode={currencyCode}
+                  currencySymbol={currencySymbol}
+                  interactive={interactiveRows}
+                  showChevron={showChevron}
+                />
+              )}
             </Animated.View>
           ))
         )}

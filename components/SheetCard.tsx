@@ -15,10 +15,10 @@ export function SheetCard({ children, theme, style }: SheetCardProps) {
     <View
       style={[
         {
-          marginHorizontal: 16,
-          borderRadius: 16,
+          marginHorizontal: 20,
+          borderRadius: 20,
           overflow: "hidden",
-          marginBottom: 16,
+          marginBottom: 20,
           backgroundColor: theme.colors.elevation.level1,
           borderWidth: 0.5,
           borderColor: theme.colors.outlineVariant,

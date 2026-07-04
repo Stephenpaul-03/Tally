@@ -49,6 +49,7 @@ function buildGroups(
 export function IconCategoryPicker({
   allIcons,
   selectedIcon,
+  selectedColor,
   onSelectIcon,
   iconGrid,
   background,
@@ -57,6 +58,7 @@ export function IconCategoryPicker({
 }: {
   allIcons: string[];
   selectedIcon: string;
+  selectedColor: string;
   onSelectIcon: (icon: string) => void;
   iconGrid: IconGrid;
   background: string;
@@ -64,6 +66,7 @@ export function IconCategoryPicker({
   variant: "category" | "account";
 }) {
   const c = theme.colors;
+  const activeColor = selectedColor || c.primary;
   const groups = useMemo(
     () => buildGroups(variant, allIcons),
     [allIcons, variant],
@@ -100,7 +103,7 @@ export function IconCategoryPicker({
                   ? c.primaryContainer
                   : c.elevation.level1,
                 borderWidth: 0.5,
-                borderColor: isSelected ? c.primary : c.outlineVariant,
+                borderColor: isSelected ? activeColor : c.outlineVariant,
                 opacity: pressed ? 0.75 : 1,
               })}
             >
@@ -108,7 +111,7 @@ export function IconCategoryPicker({
                 style={{
                   fontSize: 12,
                   fontWeight: "700",
-                  color: isSelected ? c.primary : c.onSurfaceVariant,
+                  color: isSelected ? activeColor : c.onSurfaceVariant,
                 }}
               >
                 {group.label}
@@ -177,16 +180,16 @@ export function IconCategoryPicker({
                       alignItems: "center",
                       justifyContent: "center",
                       borderWidth: 1.5,
-                      borderColor: isSelected ? c.primary : background,
+                      borderColor: isSelected ? activeColor : background,
                       backgroundColor: isSelected
-                        ? c.primaryContainer
+                        ? `${activeColor}1A`
                         : background,
                     }}
                   >
                     <MaterialCommunityIcons
                       name={iconName as any}
                       size={iconGrid.iconSize}
-                      color={isSelected ? c.primary : c.onSurfaceVariant}
+                      color={isSelected ? activeColor : c.onSurfaceVariant}
                     />
                   </TouchableRipple>
                 );

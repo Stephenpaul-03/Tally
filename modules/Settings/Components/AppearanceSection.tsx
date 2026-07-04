@@ -2,12 +2,14 @@ import type { THEME_PRESETS, ThemeId } from "@/theme/presets";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { MODE_OPTIONS, type ModeOption } from "../Constants";
 import { SettingsStyles } from "../Styles";
 
 type ThemeOption = [ThemeId, (typeof THEME_PRESETS)[ThemeId]];
+const ACCENT_GAP = 8;
+const ACCENT_COLS = 3;
 
 type Props = {
   activeModeId: ModeOption;
@@ -25,6 +27,12 @@ export function AppearanceSection({
   themeOptions,
 }: Props) {
   const theme = useTheme();
+  const [gridWidth, setGridWidth] = React.useState(0);
+  const cardWidth =
+    gridWidth > 0
+      ? Math.floor((gridWidth - ACCENT_GAP * (ACCENT_COLS - 1)) / ACCENT_COLS)
+      : undefined;
+  const primary = theme.colors.primary;
 
   return (
     <>
@@ -96,12 +104,33 @@ export function AppearanceSection({
           })}
         </View>
 
-        {/* Palette row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={SettingsStyles.paletteRow}
-          style={{ marginBottom: 0 }}
+        <View style={local.accentDivider}>
+          <View
+            style={[
+              local.accentDividerLine,
+              { backgroundColor: theme.colors.outlineVariant },
+            ]}
+          />
+          <Text
+            style={[
+              local.accentDividerText,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            Accent colors
+          </Text>
+          <View
+            style={[
+              local.accentDividerLine,
+              { backgroundColor: theme.colors.outlineVariant },
+            ]}
+          />
+        </View>
+
+        {/* Accent grid */}
+        <View
+          style={local.accentGrid}
+          onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
         >
           {themeOptions.map(([id, preset]) => {
             const active = themeId === id;
@@ -110,39 +139,92 @@ export function AppearanceSection({
                 key={id}
                 onPress={() => onThemeSelect(id)}
                 style={[
-                  SettingsStyles.swatchTile,
+                  local.accentCard,
+                  cardWidth != null && { width: cardWidth },
                   {
-                    backgroundColor: theme.colors.background,
-                    borderColor: active
-                      ? theme.colors.secondary
-                      : theme.colors.outlineVariant,
+                    backgroundColor: active
+                      ? theme.colors.primaryContainer
+                      : theme.colors.background,
+                    borderColor: active ? primary : theme.colors.outlineVariant,
+                    borderWidth: 1,
                   },
                 ]}
               >
                 <View
                   style={[
-                    SettingsStyles.swatchDot,
+                    local.swatchDot,
                     { backgroundColor: preset.primarySeed },
                   ]}
-                />
+                >
+                  {active ? (
+                    <MaterialCommunityIcons
+                      color="#fff"
+                      name="check"
+                      size={14}
+                    />
+                  ) : null}
+                </View>
                 <Text
                   style={[
-                    SettingsStyles.swatchName,
+                    local.accentLabel,
                     {
                       color: active
-                        ? theme.colors.onSecondaryContainer
-                        : theme.colors.onSurfaceVariant,
-                      fontWeight: active ? "600" : "400",
+                        ? theme.colors.onPrimaryContainer
+                        : theme.colors.onSurface,
                     },
                   ]}
+                  numberOfLines={1}
                 >
                   {preset.label}
                 </Text>
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
     </>
   );
 }
+
+const local = StyleSheet.create({
+  accentDivider: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  accentDividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  accentDividerText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  accentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: ACCENT_GAP,
+    rowGap: ACCENT_GAP,
+  },
+  accentCard: {
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
+  },
+  swatchDot: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  accentLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+});

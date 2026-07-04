@@ -94,14 +94,9 @@ export const mobileLayoutStyles = StyleSheet.create({
     width: "100%",
   },
   bottomActionWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
-    paddingHorizontal: 16,
+    justifyContent: "flex-end",
   },
   bottomActionSecondaryButton: {
     minHeight: 56,
@@ -124,7 +119,18 @@ export const mobileLayoutStyles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   bottomActionButton: {
-    borderRadius: 20,
-    minWidth: 96,
+    borderRadius: 40,
+    minWidth: 78,
+  },
+
+  summaryCardSpacing: {
+    marginHorizontal: 20,
+  },
+  searchBarWrap: {
+    marginTop: 20,
+  },
+  emptyStateWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
 });

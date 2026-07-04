@@ -4,7 +4,7 @@ import { SheetCard } from "@/components/SheetCard";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch } from "@/hooks/Redux";
 import { useBiomettricLock } from "@/hooks/use-biometric-lock";
-import { clearAllTransactionsAsync } from "@/modules/Data/Slices/TransactionSlice";
+import { clearAllTransactionsAsync } from "@/modules/Core/Slices/TransactionSlice";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";

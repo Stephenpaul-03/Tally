@@ -102,6 +102,11 @@ export interface Account {
   createdAt: string;
 }
 
+export interface BudgetStateData {
+  overallBudget: number;
+  categoryBudgets: Record<string, number>;
+}
+
 // ============================================================================
 // State Types
 // ============================================================================
@@ -122,6 +127,10 @@ export interface TransactionState {
   accountIcons: Record<string, string>;
   accountColors: Record<string, string>;
 
+  // Budget
+  overallBudget: number;
+  categoryBudgets: Record<string, number>;
+
   // Filters
   filters: TransactionFilters;
 
@@ -129,6 +138,7 @@ export interface TransactionState {
   modalMode: ModalMode;
   editingTransactionId: string | null;
   isModalOpen: boolean;
+  modalInitialDate: string | null;
 
   // Quick tools
   isCategoryModalOpen: boolean;

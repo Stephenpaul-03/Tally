@@ -5,21 +5,21 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import {
-    DAY_ROW_HEIGHT,
-    DAY_ITEM_WIDTH,
-    MAX_YEAR,
-    MIN_YEAR,
-    MONTH_ITEM_WIDTH,
-    MONTH_ROW_HEIGHT,
+  DAY_ITEM_WIDTH,
+  DAY_ROW_HEIGHT,
+  MAX_YEAR,
+  MIN_YEAR,
+  MONTH_ITEM_WIDTH,
+  MONTH_ROW_HEIGHT,
 } from "./constants";
 import {
-    buildDayItems,
-    buildMonthItems,
-    formatDayLabel,
-    formatMonthLabel,
-    formatWeekdayLabel,
-    parseIso,
-    toIso,
+  buildDayItems,
+  buildMonthItems,
+  formatDayLabel,
+  formatMonthLabel,
+  formatWeekdayLabel,
+  parseIso,
+  toIso,
 } from "./Dateutils";
 import { GrowingStrip } from "./GrowingStrip";
 import { InlineCalendar } from "./Inlinecalendar";
@@ -32,13 +32,21 @@ function SeparatorLabel({
   label,
   width,
   color,
+  compact = false,
 }: {
   label: string;
   width: number;
   color: string;
+  compact?: boolean;
 }) {
   return (
-    <View style={[styles.separatorItem, { width }]}>
+    <View
+      style={[
+        styles.separatorItem,
+        compact ? styles.separatorItemCompact : { marginBottom: 20 },
+        { width },
+      ]}
+    >
       <Text style={[styles.separatorText, { color }]} numberOfLines={1}>
         {label}
       </Text>
@@ -178,6 +186,7 @@ export function DatePickerRail({
             label={item.label}
             width={item.width}
             color={theme.colors.onSurfaceVariant}
+            compact
           />
         );
       }
@@ -213,7 +222,7 @@ export function DatePickerRail({
             <Text
               style={[
                 styles.dayPillText,
-                { color: active ? palette.black : theme.colors.onSurface },
+                { color: active ? palette.white : theme.colors.onSurface },
                 isToday && !active && { color: theme.colors.primary },
               ]}
               numberOfLines={1}
@@ -265,7 +274,7 @@ export function DatePickerRail({
             <Text
               style={[
                 styles.monthPillText,
-                { color: active ? palette.black : theme.colors.onSurface },
+                { color: active ? palette.white : theme.colors.onSurface },
               ]}
               numberOfLines={1}
             >
@@ -340,11 +349,19 @@ export function DatePickerRail({
 }
 
 const styles = StyleSheet.create({
-  railWrap: { gap: 6, overflow: "hidden" },
+  railWrap: {
+    gap: 6,
+    overflow: "hidden",
+  },
 
   separatorItem: {
-    height: "100%",
+    height: MONTH_ROW_HEIGHT,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  separatorItemCompact: {
+    height: DAY_ITEM_WIDTH,
+    marginTop: 20,
     justifyContent: "center",
   },
   separatorText: {
@@ -388,9 +405,8 @@ const styles = StyleSheet.create({
   },
   monthColumn: {
     width: MONTH_ITEM_WIDTH,
-    height: "100%",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   monthPill: {
     width: MONTH_ITEM_WIDTH,

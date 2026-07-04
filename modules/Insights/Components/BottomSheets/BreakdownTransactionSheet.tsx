@@ -1,6 +1,8 @@
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import { useAppSelector } from "@/hooks/Redux";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { typography } from "@/theme/typography";
 import { withOpacity } from "@/utils/Helpers";
 import type { Transaction } from "@/utils/Types";
@@ -8,7 +10,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
-import { formatInr } from "../../Utils";
+import { formatAmount } from "../../Utils";
+
 type CategoryTransactionsSheetProps = {
   visible: boolean;
   onDismiss: () => void;
@@ -42,17 +45,34 @@ export function CategoryTransactionsSheet({
 }: CategoryTransactionsSheetProps) {
   const theme = useTheme();
   const { minimalIconsEnabled } = useAddonPrefs();
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const currencyCode = activeWorkspace?.currencyCode ?? "INR";
+  const currencySymbol = activeWorkspace?.currencySymbol ?? "";
+
+  // FIX: Cap total stagger spread to 280ms regardless of list length.
+  // Previously, item[100] had a delay of 100 × 30ms = 3s → blank screen while scrolling fast.
+  // Now: 10 items → 28ms/item, 100 items → 2.8ms/item — list always finishes in ≤280ms total.
+  const MAX_STAGGER_SPREAD_MS = 280;
+  const dynamicStagger =
+    transactions.length > 1
+      ? Math.min(25, MAX_STAGGER_SPREAD_MS / transactions.length)
+      : 0;
+
   const { getAnimStyle } = useStagger({
     count: transactions.length,
-    stagger: 100,
-    distance: 20,
-    duration: 750,
+    stagger: dynamicStagger,
+    distance: 6,
+    duration: 220,
     dataKey: `${visible}:${transactions.map((txn) => txn.id ?? txn.date).join("|")}`,
   });
+
   const accentColor = categoryColor ?? "#A99BDE";
   const iconAccentColor = minimalIconsEnabled
     ? theme.colors.primary
     : accentColor;
+
+  const incomeGreen = "#5DB887";
+  const amountColor = mode === "income" ? incomeGreen : textColor;
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -66,29 +86,30 @@ export function CategoryTransactionsSheet({
       presentation="sheet"
       contentContainerStyle={{
         backgroundColor: bg,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
         borderColor: outline,
         borderTopWidth: 0.5,
-        maxHeight: "85%",
+        maxHeight: "88%",
         flexShrink: 1,
+        overflow: "hidden",
       }}
     >
-      {/* Handle */}
-      <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 4 }}>
+      {/* Drag handle */}
+      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 2 }}>
         <View
           style={{
-            width: 32,
-            height: 3,
+            width: 36,
+            height: 4,
             borderRadius: 2,
-            backgroundColor: outline,
+            backgroundColor: withOpacity(muted, "40"),
           }}
         />
       </View>
 
-      {/* Category header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 0 }}>
-        {/* Icon + name + close row */}
+      {/* Header */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 0 }}>
+        {/* Icon row + close */}
         <View
           style={{
             flexDirection: "row",
@@ -96,18 +117,23 @@ export function CategoryTransactionsSheet({
             justifyContent: "space-between",
           }}
         >
+          {/* Icon + label */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {/* Icon box — always rendered, falls back to dot */}
+            {/* Icon bubble */}
             <View
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
+                width: 48,
+                height: 48,
+                borderRadius: 16,
                 backgroundColor: minimalIconsEnabled
                   ? theme.colors.surfaceVariant
-                  : withOpacity(iconAccentColor, "18"),
+                  : withOpacity(iconAccentColor, "20"),
                 alignItems: "center",
                 justifyContent: "center",
+                borderWidth: 1,
+                borderColor: minimalIconsEnabled
+                  ? outline
+                  : withOpacity(iconAccentColor, "30"),
               }}
             >
               {categoryIcon ? (
@@ -128,60 +154,159 @@ export function CategoryTransactionsSheet({
               )}
             </View>
 
-            <View style={{ gap: 3 }}>
+            <View style={{ gap: 2 }}>
               <Text
                 style={{
                   color: textColor,
                   ...typography.editorial.sectionLabel,
                   fontSize: 16,
+                  fontWeight: "700",
+                  letterSpacing: -0.2,
                 }}
               >
                 {categoryLabel}
               </Text>
-              <Text style={{ fontSize: 12, color: muted, lineHeight: 16 }}>
+              <Text style={{ fontSize: 12, color: muted, lineHeight: 17 }}>
                 {monthLabel}
               </Text>
             </View>
           </View>
 
-          <Pressable onPress={onDismiss} hitSlop={10}>
-            <MaterialCommunityIcons name="close" size={20} color={muted} />
+          {/* Close */}
+          <Pressable
+            onPress={onDismiss}
+            hitSlop={12}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 99,
+              backgroundColor: withOpacity(muted, "14"),
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialCommunityIcons name="close" size={16} color={muted} />
           </Pressable>
         </View>
 
-        {/* Total block */}
-        <View style={{ marginTop: 18, marginBottom: 18, gap: 3 }}>
-          <Text
+        {/* Summary stats */}
+        <View
+          style={{
+            flexDirection: "row",
+            marginTop: 18,
+            marginBottom: 16,
+            gap: 10,
+          }}
+        >
+          {/* Total */}
+          <View
             style={{
-              color: muted,
-              textTransform: "uppercase",
-              ...typography.editorial.sectionLabel,
-              fontSize: 14,
+              flex: 1,
+              backgroundColor: withOpacity(iconAccentColor, "10"),
+              borderRadius: 14,
+              borderWidth: 0.5,
+              borderColor: withOpacity(iconAccentColor, "25"),
+              paddingHorizontal: 14,
+              paddingVertical: 11,
+              gap: 4,
             }}
           >
-            {mode === "income" ? "Total earned" : "Total spent"}
-          </Text>
-          <Text
+            <Text
+              style={{
+                color: muted,
+                textTransform: "uppercase",
+                fontSize: 10,
+                letterSpacing: 0.7,
+                fontWeight: "600",
+              }}
+            >
+              {mode === "income" ? "Total earned" : "Total spent"}
+            </Text>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: amountColor,
+                letterSpacing: -0.6,
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {formatAmount(total, currencyCode, currencySymbol)}
+            </Text>
+          </View>
+
+          {/* Count */}
+          <View
             style={{
-              fontSize: 30,
-              fontWeight: "800",
-              color: textColor,
-              letterSpacing: -0.8,
+              width: 90,
+              backgroundColor: withOpacity(muted, "08"),
+              borderRadius: 14,
+              borderWidth: 0.5,
+              borderColor: outline,
+              paddingHorizontal: 14,
+              paddingVertical: 11,
+              gap: 4,
             }}
           >
-            {formatInr(total)}
-          </Text>
+            <Text
+              style={{
+                color: muted,
+                textTransform: "uppercase",
+                fontSize: 10,
+                letterSpacing: 0.7,
+                fontWeight: "600",
+              }}
+            >
+              Entries
+            </Text>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: textColor,
+                letterSpacing: -0.6,
+              }}
+            >
+              {transactions.length}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Divider */}
-      <View style={{ height: 0.5, backgroundColor: outline }} />
+      {/* Section label above list */}
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: 10,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <View style={{ height: 0.5, flex: 1, backgroundColor: outline }} />
+        <Text
+          style={{
+            fontSize: 10,
+            color: muted,
+            textTransform: "uppercase",
+            letterSpacing: 0.8,
+            fontWeight: "600",
+          }}
+        >
+          All transactions
+        </Text>
+        <View style={{ height: 0.5, flex: 1, backgroundColor: outline }} />
+      </View>
 
       {/* Transaction list */}
       <ScrollView
         style={{ flexShrink: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20 }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+        }}
       >
         {transactions.length > 0 ? (
           transactions.map((txn, index) => (
@@ -191,19 +316,32 @@ export function CategoryTransactionsSheet({
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  paddingVertical: 13,
+                  paddingVertical: 12,
                   borderBottomWidth: index < transactions.length - 1 ? 0.5 : 0,
                   borderBottomColor: outline,
+                  gap: 12,
                 }}
               >
-                {/* Left: title + date · account */}
-                <View style={{ gap: 3, flex: 1, marginRight: 16 }}>
+                {/* Left accent dot */}
+                <View
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 99,
+                    backgroundColor: withOpacity(iconAccentColor, "70"),
+                    flexShrink: 0,
+                  }}
+                />
+
+                {/* Title + meta */}
+                <View style={{ gap: 3, flex: 1 }}>
                   <Text
                     numberOfLines={1}
                     style={{
                       fontSize: 14,
                       fontWeight: "500",
                       color: textColor,
+                      letterSpacing: -0.1,
                     }}
                   >
                     {txn.title}
@@ -212,53 +350,94 @@ export function CategoryTransactionsSheet({
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 6,
+                      gap: 5,
                     }}
                   >
                     <Text style={{ fontSize: 12, color: muted }}>
                       {formatDate(txn.date)}
                     </Text>
-                    {/* Dot separator */}
                     <View
                       style={{
-                        width: 3,
-                        height: 3,
+                        width: 2.5,
+                        height: 2.5,
                         borderRadius: 99,
                         backgroundColor: muted,
-                        opacity: 0.4,
+                        opacity: 0.35,
                       }}
                     />
-                    <Text style={{ fontSize: 12, color: muted }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 12, color: muted, flexShrink: 1 }}
+                    >
                       {txn.account}
                     </Text>
                   </View>
                 </View>
 
-                {/* Right: amount */}
+                {/* Amount */}
                 <Text
                   style={{
                     fontSize: 14,
-                    fontWeight: "600",
-                    color: mode === "income" ? "#8FC8B0" : textColor,
+                    fontWeight: "700",
+                    color: amountColor,
+                    letterSpacing: -0.2,
+                    flexShrink: 0,
                   }}
                 >
                   {mode === "income" ? "+" : ""}
-                  {formatInr(txn.amount)}
+                  {formatAmount(txn.amount, currencyCode, currencySymbol)}
                 </Text>
               </View>
             </Animated.View>
           ))
         ) : (
-          <Text
+          /* Empty state */
+          <View
             style={{
-              fontSize: 13,
-              color: muted,
-              textAlign: "center",
-              paddingVertical: 32,
+              alignItems: "center",
+              paddingVertical: 48,
+              gap: 10,
             }}
           >
-            No transactions this month.
-          </Text>
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                backgroundColor: withOpacity(muted, "10"),
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 4,
+              }}
+            >
+              <MaterialCommunityIcons
+                name="receipt-outline"
+                size={24}
+                color={muted}
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: textColor,
+                opacity: 0.6,
+              }}
+            >
+              No transactions
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                color: muted,
+                textAlign: "center",
+                lineHeight: 18,
+                maxWidth: 200,
+              }}
+            >
+              Nothing recorded under {categoryLabel} this month.
+            </Text>
+          </View>
         )}
       </ScrollView>
     </AnimatedPaperModal>

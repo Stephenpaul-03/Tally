@@ -1,94 +1,70 @@
-import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { PageHeader } from "@/components/pageheader/PageHeader";
-import { useTabBarHeight } from "@/components/tabbar/TabBarContext";
+import { useSharedTabHeader } from "@/components/pageheader/SharedTabHeader";
+import {
+  useSetTabBarEdgeButton,
+  useTabBarHeight,
+} from "@/components/tabbar/TabBarContext";
+import { useAppSelector } from "@/hooks/Redux";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import {
+  type InsightCardId,
+  DEFAULT_INSIGHTS_CARD_ORDER,
+  useAddonPrefs,
+} from "@/hooks/use-addon-prefs";
+import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
+import { selectCategoryBudgets } from "@/modules/Core/Slices/TransactionSlice";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import GuidedChat from "@/modules/Labs/QueryEngine/GuidedChat";
-import { AccountManagementModal } from "@/modules/Management/Account/Index";
-import { CategoryManagementModal } from "@/modules/Management/Category/Index";
-import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Animated,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
-import { FAB, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "react-native-paper";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { EmptyState } from "../../components/EmptyStates";
 import {
-  IncomeVsExpensesCard,
-  SpendingTrendCard,
+  BudgetSummaryCard,
+  CategoryTrendsCard,
+  WeeklySpendingCard,
 } from "../Labs/BetterAnalytics/Index";
-import { AccountTransactionsSheet } from "./Components/BottomSheets/AccountTransactionsSheet";
 import { BreakdownBottomSheet } from "./Components/BottomSheets/BreakdownListSheet";
 import { CategoryTransactionsSheet } from "./Components/BottomSheets/BreakdownTransactionSheet";
 import { PaymentMethodBreakdownCard } from "./Components/Cards/AccountBreakdownCard";
-import { AdvancedInsightsCarousel } from "./Components/Cards/AdvancedInsightsCard";
 import { BreakdownCard } from "./Components/Cards/CategoryBreakdownCard";
 import { HeroCard } from "./Components/Cards/HeroCard";
+import { QuickShareInsightsModal } from "./Components/QuickShareInsightsModal";
 import { useInsights } from "./Hooks";
 import { buildInsightsTokens } from "./Tokens";
+import { formatAmount, formatMonthLabel, shiftMonth } from "./Utils";
 
 export default function InsightsPage() {
   const theme = useTheme();
   const isFocused = useIsFocused();
-  const { animStyle, slideIn } = useFadeSlide({
-    from: "bottom",
-    distance: 20,
-    duration: 1200,
-    autoPlay: false,
-    delay: 300,
-  });
-
-  const hasMountedRef = useRef(false);
-  const hasAnimatedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-    if (isFocused && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true;
-      slideIn();
-    }
-  }, [isFocused, slideIn]);
-
-  // Reset when user leaves, so it re-animates on return
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      hasAnimatedRef.current = true; // ← mark as already "animated" on first mount
-      return;
-    }
-    if (isFocused && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true;
-      slideIn();
-    }
-  }, [isFocused, slideIn]);
+  const setTabBarEdgeButton = useSetTabBarEdgeButton();
 
   const { height: windowHeight } = useWindowDimensions();
   const tabBarHeight = useTabBarHeight();
-  const usableSpace = tabBarHeight + 12;
-  const addButtonSpacing = 50;
-  const { guidedChatEnabled, betterAnalyticsEnabled } = useAddonPrefs();
+  const { bottom } = useSafeAreaInsets();
+  const usableSpace = tabBarHeight + bottom + 60;
+  const { guidedChatEnabled, betterAnalyticsEnabled, insightsCardOrder } =
+    useAddonPrefs();
   const t = buildInsightsTokens(theme);
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const categoryBudgets = useAppSelector(selectCategoryBudgets);
+  const currencyCode = activeWorkspace?.currencyCode ?? "INR";
+  const currencySymbol = activeWorkspace?.currencySymbol ?? "";
   const [isGuidedChatOpen, setIsGuidedChatOpen] = useState(false);
   const [guidedChatSessionKey, setGuidedChatSessionKey] = useState(0);
-  const categoryManagement = useCategoryManagement("expense");
+  const [isQuickShareOpen, setIsQuickShareOpen] = useState(false);
   const accountManagement = useAccountManagement();
   const paymentMethodVisuals = useMemo(
     () =>
@@ -106,29 +82,14 @@ export default function InsightsPage() {
       ),
     [accountManagement],
   );
-  const fabTheme = useMemo(
-    () => ({
-      ...theme,
-      fonts: {
-        ...theme.fonts,
-        labelLarge: {
-          ...theme.fonts.labelLarge,
-          ...typography.editorial.sectionLabel,
-          fontSize: 16,
-          lineHeight: 16,
-          letterSpacing: 0.5,
-          fontWeight: "normal" as const,
-        },
-      },
-    }),
-    [theme],
-  );
 
   const {
     selectedDate,
+    selectedMonth,
     setSelectedDate,
     summary,
-    comparison,
+    overallBudget,
+    heroSummary,
     sheetVisible,
     setSheetVisible,
     sheetMode,
@@ -145,8 +106,25 @@ export default function InsightsPage() {
     accountSheetMonthLabel,
     analytics,
   } = useInsights();
+  const previousMonthLabel = formatMonthLabel(shiftMonth(selectedMonth, -1));
+  const { shareInsights, isGenerating, activeMode } = useQuickShareInsights(
+    summary,
+    categorySheetMonthLabel,
+    previousMonthLabel,
+    activeWorkspace?.name,
+    currencyCode,
+    analytics.categoryComparison.rows,
+    analytics.categoryComparison.incomeRows,
+    overallBudget,
+    categoryBudgets,
+  );
 
   const isEmpty = summary.expenseTotal === 0 && summary.incomeTotal === 0;
+  const hasBudget = overallBudget > 0;
+  const budgetProgress = hasBudget
+    ? (summary.expenseTotal / overallBudget) * 100
+    : 0;
+  const savingsLeft = summary.incomeTotal - summary.expenseTotal;
   const handleOpenGuidedChat = useCallback(() => {
     if (!guidedChatEnabled) return;
     setGuidedChatSessionKey((prev) => prev + 1);
@@ -157,98 +135,154 @@ export default function InsightsPage() {
     setIsGuidedChatOpen(false);
   }, []);
 
+  const handleOpenQuickShare = useCallback(() => {
+    setIsQuickShareOpen(true);
+  }, []);
+
+  const handleCloseQuickShare = useCallback(() => {
+    if (isGenerating) {
+      return;
+    }
+    setIsQuickShareOpen(false);
+  }, [isGenerating]);
+
+  const handleShareInsights = useCallback(
+    async (mode: Parameters<typeof shareInsights>[0]) => {
+      await shareInsights(mode);
+      setIsQuickShareOpen(false);
+    },
+    [shareInsights],
+  );
+
   const guidedChatSheetHeight = Math.round(windowHeight * 0.85);
 
-  // Advanced analytics cards — shown in a swipeable carousel when
-  // betterAnalyticsEnabled is on. Empty array hides the carousel entirely.
-  const advancedCards = useMemo(() => {
-    if (!betterAnalyticsEnabled) return [];
-
-    return [
-      {
-        id: "spendingTrend",
-        node: (
-          <SpendingTrendCard
-            analytics={analytics.spendingTrend}
-            bg={t.elevatedCard}
-            outline={t.outline}
-            textColor={t.textColor}
-            muted={t.muted}
+  useEffect(() => {
+    if (!isFocused || !guidedChatEnabled) {
+      return;
+    }
+    setTabBarEdgeButton({
+      right: {
+        label: "Ask",
+        accessibilityLabel: "Open guided chat",
+        onPress: handleOpenGuidedChat,
+        icon: ({ color, size }) => (
+          <MaterialCommunityIcons
+            name="message-text-outline"
+            color={color}
+            size={size}
           />
         ),
       },
-      {
-        id: "incomeVsExpenses",
-        node: (
-          <IncomeVsExpensesCard
-            analytics={analytics.incomeVsExpenses}
-            bg={t.elevatedCard}
-            outline={t.outline}
-            textColor={t.textColor}
-            muted={t.muted}
-          />
-        ),
-      },
-    ];
-  }, [
-    analytics.incomeVsExpenses,
-    analytics.spendingTrend,
-    betterAnalyticsEnabled,
-    t.elevatedCard,
-    t.outline,
-    t.textColor,
-    t.muted,
-  ]);
+    });
+    return () => setTabBarEdgeButton(null);
+  }, [guidedChatEnabled, handleOpenGuidedChat, isFocused, setTabBarEdgeButton]);
 
-  // Core breakdown cards — always shown, fixed order.
   const insightCards = useMemo(() => {
-    // spendingByCategory always passes comparison rows — the card itself
-    // only renders dual rings/bars when betterAnalyticsEnabled is on.
-    return [
-      {
-        id: "spendingByCategory",
-        node: (
-          <BreakdownCard
-            summary={summary}
-            bg={t.elevatedCard}
-            outline={t.outline}
-            textColor={t.textColor}
-            muted={t.muted}
-            trackColor={t.paymentTrack}
-            onRowPress={openCategorySheet}
-            categoryComparison={analytics.categoryComparison.rows}
-            incomeCategoryComparison={analytics.categoryComparison.incomeRows}
-          />
-        ),
-      },
-      {
-        id: "paymentMethodBreakdown",
-        node: (
-          <PaymentMethodBreakdownCard
-            bg={t.elevatedCard}
-            outline={t.outline}
-            textColor={t.textColor}
-            muted={t.muted}
-            trackColor={t.paymentTrack}
-            items={summary.paymentMethodBreakdown}
-            onRowPress={openPaymentMethodSheet}
-            paymentMethodVisuals={paymentMethodVisuals}
-          />
-        ),
-      },
+    const cardMap: Partial<Record<InsightCardId, React.ReactNode>> = {
+      spendingByCategory: (
+        <BreakdownCard
+          summary={summary}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+          trackColor={theme.colors.surfaceVariant}
+          onRowPress={openCategorySheet}
+          categoryComparison={analytics.categoryComparison.rows}
+          incomeCategoryComparison={analytics.categoryComparison.incomeRows}
+        />
+      ),
+      spendingByPaymentMethod: (
+        <PaymentMethodBreakdownCard
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+          trackColor={theme.colors.surfaceVariant}
+          items={summary.paymentMethodBreakdown}
+          onRowPress={openPaymentMethodSheet}
+          paymentMethodVisuals={paymentMethodVisuals}
+        />
+      ),
+    };
+    if (hasBudget) {
+      cardMap.budgetSummary = (
+        <BudgetSummaryCard
+          theme={theme}
+          totalBudget={overallBudget}
+          spent={summary.expenseTotal}
+          remaining={overallBudget - summary.expenseTotal}
+          currencyCode={currencyCode}
+          currencySymbol={currencySymbol}
+          categoryEntries={summary.groupedExpenseBreakdown.map((item) => ({
+            name: item.category,
+            budget: categoryBudgets[item.category] ?? 0,
+            spent: item.amount,
+          }))}
+        />
+      );
+    }
+
+    if (betterAnalyticsEnabled) {
+      cardMap.categoryTrends = (
+        <CategoryTrendsCard
+          analytics={analytics.categoryTrends}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+        />
+      );
+      cardMap.weeklySpending = (
+        <WeeklySpendingCard
+          analytics={analytics.weeklySpending}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+        />
+      );
+    }
+
+    const visibleCardIds = DEFAULT_INSIGHTS_CARD_ORDER.filter(
+      (id) =>
+        id === "budgetSummary" ||
+        id === "spendingByCategory" ||
+        id === "spendingByPaymentMethod" ||
+        betterAnalyticsEnabled,
+    );
+    const orderedIds = [
+      ...insightsCardOrder.filter((id): id is InsightCardId =>
+        visibleCardIds.includes(id as InsightCardId),
+      ),
+      ...visibleCardIds.filter((id) => !insightsCardOrder.includes(id)),
     ];
+
+    return orderedIds.map((id) => ({
+      id,
+      node: cardMap[id] ?? null,
+    }));
   }, [
+    summary,
+    theme,
+    openCategorySheet,
     analytics.categoryComparison.rows,
     analytics.categoryComparison.incomeRows,
-    openCategorySheet,
+    analytics.categoryTrends,
+    analytics.weeklySpending,
     openPaymentMethodSheet,
     paymentMethodVisuals,
-    summary,
-    t.elevatedCard,
-    t.outline,
-    t.paymentTrack,
-    t.textColor,
-    t.muted,
+    hasBudget,
+    betterAnalyticsEnabled,
+    insightsCardOrder,
+    overallBudget,
+    currencyCode,
+    currencySymbol,
+    categoryBudgets,
   ]);
 
   useEffect(() => {
@@ -257,28 +291,85 @@ export default function InsightsPage() {
     }
   }, [guidedChatEnabled, isGuidedChatOpen]);
 
+  useEffect(() => {
+    if (!isFocused) {
+      setIsQuickShareOpen(false);
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (isEmpty) {
+      setIsQuickShareOpen(false);
+    }
+  }, [isEmpty]);
+
+  const quickShareHeaderButton = useMemo(
+    () => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open insight share options"
+        disabled={isGenerating}
+        onPress={handleOpenQuickShare}
+        hitSlop={8}
+        style={({ pressed }) => ({
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 0.5,
+          borderColor: theme.colors.outlineVariant,
+          backgroundColor: isQuickShareOpen
+            ? theme.colors.primary
+            : theme.colors.surface,
+          opacity: pressed || isGenerating ? 0.7 : 1,
+        })}
+      >
+        <MaterialCommunityIcons
+          name="share-variant-outline"
+          size={18}
+          color={
+            isQuickShareOpen ? theme.colors.onPrimary : theme.colors.onSurface
+          }
+        />
+      </Pressable>
+    ),
+    [
+      handleOpenQuickShare,
+      isGenerating,
+      isQuickShareOpen,
+      theme.colors.onPrimary,
+      theme.colors.onSurface,
+      theme.colors.outlineVariant,
+      theme.colors.primary,
+      theme.colors.surface,
+    ],
+  );
+
+  useSharedTabHeader({
+    variant: "date",
+    title: "Insights",
+    selectedDate,
+    onDateSelect: setSelectedDate,
+    initialPickerMode: "month-strip",
+    backgroundColor: t.bg,
+    rightSlot: isEmpty ? undefined : quickShareHeaderButton,
+  });
+
   return (
-    <View style={{ flex: 1, marginBottom: usableSpace }}>
+    <View style={{ flex: 1 }}>
       <SafeAreaView
-        edges={["top", "left", "right"]}
+        edges={["left", "right"]}
         style={{ flex: 1, backgroundColor: t.bg }}
       >
-        <PageHeader
-          variant="date"
-          title="Insights"
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-          initialPickerMode="month-strip"
-          backgroundColor={t.bg}
-        />
-
         {isEmpty ? (
           <View
             style={{
               flex: 1,
-              flexGrow: 1,
               alignItems: "center",
               justifyContent: "center",
+              paddingHorizontal: 20,
+              paddingBottom: usableSpace,
             }}
           >
             <EmptyState
@@ -292,28 +383,59 @@ export default function InsightsPage() {
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{
-                padding: 16,
-                paddingBottom: addButtonSpacing,
-                paddingTop: 0,
+                paddingHorizontal: 20,
+                paddingTop: 12,
+                paddingBottom: usableSpace,
               }}
               showsVerticalScrollIndicator={false}
             >
               <HeroCard
-                summary={summary}
-                comparison={comparison}
-                bg={t.elevatedCard}
-                outline={t.outline}
-                textColor={t.textColor}
-                muted={t.muted}
+                showGreeting={false}
+                left={{
+                  label: "Expense",
+                  value: formatAmount(
+                    summary.expenseTotal,
+                    currencyCode,
+                    currencySymbol,
+                  ),
+                  caption: hasBudget
+                    ? `${Math.round(budgetProgress)}% of ${formatAmount(overallBudget, currencyCode, currencySymbol)} budget`
+                    : Number(heroSummary?.daysUntilMonthEnd) > 0
+                      ? "spent until today"
+                      : "spent this month",
+                }}
+                middle={{
+                  label: "Income",
+                  value: formatAmount(
+                    summary.incomeTotal,
+                    currencyCode,
+                    currencySymbol,
+                  ),
+                  caption:
+                    Number(heroSummary?.daysUntilMonthEnd) > 0
+                      ? "earned until today"
+                      : "earned this month",
+                }}
+                right={{
+                  label: "LeftOver",
+                  value: formatAmount(
+                    savingsLeft,
+                    currencyCode,
+                    currencySymbol,
+                  ),
+                  caption:
+                    Number(heroSummary?.daysUntilMonthEnd) > 0
+                      ? `${heroSummary.daysUntilMonthEnd} days remaining`
+                      : "money left",
+                }}
+                accentColor={theme.colors.primary}
+                outline={theme.colors.outline}
+                textColor={theme.colors.onSurface}
+                muted={theme.colors.onSurfaceVariant}
               />
               {insightCards.map((card) => (
                 <React.Fragment key={card.id}>{card.node}</React.Fragment>
               ))}
-              <AdvancedInsightsCarousel
-                cards={advancedCards}
-                activeColor={theme.colors.primary}
-                inactiveColor={t.muted}
-              />
             </ScrollView>
           </View>
         )}
@@ -337,28 +459,7 @@ export default function InsightsPage() {
           onRowPress={openCategorySheetFromBreakdownSheet}
         />
 
-        {guidedChatEnabled ? (
-          <Animated.View style={animStyle}>
-            <View
-              pointerEvents="box-none"
-              style={[insightsActionStyles.bottomActionWrap]}
-            >
-              <FAB
-                icon="message-text-outline"
-                label="Ask"
-                accessibilityLabel="Open guided chat"
-                onPress={handleOpenGuidedChat}
-                uppercase={false}
-                color={theme.colors.surface}
-                style={[
-                  insightsActionStyles.askButton,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-                theme={fabTheme}
-              />
-            </View>
-          </Animated.View>
-        ) : null}
+        {null}
       </SafeAreaView>
       <CategoryTransactionsSheet
         visible={Boolean(categorySheet)}
@@ -376,12 +477,10 @@ export default function InsightsPage() {
         categoryColor={categorySheet?.color}
       />
 
-      <AccountTransactionsSheet
+      <CategoryTransactionsSheet
         visible={Boolean(accountSheet)}
         onDismiss={() => setAccountSheet(null)}
-        accountLabel={accountSheet?.label ?? ""}
-        accountIcon={accountSheet?.icon}
-        accountColor={accountSheet?.color}
+        categoryLabel={accountSheet?.label ?? ""}
         monthLabel={accountSheetMonthLabel}
         total={accountSheet?.total ?? 0}
         transactions={accountSheet?.transactions ?? []}
@@ -390,18 +489,16 @@ export default function InsightsPage() {
         outline={t.outline}
         textColor={t.textColor}
         muted={t.muted}
+        categoryIcon={accountSheet?.icon}
+        categoryColor={accountSheet?.color}
       />
 
-      <CategoryManagementModal
-        isOpen={categoryManagement.isManagementOpen}
-        onClose={categoryManagement.handleCloseManagement}
-        management={categoryManagement}
-      />
-
-      <AccountManagementModal
-        isOpen={accountManagement.isManagementOpen}
-        onClose={accountManagement.handleCloseManagement}
-        management={accountManagement}
+      <QuickShareInsightsModal
+        visible={isQuickShareOpen}
+        onDismiss={handleCloseQuickShare}
+        isGenerating={isGenerating}
+        activeMode={activeMode}
+        onShare={handleShareInsights}
       />
 
       {guidedChatEnabled ? (
@@ -441,20 +538,6 @@ export default function InsightsPage() {
 }
 
 const insightsActionStyles = StyleSheet.create({
-  bottomActionWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    paddingHorizontal: 16,
-  },
-  askButton: {
-    borderRadius: 20,
-    minWidth: 96,
-  },
   guidedChatSheet: {
     alignSelf: "stretch",
     borderTopLeftRadius: 24,

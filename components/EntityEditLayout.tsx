@@ -1,13 +1,25 @@
+import {
+  CurrencyPickerField,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
 import { IconCategoryPicker } from "@/components/IconCategoryPicker";
 import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
-import { SectionLabel } from "@/components/SectionLabel";
-import { SheetCard } from "@/components/SheetCard";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { Text, TextInput, type MD3Theme } from "react-native-paper";
+import {
+  Pressable,
+  TextInput as RNTextInput,
+  ScrollView,
+  View,
+} from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { Text, type MD3Theme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SheetCard } from "./SheetCard";
 
 export type IconGrid = {
   columns: number;
@@ -22,11 +34,15 @@ export type EntityEditLayoutProps = {
   localName: string;
   localIcon: string;
   localColor: string;
+  localOwnerName?: string;
+  localCurrency?: WorkspaceCurrency;
 
   // Field setters
   onChangeName: (v: string) => void;
   onChangeIcon: (v: string) => void;
   onChangeColor: (v: string) => void;
+  onChangeOwnerName?: (v: string) => void;
+  onChangeCurrency?: (v: WorkspaceCurrency) => void;
 
   // Options
   allColors: string[];
@@ -37,7 +53,10 @@ export type EntityEditLayoutProps = {
   namePlaceholder?: string;
   nameLabel?: string;
   emptyPreviewLabel?: string;
+  headerSubtitle?: string;
   iconPickerVariant?: "category" | "account";
+  showHeader?: boolean;
+  showPreview?: boolean;
 
   // Submit
   canSubmit: boolean;
@@ -46,13 +65,8 @@ export type EntityEditLayoutProps = {
   submitLabelEdit?: string;
   onSubmit: () => void;
 
-  // Header — render prop so callers keep full control
-  renderHeader: (opts: {
-    title: string;
-    subtitle?: string;
-    showBack?: boolean;
-    rightAccessory?: React.ReactNode;
-  }) => React.ReactNode;
+  // Navigation
+  onBack: () => void;
 
   // Optional delete button content (caller decides guard logic)
   deleteAccessory?: React.ReactNode;
@@ -66,252 +80,756 @@ export type EntityEditLayoutProps = {
 
   // Optional name char limit (defaults to MANAGEMENT_NAME_LIMIT)
   nameLimit?: number;
+  ownerNameLimit?: number;
+
+  // How many icons/colors to show before "See all" opens the full picker
+  iconPreviewCount?: number;
+  colorPreviewCount?: number;
 };
+
+// Darkens a #RRGGBB hex color by a given amount (0-1) for the header gradient.
+function darkenHex(hex: string, amount = 0.22) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return hex;
+  const num = parseInt(clean, 16);
+  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
 
 export function EntityEditLayout({
   localName,
   localIcon,
   localColor,
+  localOwnerName,
+  localCurrency,
   onChangeName,
   onChangeIcon,
   onChangeColor,
+  onChangeOwnerName,
+  onChangeCurrency,
   allColors,
   allIcons,
   iconGrid,
   namePlaceholder = "Enter a name",
-  nameLabel = "Name",
   emptyPreviewLabel = "Name",
+  headerSubtitle,
   iconPickerVariant = "account",
+  showHeader = true,
+  showPreview = true,
   canSubmit,
   isEditing,
   submitLabelCreate = "Add",
   submitLabelEdit = "Save changes",
   onSubmit,
-  renderHeader,
+  onBack,
   deleteAccessory,
   footer,
   theme,
   background,
   nameLimit = MANAGEMENT_NAME_LIMIT,
+  ownerNameLimit = MANAGEMENT_NAME_LIMIT,
+  iconPreviewCount = 10,
+  colorPreviewCount = 10,
 }: EntityEditLayoutProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const { bottom } = useSafeAreaInsets();
   const c = theme.colors;
 
-  const colorColumnWidth = iconGrid.itemSize * 3 + iconGrid.spacing * 2;
+  const [iconModalVisible, setIconModalVisible] = React.useState(false);
+  const [colorModalVisible, setColorModalVisible] = React.useState(false);
+
+  const previewColor = minimalIconsEnabled
+    ? c.primary
+    : localColor || c.primary;
+  const headerGradient = React.useMemo(
+    () => [previewColor, darkenHex(previewColor)] as const,
+    [previewColor],
+  );
+
+  const previewIcons = React.useMemo(() => {
+    return allIcons.slice(0, Math.max(10, iconPreviewCount));
+  }, [allIcons, iconPreviewCount]);
+
+  const previewColors = React.useMemo(() => {
+    return allColors.slice(0, Math.max(10, colorPreviewCount));
+  }, [allColors, colorPreviewCount]);
 
   return (
     <>
-      {renderHeader({
-        showBack: true,
-        rightAccessory: deleteAccessory,
-        title: "",
-      })}
-
-      {/* Preview + Color picker */}
-      <SectionLabel label="Preview" theme={theme} />
-      <View
-        style={{
-          marginHorizontal: 12,
-          borderRadius: 16,
-          paddingVertical: 12,
-          paddingHorizontal: 12,
-          backgroundColor: c.surfaceVariant,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-        }}
+      <KeyboardAwareScrollView
+        bottomOffset={bottom + 50}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1, backgroundColor: background }}
       >
-        {/* Preview — left */}
-        <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-          }}
-        >
-          <View
-            style={{
-              width: 128,
-              height: 128,
-              borderRadius: 16,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: c.background,
-            }}
-          >
-            <MaterialCommunityIcons
-              name={(localIcon || "tag-outline") as any}
-              size={96}
-              color={minimalIconsEnabled ? c.primary : localColor || c.primary}
-            />
-          </View>
-
-          <Text
-            numberOfLines={1}
-            style={{
-              fontSize: 15,
-              fontWeight: "700",
-              color: localName.trim() ? c.onSurface : c.onSurfaceVariant,
-              textAlign: "center",
-            }}
-          >
-            {localName.trim() || emptyPreviewLabel}
-          </Text>
-
-          {minimalIconsEnabled ? (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+        <View style={{ flex: 1, justifyContent: "flex-start" }}>
+          {showHeader ? (
+            <LinearGradient
+              colors={headerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                paddingTop: 12,
+                paddingBottom: 28,
+                paddingHorizontal: 16,
+                borderBottomLeftRadius: 28,
+                borderBottomRightRadius: 28,
+                overflow: "hidden",
+              }}
             >
-              <MaterialCommunityIcons
-                name="information-outline"
-                size={14}
-                color={c.primary}
-              />
-              <Text
+              {/* Decorative background circles */}
+              <View
+                pointerEvents="none"
                 style={{
-                  flex: 1,
-                  fontSize: 11,
-                  lineHeight: 15,
-                  color: c.onSurfaceVariant,
+                  position: "absolute",
+                  top: -50,
+                  left: -30,
+                  width: 150,
+                  height: 150,
+                  borderRadius: 75,
+                  backgroundColor: "#ffffff15",
+                }}
+              />
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: -30,
+                  right: -60,
+                  width: 170,
+                  height: 170,
+                  borderRadius: 85,
+                  backgroundColor: "#ffffff12",
+                }}
+              />
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
-                Minimal Icons is on.
-              </Text>
-            </View>
-          ) : null}
-        </View>
+                <Pressable
+                  accessibilityLabel="Go back"
+                  hitSlop={12}
+                  onPress={onBack}
+                  style={({ pressed }) => ({
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#ffffff26",
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <MaterialCommunityIcons
+                    name="chevron-left"
+                    size={24}
+                    color="#fff"
+                  />
+                </Pressable>
 
-        {/* Divider */}
-        <View
-          style={{
-            width: 1,
-            alignSelf: "stretch",
-            backgroundColor: `${c.onSurface}18`,
-            borderRadius: 1,
-          }}
-        />
+                {deleteAccessory ?? <View style={{ width: 36, height: 36 }} />}
+              </View>
 
-        {/* Color picker — right, 3 columns */}
-        <View style={{ width: colorColumnWidth }}>
-          <ScrollView
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
-            style={{
-              maxHeight: iconGrid.itemSize * 4 + iconGrid.spacing * 3,
-            }}
-          >
+              <View style={{ alignItems: "center", marginTop: 4 }}>
+                <View
+                  style={{
+                    width: 92,
+                    height: 92,
+                    borderRadius: 46,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#ffffff26",
+                    marginBottom: 14,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name={(localIcon || "tag-outline") as any}
+                    size={42}
+                    color="#fff"
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "700",
+                    color: "#fff",
+                    textAlign: "center",
+                  }}
+                >
+                  {localName.trim() || emptyPreviewLabel}
+                </Text>
+                {headerSubtitle ? (
+                  <Text
+                    style={{ fontSize: 13, color: "#ffffffcc", marginTop: 2 }}
+                  >
+                    {headerSubtitle}
+                  </Text>
+                ) : null}
+              </View>
+            </LinearGradient>
+          ) : showPreview ? (
             <View
               style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                gap: iconGrid.spacing,
+                alignItems: "center",
+                paddingTop: 20,
+                paddingHorizontal: 16,
               }}
             >
-              {allColors.map((color) => {
-                const isSelected = localColor === color;
-                return (
-                  <Pressable
-                    key={color}
-                    onPress={() => onChangeColor(color)}
-                    style={({ pressed }) => ({
-                      width: iconGrid.itemSize,
-                      height: iconGrid.itemSize,
-                      borderRadius: Math.max(
-                        10,
-                        Math.floor(iconGrid.itemSize * 0.28),
-                      ),
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: color,
-                      borderWidth: isSelected ? 2.5 : 1.5,
-                      borderColor: isSelected ? c.onSurface : `${color}44`,
-                      opacity: pressed ? 0.8 : 1,
-                    })}
-                  >
-                    {isSelected && (
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={iconGrid.iconSize}
-                        color={c.onPrimary}
-                      />
-                    )}
-                  </Pressable>
-                );
-              })}
+              <View
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: 38,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: previewColor,
+                  marginBottom: 10,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={(localIcon || "tag-outline") as any}
+                  size={36}
+                  color={c.onPrimary}
+                />
+              </View>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: c.onSurface,
+                  textAlign: "center",
+                }}
+              >
+                {localName.trim() || emptyPreviewLabel}
+              </Text>
+              {headerSubtitle ? (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: c.onSurfaceVariant,
+                    marginTop: 2,
+                  }}
+                >
+                  {headerSubtitle}
+                </Text>
+              ) : null}
             </View>
-          </ScrollView>
+          ) : null}
+
+          <View style={{ paddingHorizontal: 20 }}>
+            {/* Name */}
+            <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
+              <Text
+                style={{
+                  ...typography.editorial.sectionLabel,
+                  fontSize: 14,
+                  letterSpacing: 0.6,
+                  color: c.onSurface,
+                  marginBottom: 8,
+                }}
+              >
+                Name
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: c.surfaceVariant,
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                }}
+              >
+                <RNTextInput
+                  maxLength={nameLimit}
+                  onChangeText={(value) =>
+                    onChangeName(value.slice(0, nameLimit))
+                  }
+                  placeholder={namePlaceholder}
+                  placeholderTextColor={c.onSurfaceVariant}
+                  style={{
+                    flex: 1,
+                    fontSize: 15,
+                    color: c.onSurface,
+                    paddingVertical: 0,
+                  }}
+                  value={localName}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: c.onSurfaceVariant,
+                    marginLeft: 8,
+                  }}
+                >
+                  {localName.length}/{nameLimit}
+                </Text>
+              </View>
+
+              {minimalIconsEnabled ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 8,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="information-outline"
+                    size={14}
+                    color={c.primary}
+                  />
+                  <Text style={{ fontSize: 11, color: c.onSurfaceVariant }}>
+                    Minimal Icons is on.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={{ marginVertical: 20 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    ...typography.editorial.sectionLabel,
+                    fontSize: 14,
+                    letterSpacing: 0.6,
+                    color: c.onSurface,
+                  }}
+                >
+                  Icons
+                </Text>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setIconModalVisible(true)}
+                >
+                  <Text
+                    style={{
+                      ...typography.editorial.sectionLabel,
+                      fontSize: 12,
+                      color: c.primary,
+                    }}
+                  >
+                    See all
+                  </Text>
+                </Pressable>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+              >
+                {previewIcons.map((icon) => {
+                  const selected = icon === localIcon;
+                  return (
+                    <Pressable
+                      key={icon}
+                      onPress={() => onChangeIcon(icon)}
+                      style={({ pressed }) => ({
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: c.background,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? previewColor : c.outlineVariant,
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <MaterialCommunityIcons
+                        name={icon as any}
+                        size={22}
+                        color={selected ? previewColor : c.onSurfaceVariant}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={{ marginBottom: 4 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    ...typography.editorial.sectionLabel,
+                    fontSize: 14,
+                    letterSpacing: 0.6,
+                    color: c.onSurface,
+                  }}
+                >
+                  Colors
+                </Text>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setColorModalVisible(true)}
+                >
+                  <Text
+                    style={{
+                      ...typography.editorial.sectionLabel,
+                      fontSize: 12,
+                      color: c.primary,
+                    }}
+                  >
+                    See all
+                  </Text>
+                </Pressable>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+              >
+                {previewColors.map((color) => {
+                  const selected = color === localColor;
+                  return (
+                    <Pressable
+                      key={color}
+                      onPress={() => onChangeColor(color)}
+                      style={({ pressed }) => ({
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: color,
+                        borderWidth: selected ? 2.5 : 0,
+                        borderColor: c.onSurface,
+                        opacity: pressed ? 0.8 : 1,
+                      })}
+                    >
+                      {selected && (
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={16}
+                          color="#fff"
+                        />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Details */}
+            {onChangeOwnerName || (localCurrency && onChangeCurrency) ? (
+              <>
+                <Text
+                  style={{
+                    ...typography.editorial.sectionLabel,
+                    fontSize: 14,
+                    letterSpacing: 0.6,
+                    color: c.onSurface,
+                    marginTop: 24,
+                    marginBottom: 12,
+                  }}
+                >
+                  DETAILS
+                </Text>
+
+                <View
+                  style={{
+                    backgroundColor: c.surfaceVariant,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                  }}
+                >
+                  {onChangeOwnerName ? (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        borderTopWidth:
+                          localCurrency && onChangeCurrency ? 1 : 0,
+                        borderTopColor: `${c.onSurface}12`,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: c.onSurface,
+                        }}
+                      >
+                        Owner
+                      </Text>
+                      <RNTextInput
+                        maxLength={ownerNameLimit}
+                        onChangeText={(value) =>
+                          onChangeOwnerName(value.slice(0, ownerNameLimit))
+                        }
+                        placeholder="e.g. Stephen"
+                        placeholderTextColor={c.onSurfaceVariant}
+                        style={{
+                          flex: 1,
+                          marginLeft: 12,
+                          fontSize: 14,
+                          textAlign: "right",
+                          color: c.onSurface,
+                          paddingVertical: 0,
+                        }}
+                        value={localOwnerName ?? ""}
+                      />
+                    </View>
+                  ) : null}
+
+                  {localCurrency && onChangeCurrency ? (
+                    <View
+                      style={{
+                        borderTopWidth: onChangeOwnerName ? 1 : 0,
+                        borderTopColor: `${c.onSurface}12`,
+                      }}
+                    >
+                      <CurrencyPickerField
+                        currency={localCurrency}
+                        label="Currency"
+                        onChange={onChangeCurrency}
+                        theme={theme}
+                        variant="editorial"
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
+          </View>
+
+          <View style={{ marginTop: "auto" }}>
+            {footer ?? (
+              <View style={{ flexDirection: "row", margin: 16, marginTop: 24 }}>
+                <Pressable
+                  disabled={!canSubmit}
+                  onPress={onSubmit}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: previewColor,
+                    opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
+                  })}
+                >
+                  <MaterialCommunityIcons
+                    color={c.onPrimary}
+                    name={isEditing ? "content-save-outline" : "plus"}
+                    size={18}
+                  />
+                  <Text
+                    style={{
+                      ...typography.editorial.sectionLabel,
+                      fontSize: 14,
+                      color: c.onPrimary,
+                    }}
+                  >
+                    {isEditing ? submitLabelEdit : submitLabelCreate}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAwareScrollView>
 
-      {/* Name */}
-      <SectionLabel label="Name" theme={theme} />
-      <SheetCard theme={theme} style={{ padding: 10, paddingTop: 5 }}>
-        <TextInput
-          label={nameLabel}
-          maxLength={nameLimit}
-          mode="outlined"
-          onChangeText={(value) => onChangeName(value.slice(0, nameLimit))}
-          placeholder={namePlaceholder}
-          right={
-            <TextInput.Affix
-              text={`${localName.length}/${nameLimit}`}
-              textStyle={{ color: c.onSurfaceVariant, fontSize: 12 }}
-            />
-          }
-          style={{ backgroundColor: background }}
-          value={localName}
+      {/* "See all" icons modal */}
+      <AnimatedPaperModal
+        visible={iconModalVisible}
+        onDismiss={() => setIconModalVisible(false)}
+        presentation="sheet"
+        contentContainerStyle={{
+          backgroundColor: background,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          maxHeight: "80%",
+        }}
+      >
+        <View
+          style={{
+            alignSelf: "center",
+            width: 42,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: c.outlineVariant,
+            marginTop: 10,
+            marginBottom: 2,
+          }}
         />
-      </SheetCard>
-
-      {/* Icon */}
-      <SectionLabel label="Icon" theme={theme} />
-      <SheetCard theme={theme} style={{ padding: 10 }}>
-        <IconCategoryPicker
-          allIcons={allIcons}
-          background={background}
-          iconGrid={iconGrid}
-          onSelectIcon={onChangeIcon}
-          selectedIcon={localIcon}
-          theme={theme}
-          variant={iconPickerVariant}
-        />
-      </SheetCard>
-
-      {footer ?? (
-        <View style={{ flexDirection: "row", margin: 12, marginTop: "auto" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 8,
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "700", color: c.onSurface }}>
+            Choose an icon
+          </Text>
           <Pressable
-            disabled={!canSubmit}
-            onPress={onSubmit}
-            style={({ pressed }) => ({
-              flex: 1,
-              flexDirection: "row",
+            hitSlop={8}
+            onPress={() => setIconModalVisible(false)}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
-              paddingVertical: 14,
-              borderRadius: 14,
-              backgroundColor: c.primary,
-              opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
-            })}
+              backgroundColor: c.surfaceVariant,
+            }}
           >
             <MaterialCommunityIcons
-              color={c.onPrimary}
-              name={isEditing ? "content-save-outline" : "plus"}
-              size={18}
+              name="close"
+              size={16}
+              color={c.onSurfaceVariant}
             />
-            <Text
-              style={{
-                ...typography.editorial.sectionLabel,
-                fontSize: 14,
-                color: c.onPrimary,
-              }}
-            >
-              {isEditing ? submitLabelEdit : submitLabelCreate}
-            </Text>
           </Pressable>
         </View>
-      )}
+        <SheetCard theme={theme} style={{ padding: 10, margin: 12 }}>
+          <IconCategoryPicker
+            allIcons={allIcons}
+            background={background}
+            iconGrid={iconGrid}
+            onSelectIcon={(icon) => {
+              onChangeIcon(icon);
+              setIconModalVisible(false);
+            }}
+            selectedIcon={localIcon}
+            selectedColor={previewColor}
+            theme={theme}
+            variant={iconPickerVariant}
+          />
+        </SheetCard>
+      </AnimatedPaperModal>
+
+      {/* "See all" colors modal */}
+      <AnimatedPaperModal
+        visible={colorModalVisible}
+        onDismiss={() => setColorModalVisible(false)}
+        presentation="sheet"
+        contentContainerStyle={{
+          backgroundColor: background,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          maxHeight: "80%",
+        }}
+      >
+        <View
+          style={{
+            alignSelf: "center",
+            width: 42,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: c.outlineVariant,
+            marginTop: 10,
+            marginBottom: 2,
+          }}
+        />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 8,
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "700", color: c.onSurface }}>
+            Choose a color
+          </Text>
+          <Pressable
+            hitSlop={8}
+            onPress={() => setColorModalVisible(false)}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: c.surfaceVariant,
+            }}
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={16}
+              color={c.onSurfaceVariant}
+            />
+          </Pressable>
+        </View>
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 20,
+            borderRadius: 16,
+            padding: 12,
+            backgroundColor: c.surfaceVariant,
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: iconGrid.spacing,
+          }}
+        >
+          {allColors.map((color) => {
+            const selected = localColor === color;
+            return (
+              <Pressable
+                key={color}
+                onPress={() => {
+                  onChangeColor(color);
+                  setColorModalVisible(false);
+                }}
+                style={({ pressed }) => ({
+                  width: iconGrid.itemSize,
+                  height: iconGrid.itemSize,
+                  borderRadius: iconGrid.itemSize / 2,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: color,
+                  borderWidth: selected ? 2.5 : 0,
+                  borderColor: c.onSurface,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                {selected && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={iconGrid.iconSize}
+                    color={c.onPrimary}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </AnimatedPaperModal>
     </>
   );
 }

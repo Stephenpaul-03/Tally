@@ -469,7 +469,7 @@ export function CategoryManagementModal({
               bg={bg}
               theme={theme}
               onSubmit={handleSubmit}
-              renderHeader={renderHeader}
+              onBack={handleBack}
             />
           )}
           {screen === "delete" && (

@@ -18,12 +18,12 @@ import { toast } from "@/components/toast/ToastProvider";
 import {
     financeRepository,
     workspaceRepository,
-} from "@/modules/Data/Repository/Index";
+} from "@/modules/Core/Repository/Index";
 import {
     fetchTransactions,
     importTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
-import { AppDispatch } from "@/modules/Data/Store";
+} from "@/modules/Core/Slices/TransactionSlice";
+import { AppDispatch } from "@/modules/Core/Store";
 import {
     decryptEnvelope,
     encryptJson,
@@ -514,7 +514,9 @@ export function useImportExport(
           backup.transactions.length +
           backup.categories.length +
           backup.accounts.length +
-          backup.workspaces.length;
+          backup.workspaces.length +
+          backup.budgets.length +
+          backup.categoryBudgets.length;
       } else {
         if (financeRepository) {
           transactionsToExport = await financeRepository.getTransactions();

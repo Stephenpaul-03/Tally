@@ -90,7 +90,7 @@ export function ListScreen({
         theme={theme}
       />
 
-      <View style={{ height: listHeight, marginHorizontal: 12 }}>
+      <View style={{ flex: 1, marginHorizontal: 12 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ gap: 8, paddingBottom: 8 }}

@@ -56,26 +56,56 @@ export function CategoryPicker({
         }}
         style={categoryPicker.pressable}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          {selectedIconName ? (
-            <MaterialCommunityIcons
-              name={selectedIconName}
-              size={16}
-              color={
-                minimalIconsEnabled
-                  ? theme.colors.primary
-                  : (selectedColor ?? theme.colors.onSurfaceVariant)
-              }
-            />
-          ) : null}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 0,
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: selectedColor
+                ? `${selectedColor}22`
+                : theme.colors.elevation.level3,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {selectedIconName ? (
+              <MaterialCommunityIcons
+                name={selectedIconName}
+                size={16}
+                color={
+                  minimalIconsEnabled
+                    ? theme.colors.primary
+                    : (selectedColor ?? theme.colors.onSurfaceVariant)
+                }
+              />
+            ) : (
+              <MaterialCommunityIcons
+                name="tag-outline"
+                size={16}
+                color={theme.colors.onSurfaceVariant}
+              />
+            )}
+          </View>
           <Text
             variant="bodyMedium"
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={{
               flex: 1,
+              minWidth: 0,
               color: value
                 ? theme.colors.onSurface
                 : theme.colors.onSurfaceVariant,
               opacity: value ? 1 : 0.5,
+              fontWeight: value ? "600" : "400",
             }}
           >
             {value || "Select category"}

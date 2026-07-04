@@ -30,64 +30,56 @@ export function FieldRow({
   const theme = useTheme<MD3Theme>();
   const hasError = !!error;
 
-  return (
-    <View>
+  const row = (
+    <View
+      style={[
+        fieldRow.inner,
+        {
+          borderBottomWidth: isLast && !hasError ? 0 : 0.5,
+          borderBottomColor: hasError
+            ? theme.colors.error
+            : theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      {/* Label cell — never tappable */}
       <View
         style={[
-          fieldRow.inner,
-          {
-            borderBottomWidth: isLast && !hasError ? 0 : 0.5,
-            borderBottomColor: hasError
-              ? theme.colors.error
-              : theme.colors.outlineVariant,
-          },
+          fieldRow.labelCell,
+          { borderRightColor: theme.colors.outlineVariant },
         ]}
       >
-        {/* Label cell — never tappable */}
-        <View
+        <MaterialCommunityIcons
+          name={icon}
+          size={18}
+          color={hasError ? theme.colors.error : theme.colors.primary}
+        />
+        <Text
+          variant="labelMedium"
           style={[
-            fieldRow.labelCell,
-            { borderRightColor: theme.colors.outlineVariant },
+            fieldRow.label,
+            {
+              color: hasError
+                ? theme.colors.error
+                : getContrastColor(theme.colors.elevation.level1),
+            },
           ]}
         >
-          <MaterialCommunityIcons
-            name={icon}
-            size={18}
-            color={hasError ? theme.colors.error : theme.colors.primary}
-          />
-          <Text
-            variant="labelMedium"
-            style={[
-              fieldRow.label,
-              {
-                color: hasError
-                  ? theme.colors.error
-                  : getContrastColor(theme.colors.elevation.level1),
-              },
-            ]}
-          >
-            {label}
-          </Text>
-        </View>
-
-        {/* Value side — tappable only when onPress provided */}
-        {onPress ? (
-          <TouchableRipple onPress={onPress} style={{ flex: 1 }}>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-            >
-              <View style={[fieldRow.children, { flex: 1 }]}>{children}</View>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={18}
-                color={theme.colors.primary}
-              />
-            </View>
-          </TouchableRipple>
-        ) : (
-          <View style={fieldRow.children}>{children}</View>
-        )}
+          {label}
+        </Text>
       </View>
+
+      <View style={[fieldRow.children, { flex: 1 }]}>{children}</View>
+    </View>
+  );
+
+  return (
+    <View>
+      {onPress ? (
+        <TouchableRipple onPress={onPress}>{row}</TouchableRipple>
+      ) : (
+        row
+      )}
 
       {hasError && (
         <View

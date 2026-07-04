@@ -97,14 +97,6 @@ function groupMonthsByYear(
     .map(([year, months]) => ({ year, months }));
 }
 
-/** Estimate KB from an item count */
-function estimateFileSize(count: number): string {
-  const bytes = count * 320 + 512; // rough estimate per tx
-  if (bytes < 1024) return `~${bytes} B`;
-  if (bytes < 1024 * 1024) return `~${Math.round(bytes / 1024)} KB`;
-  return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 // ─── Section header ───────────────────────────────────────────────────────────
 
 function SectionHeader({ label }: { label: string }) {
@@ -683,8 +675,6 @@ function ExportConfirmModal({
     dateRangeText = `${formatIsoDate(rangeStartDate)} → ${formatIsoDate(rangeEndDate)}`;
   }
 
-  const fileSizeText = estimateFileSize(transactionCount);
-
   const summaryMessage = (
     <View style={{ gap: 12, paddingTop: 4 }}>
       <Text
@@ -729,28 +719,6 @@ function ExportConfirmModal({
             { backgroundColor: theme.colors.outlineVariant },
           ]}
         />
-
-        {/* File size */}
-        <View style={styles.confirmRow}>
-          <MaterialCommunityIcons
-            name="file-outline"
-            size={16}
-            color={theme.colors.onSurfaceVariant}
-          />
-          <Text
-            style={[
-              styles.confirmRowLabel,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Est. file size
-          </Text>
-          <Text
-            style={[styles.confirmRowValue, { color: theme.colors.onSurface }]}
-          >
-            {fileSizeText}
-          </Text>
-        </View>
 
         <View
           style={[
@@ -1206,7 +1174,7 @@ export function BackupExportScreen() {
           {
             backgroundColor: theme.colors.background,
             borderTopColor: theme.colors.outlineVariant,
-            paddingBottom: Math.max(insets.bottom, 16),
+            paddingBottom: Math.max(insets.bottom + 12, 16),
           },
         ]}
       >

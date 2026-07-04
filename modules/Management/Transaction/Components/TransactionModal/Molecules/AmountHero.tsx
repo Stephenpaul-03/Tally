@@ -1,3 +1,5 @@
+import { useAppSelector } from "@/hooks/Redux";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { typography } from "@/theme/typography";
 import { getContrastColor } from "@/utils/ColorHelpers";
 import { TransactionType } from "@/utils/Types";
@@ -14,13 +16,14 @@ interface AmountHeroProps {
 }
 
 const QUICK_ADD = [10, 50, 100, 500];
-
 export function AmountHero({
   value,
   onChange,
   transactionType,
   error,
 }: AmountHeroProps) {
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const currencyCode = activeWorkspace?.currencySymbol;
   const theme = useTheme<MD3Theme>();
 
   const handleQuickAdd = (amount: number) => {
@@ -54,7 +57,7 @@ export function AmountHero({
             { color: getContrastColor(theme.colors.background) },
           ]}
         >
-          ₹
+          {currencyCode}
         </Text>
 
         <TextInput

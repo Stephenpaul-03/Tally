@@ -1,4 +1,8 @@
 import { AlertModal } from "@/components/alert/AlertModal";
+import {
+  DEFAULT_WORKSPACE_CURRENCY,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
 import { toast } from "@/components/toast/ToastProvider";
@@ -8,36 +12,34 @@ import {
   deleteWorkspaceAndReload,
   selectWorkspaces,
   updateWorkspaceAsync,
-} from "@/modules/Data/Slices/WorkspaceSlice";
-import { typography } from "@/theme/typography";
+} from "@/modules/Core/Slices/WorkspaceSlice";
 import {
   getAccountIconOptions,
   getCategoryColorOptions,
 } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import type { RouteProp } from "@react-navigation/native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  NavigationContext,
+  NavigationRouteContext,
+  type RouteProp,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useMemo } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
-import {
-  Text,
-  TouchableRipple,
-  useTheme,
-  type MD3Theme,
-} from "react-native-paper";
+import { TouchableRipple, useTheme, type MD3Theme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
-import { SettingsStyles } from "../Styles";
 
 type Props = {
   workspaceName?: string;
   workspaceIcon?: string;
   workspaceColor?: string;
+  workspaceOwnerName?: string;
+  workspaceCurrency?: WorkspaceCurrency;
   onChangeName?: (v: string) => void;
   onChangeIcon?: (v: string) => void;
   onChangeColor?: (v: string) => void;
+  onChangeOwnerName?: (v: string) => void;
+  onChangeCurrency?: (v: WorkspaceCurrency) => void;
 
   allColors?: string[];
   allIcons?: string[];
@@ -51,12 +53,8 @@ type Props = {
 
   headerTitle?: string;
   headerSubtitle?: string;
-  renderHeader?: (opts: {
-    title: string;
-    subtitle?: string;
-    showBack?: boolean;
-    rightAccessory?: React.ReactNode;
-  }) => React.ReactNode;
+  onBack?: () => void;
+  showHeader?: boolean;
 
   footer?: React.ReactNode;
 
@@ -79,18 +77,12 @@ export function WorkspaceEditScreen(props: Props) {
   const theme = props.theme ?? paperTheme;
   const c = theme.colors;
 
-  // React Navigation hooks
-  let route: any = null;
-  let navigation: any = null;
-  try {
-    route = useRoute<RouteProp<SettingsStackParamList, "WorkspaceEdit">>();
-    navigation =
-      useNavigation<
-        NativeStackNavigationProp<SettingsStackParamList, "WorkspaceEdit">
-      >();
-  } catch (e) {
-    // Hooks may fail if not inside a navigation context (unlikely but safe fallback)
-  }
+  const route = React.useContext(NavigationRouteContext) as
+    | RouteProp<SettingsStackParamList, "WorkspaceEdit">
+    | undefined;
+  const navigation = React.useContext(NavigationContext) as
+    | NativeStackNavigationProp<SettingsStackParamList, "WorkspaceEdit">
+    | undefined;
 
   const isNavScreen = Boolean(
     route && route.name === "WorkspaceEdit" && !props.workspaceName,
@@ -109,7 +101,17 @@ export function WorkspaceEditScreen(props: Props) {
   const [localColor, setLocalColor] = React.useState(
     paramWorkspace?.color ?? "#6366F1",
   );
+  const [localOwnerName, setLocalOwnerName] = React.useState(
+    paramWorkspace?.ownerName ?? "",
+  );
+  const [localCurrency, setLocalCurrency] = React.useState<WorkspaceCurrency>({
+    code: paramWorkspace?.currencyCode ?? DEFAULT_WORKSPACE_CURRENCY.code,
+    name: paramWorkspace?.currencyName ?? DEFAULT_WORKSPACE_CURRENCY.name,
+    symbol: paramWorkspace?.currencySymbol ?? DEFAULT_WORKSPACE_CURRENCY.symbol,
+  });
   const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null);
+  const [showDeleteBlockedAlert, setShowDeleteBlockedAlert] =
+    React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const workspaceIconOptions = useMemo(
@@ -139,10 +141,22 @@ export function WorkspaceEditScreen(props: Props) {
   const activeColor = isNavScreen
     ? localColor
     : (props.workspaceColor ?? "#6366F1");
+  const activeOwnerName = isNavScreen
+    ? localOwnerName
+    : (props.workspaceOwnerName ?? "");
+  const activeCurrency = isNavScreen
+    ? localCurrency
+    : (props.workspaceCurrency ?? DEFAULT_WORKSPACE_CURRENCY);
 
   const changeName = isNavScreen ? setLocalName : props.onChangeName;
   const changeIcon = isNavScreen ? setLocalIcon : props.onChangeIcon;
   const changeColor = isNavScreen ? setLocalColor : props.onChangeColor;
+  const changeOwnerName = isNavScreen
+    ? setLocalOwnerName
+    : props.onChangeOwnerName;
+  const changeCurrency = isNavScreen
+    ? setLocalCurrency
+    : props.onChangeCurrency;
 
   const resolvedColors = props.allColors ?? workspaceColorOptions;
   const resolvedIcons = props.allIcons ?? workspaceIconOptions;
@@ -165,6 +179,10 @@ export function WorkspaceEditScreen(props: Props) {
               name: localName,
               icon: localIcon,
               color: localColor,
+              ownerName: localOwnerName,
+              currencyCode: localCurrency.code,
+              currencySymbol: localCurrency.symbol,
+              currencyName: localCurrency.name,
             },
           }) as any,
         );
@@ -175,6 +193,10 @@ export function WorkspaceEditScreen(props: Props) {
             name: localName,
             icon: localIcon,
             color: localColor,
+            ownerName: localOwnerName,
+            currencyCode: localCurrency.code,
+            currencySymbol: localCurrency.symbol,
+            currencyName: localCurrency.name,
           }) as any,
         );
         toast.success(`Switched to ${newWorkspace.name}`);
@@ -193,10 +215,7 @@ export function WorkspaceEditScreen(props: Props) {
   const handleNavScreenDelete = () => {
     if (!paramWorkspace) return;
     if (workspaces.length <= 1) {
-      Alert.alert(
-        "Can't delete workspace",
-        "Tally needs at least one workspace.",
-      );
+      setShowDeleteBlockedAlert(true);
       return;
     }
     setDeleteTarget(paramWorkspace);
@@ -221,6 +240,9 @@ export function WorkspaceEditScreen(props: Props) {
 
   const activeSubmit = isNavScreen ? handleNavScreenSubmit : props.onSubmit;
   const activeDelete = isNavScreen ? handleNavScreenDelete : props.onDelete;
+  const activeOnBack = isNavScreen
+    ? () => navigation?.goBack()
+    : (props.onBack ?? (() => {}));
 
   const deleteAccessory = activeDelete ? (
     <TouchableRipple
@@ -241,123 +263,69 @@ export function WorkspaceEditScreen(props: Props) {
     </TouchableRipple>
   ) : undefined;
 
-  const submitButton = (
-    <View style={{ flexDirection: "row", margin: 12, marginTop: "auto" }}>
-      <Pressable
-        disabled={!resolvedCanSubmit}
-        onPress={activeSubmit}
-        style={({ pressed }) => ({
-          flex: 1,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          paddingVertical: 14,
-          borderRadius: 14,
-          backgroundColor: c.primary,
-          opacity: pressed ? 0.65 : !resolvedCanSubmit ? 0.4 : 1,
-        })}
-      >
-        <MaterialCommunityIcons
-          color={c.onPrimary}
-          name={editingMode ? "content-save-outline" : "plus"}
-          size={18}
-        />
-        <Text
-          style={{
-            ...typography.editorial.sectionLabel,
-            fontSize: 14,
-            color: c.onPrimary,
-          }}
-        >
-          {editingMode ? "Save changes" : "Create workspace"}
-        </Text>
-      </Pressable>
-    </View>
-  );
-
   const content = (
     <EntityEditLayout
       allColors={resolvedColors}
       allIcons={resolvedIcons}
-      background={props.background ?? theme.colors.elevation.level1}
+      background={theme.colors.background}
       canSubmit={resolvedCanSubmit}
       deleteAccessory={deleteAccessory}
       emptyPreviewLabel="Workspace name"
-      footer={isNavScreen ? <View /> : props.footer}
+      footer={props.footer}
+      headerSubtitle={props.headerSubtitle}
       iconGrid={resolvedIconGrid}
       iconPickerVariant="account"
       isEditing={editingMode}
       localColor={activeColor}
+      localCurrency={activeCurrency}
       localIcon={activeIcon}
       localName={activeName}
-      nameLabel="Workspace name"
+      localOwnerName={activeOwnerName}
       namePlaceholder="e.g. Business"
       nameLimit={WORKSPACE_NAME_LIMIT}
+      onBack={activeOnBack}
       onChangeColor={changeColor!}
+      onChangeCurrency={changeCurrency}
       onChangeIcon={changeIcon!}
       onChangeName={changeName!}
+      onChangeOwnerName={changeOwnerName}
       onSubmit={activeSubmit!}
-      renderHeader={(opts) => {
-        if (isNavScreen) return null;
-        return (
-          props.renderHeader?.({
-            ...opts,
-            title:
-              props.headerTitle ??
-              (editingMode ? "Edit workspace" : "New workspace"),
-            subtitle: props.headerSubtitle,
-          }) ?? null
-        );
-      }}
+      showHeader={props.showHeader ?? true}
       submitLabelCreate="Create workspace"
       submitLabelEdit="Save changes"
       theme={theme}
     />
   );
 
-  if (isNavScreen) {
-    return (
-      <SafeAreaView
-        style={[
-          SettingsStyles.safeArea,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
-        <SettingsHeader
-          title={paramWorkspace ? "Edit workspace" : "New workspace"}
-          onBack={() => navigation?.goBack()}
-          rightAccessory={deleteAccessory}
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {content}
+      <AlertModal
+        confirmLabel="OK"
+        icon="alert-circle-outline"
+        isOpen={showDeleteBlockedAlert}
+        message="Tally needs at least one workspace."
+        onCancel={() => setShowDeleteBlockedAlert(false)}
+        onConfirm={() => {
+          setShowDeleteBlockedAlert(false);
+        }}
+        title="Can't delete workspace"
+      />
+      {deleteTarget ? (
+        <AlertModal
+          cancelLabel="Cancel"
+          confirmDisabled={isDeleting}
+          confirmLabel="Slide to delete"
+          confirmMode="slide"
+          destructive
+          icon="delete-alert-outline"
+          isOpen={Boolean(deleteTarget)}
+          message="This will permanently delete the workspace."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleConfirmDelete}
+          title={`Delete ${deleteTarget.name}?`}
         />
-        <ScrollView
-          contentContainerStyle={[
-            SettingsStyles.scrollContent,
-            { paddingBottom: 20 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {content}
-        </ScrollView>
-        {submitButton}
-
-        {deleteTarget ? (
-          <AlertModal
-            cancelLabel="Cancel"
-            confirmDisabled={isDeleting}
-            confirmLabel="Slide to delete"
-            confirmMode="slide"
-            destructive
-            icon="delete-alert-outline"
-            isOpen={Boolean(deleteTarget)}
-            message="This will permanently delete the workspace."
-            onCancel={() => setDeleteTarget(null)}
-            onConfirm={handleConfirmDelete}
-            title={`Delete ${deleteTarget.name}?`}
-          />
-        ) : null}
-      </SafeAreaView>
-    );
-  }
-
-  return content;
+      ) : null}
+    </SafeAreaView>
+  );
 }

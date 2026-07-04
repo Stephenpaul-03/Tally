@@ -16,8 +16,8 @@ import {
   fetchAccounts,
   fetchCategories,
   fetchTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
-import { store } from "@/modules/Data/Store";
+} from "@/modules/Core/Slices/TransactionSlice";
+import { store } from "@/modules/Core/Store";
 import { OnboardingScreen } from "@/modules/Onboarding/Index";
 import {
   OnboardingProvider,
@@ -32,11 +32,13 @@ import { notificationService } from "@/src/services/notifications";
 import { getNavigationTheme, getPaperTheme } from "@/theme";
 import { useAppFonts } from "@/theme/typography";
 import { NavigationContainer } from "@react-navigation/native";
+import * as NavigationBar from "expo-navigation-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -87,49 +89,57 @@ function AppInner() {
     themeMode.isHydrated &&
     isAppThemeHydrated;
 
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    void NavigationBar.setBackgroundColorAsync("transparent");
+    void NavigationBar.setButtonStyleAsync(paperTheme.dark ? "light" : "dark");
+  }, [paperTheme.dark]);
+
   return (
     <GestureHandlerRootView style={styles.root}>
-      <PaperProvider theme={paperTheme}>
-        <NavigationContainer
-          onReady={flushPendingNavigationTargets}
-          ref={navigationRef}
-          theme={navigationTheme}
-        >
-          <ToastProvider>
-            <TabBarProvider>
-              <SafeAreaProvider>
-                <PushedAppContent>
-                  {isAppReady ? (
-                    onboarding.hasCompletedOnboarding ? (
-                      <AppNavigator />
+      <KeyboardProvider>
+        <PaperProvider theme={paperTheme}>
+          <NavigationContainer
+            onReady={flushPendingNavigationTargets}
+            ref={navigationRef}
+            theme={navigationTheme}
+          >
+            <ToastProvider>
+              <TabBarProvider>
+                <SafeAreaProvider>
+                  <PushedAppContent>
+                    {isAppReady ? (
+                      onboarding.hasCompletedOnboarding ? (
+                        <AppNavigator />
+                      ) : (
+                        <OnboardingScreen
+                          onComplete={onboarding.markOnboardingCompleted}
+                        />
+                      )
                     ) : (
-                      <OnboardingScreen
-                        onComplete={onboarding.markOnboardingCompleted}
+                      <View
+                        style={[
+                          styles.hydrationSurface,
+                          { backgroundColor: paperTheme.colors.background },
+                        ]}
                       />
-                    )
-                  ) : (
-                    <View
-                      style={[
-                        styles.hydrationSurface,
-                        { backgroundColor: paperTheme.colors.background },
-                      ]}
-                    />
-                  )}
-                  {biometricLock.isLocked ? (
-                    <BiometricLockScreen
-                      isAuthenticating={biometricLock.isAuthenticating}
-                      onUnlock={() => {
-                        void biometricLock.unlock();
-                      }}
-                    />
-                  ) : null}
-                  <StatusBar style="auto" />
-                </PushedAppContent>
-              </SafeAreaProvider>
-            </TabBarProvider>
-          </ToastProvider>
-        </NavigationContainer>
-      </PaperProvider>
+                    )}
+                    {biometricLock.isLocked ? (
+                      <BiometricLockScreen
+                        isAuthenticating={biometricLock.isAuthenticating}
+                        onUnlock={() => {
+                          void biometricLock.unlock();
+                        }}
+                      />
+                    ) : null}
+                    <StatusBar style="auto" />
+                  </PushedAppContent>
+                </SafeAreaProvider>
+              </TabBarProvider>
+            </ToastProvider>
+          </NavigationContainer>
+        </PaperProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

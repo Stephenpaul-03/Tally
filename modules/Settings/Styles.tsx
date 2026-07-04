@@ -22,6 +22,13 @@ export const SettingsStyles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
   },
+  headerCenter: {
+    flex: 1,
+  },
+  headerActionPlaceholder: {
+    width: 32,
+    height: 32,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: "500",
@@ -30,7 +37,7 @@ export const SettingsStyles = StyleSheet.create({
 
   // ── Section label ────────────────────────────────────────────────────────────
   sectionLabel: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 40,
   },
 
   // ── Section gap ──────────────────────────────────────────────────────────────
@@ -71,14 +78,12 @@ export const SettingsStyles = StyleSheet.create({
     flexShrink: 0,
   },
   rowTitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 15,
   },
   rowSub: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 1,
+    fontSize: 11,
+    lineHeight: 13,
   },
   rowRight: {
     flexDirection: "row",
@@ -228,20 +233,4 @@ export const SettingsStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 48,
   },
-});
-
-export const devStyles = StyleSheet.create({
-  sheetContainer: { overflow: "hidden" },
-  handleWrap: { alignItems: "center", paddingTop: 12, paddingBottom: 4 },
-  handle: { width: 36, height: 4, borderRadius: 2 },
-  sheetLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginLeft: 20,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  listItem: { paddingVertical: 4, paddingHorizontal: 4 },
 });

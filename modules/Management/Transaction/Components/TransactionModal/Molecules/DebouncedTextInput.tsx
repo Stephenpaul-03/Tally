@@ -11,12 +11,13 @@ interface DebouncedTextInputProps extends Omit<
   onChangeText: (v: string) => void;
 }
 
-export function DebouncedTextInput({
-  initialValue,
-  onBlur,
-  onChangeText,
-  ...props
-}: DebouncedTextInputProps) {
+export const DebouncedTextInput = React.forwardRef<
+  React.ElementRef<typeof TextInput>,
+  DebouncedTextInputProps
+>(function DebouncedTextInput(
+  { initialValue, onBlur, onChangeText, ...props },
+  ref,
+) {
   const [local, setLocal] = useState(initialValue);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export function DebouncedTextInput({
 
   return (
     <TextInput
+      ref={ref}
       {...props}
       value={local}
       onChangeText={(v) => {
@@ -40,4 +42,4 @@ export function DebouncedTextInput({
       }}
     />
   );
-}
+});

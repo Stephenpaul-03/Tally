@@ -11,7 +11,7 @@ import {
     selectCategoryIcons,
     selectNonDeletedTransactions,
     updateCategoryAsync,
-} from "@/modules/Data/Slices/TransactionSlice";
+} from "@/modules/Core/Slices/TransactionSlice";
 import {
     getCategoryColor,
     getCategoryColorOptions,

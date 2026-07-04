@@ -14,13 +14,15 @@ type AddonPrefsContextValue = {
   betterAnalyticsEnabled: boolean;
   minimalIconsEnabled: boolean;
   animationsEnabled: boolean;
+  labsNoticeDismissed: boolean;
   isHydrated: boolean;
-  insightsCardOrder: string[];
+  insightsCardOrder: InsightCardId[];
   setGuidedChatEnabled: (next: boolean) => void;
   setBetterAnalyticsEnabled: (next: boolean) => void;
   setMinimalIconsEnabled: (next: boolean) => void;
   setAnimationsEnabled: (next: boolean) => void;
-  setInsightsCardOrder: (next: string[]) => void;
+  setLabsNoticeDismissed: (next: boolean) => void;
+  setInsightsCardOrder: (next: InsightCardId[]) => void;
   toggleGuidedChatEnabled: () => void;
   toggleBetterAnalyticsEnabled: () => void;
   toggleMinimalIconsEnabled: () => void;
@@ -32,26 +34,32 @@ const BETTER_ANALYTICS_STORAGE_KEY = "addonsBetterAnalyticsEnabled";
 const MINIMAL_ICONS_STORAGE_KEY = "addonsMinimalIconsEnabled";
 const ANIMATIONS_STORAGE_KEY = "addonsAnimationsEnabled";
 const INSIGHTS_CARD_ORDER_STORAGE_KEY = "addonsInsightsCardOrder";
+const LABS_NOTICE_DISMISSED_STORAGE_KEY = "addonsLabsNoticeDismissed";
 
 export const DEFAULT_INSIGHTS_CARD_ORDER = [
-  "spendingTrend",
-  "incomeVsExpenses",
+  "budgetSummary",
   "spendingByCategory",
-  "paymentMethodBreakdown",
+  "spendingByPaymentMethod",
+  "categoryTrends",
+  "weeklySpending",
 ] as const;
 
 export type InsightCardId = (typeof DEFAULT_INSIGHTS_CARD_ORDER)[number];
 
 const KNOWN_CARD_IDS = new Set<string>(DEFAULT_INSIGHTS_CARD_ORDER);
 
-function normalizeInsightsCardOrder(value: unknown): string[] | null {
+function normalizeInsightsCardOrder(value: unknown): InsightCardId[] | null {
   if (!Array.isArray(value)) return null;
   const filtered = value.filter(
-    (item): item is string =>
+    (item): item is InsightCardId =>
       typeof item === "string" && KNOWN_CARD_IDS.has(item),
   );
   if (filtered.length === 0) return null;
-  return filtered;
+  const deduped = [...new Set(filtered)];
+  return [
+    ...deduped,
+    ...DEFAULT_INSIGHTS_CARD_ORDER.filter((id) => !deduped.includes(id)),
+  ];
 }
 
 function parseStoredBoolean(value: string | null): boolean | null {
@@ -70,9 +78,10 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
     useState(false);
   const [minimalIconsEnabled, setMinimalIconsEnabledState] = useState(false);
   const [animationsEnabled, setAnimationsEnabledState] = useState(true);
-  const [insightsCardOrder, setInsightsCardOrderState] = useState<string[]>([
-    ...DEFAULT_INSIGHTS_CARD_ORDER,
-  ]);
+  const [labsNoticeDismissed, setLabsNoticeDismissedState] = useState(false);
+  const [insightsCardOrder, setInsightsCardOrderState] = useState<
+    InsightCardId[]
+  >([...DEFAULT_INSIGHTS_CARD_ORDER]);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -83,18 +92,23 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           storedGuidedChat,
           storedBetterAnalytics,
           storedMinimalIcons,
+          storedLabsNoticeDismissed,
           storedInsightsCardOrder,
         ] = await Promise.all([
           AsyncStorage.getItem(GUIDED_CHAT_STORAGE_KEY),
           AsyncStorage.getItem(BETTER_ANALYTICS_STORAGE_KEY),
           AsyncStorage.getItem(MINIMAL_ICONS_STORAGE_KEY),
+          AsyncStorage.getItem(LABS_NOTICE_DISMISSED_STORAGE_KEY),
           AsyncStorage.getItem(INSIGHTS_CARD_ORDER_STORAGE_KEY),
         ]);
 
         const parsedGuidedChat = parseStoredBoolean(storedGuidedChat);
         const parsedBetterAnalytics = parseStoredBoolean(storedBetterAnalytics);
         const parsedMinimalIcons = parseStoredBoolean(storedMinimalIcons);
-        let parsedInsightsCardOrder: string[] | null = null;
+        const parsedLabsNoticeDismissed = parseStoredBoolean(
+          storedLabsNoticeDismissed,
+        );
+        let parsedInsightsCardOrder: InsightCardId[] | null = null;
         if (storedInsightsCardOrder) {
           try {
             parsedInsightsCardOrder = normalizeInsightsCardOrder(
@@ -112,6 +126,8 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           setBetterAnalyticsEnabledState(parsedBetterAnalytics);
         if (parsedMinimalIcons != null)
           setMinimalIconsEnabledState(parsedMinimalIcons);
+        if (parsedLabsNoticeDismissed != null)
+          setLabsNoticeDismissedState(parsedLabsNoticeDismissed);
         setAnimationsEnabledState(true);
         if (parsedInsightsCardOrder != null)
           setInsightsCardOrderState(parsedInsightsCardOrder);
@@ -169,6 +185,17 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
     if (!isHydrated) return;
     const id = setTimeout(() => {
       void AsyncStorage.setItem(
+        LABS_NOTICE_DISMISSED_STORAGE_KEY,
+        labsNoticeDismissed ? "true" : "false",
+      );
+    }, 150);
+    return () => clearTimeout(id);
+  }, [isHydrated, labsNoticeDismissed]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    const id = setTimeout(() => {
+      void AsyncStorage.setItem(
         INSIGHTS_CARD_ORDER_STORAGE_KEY,
         JSON.stringify(insightsCardOrder),
       );
@@ -192,7 +219,11 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
     setAnimationsEnabledState(true);
   }, []);
 
-  const setInsightsCardOrder = useCallback((next: string[]) => {
+  const setLabsNoticeDismissed = useCallback((next: boolean) => {
+    setLabsNoticeDismissedState(next);
+  }, []);
+
+  const setInsightsCardOrder = useCallback((next: InsightCardId[]) => {
     const normalized = normalizeInsightsCardOrder(next);
     setInsightsCardOrderState(normalized ?? [...DEFAULT_INSIGHTS_CARD_ORDER]);
   }, []);
@@ -219,12 +250,14 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       betterAnalyticsEnabled,
       minimalIconsEnabled,
       animationsEnabled,
+      labsNoticeDismissed,
       isHydrated,
       insightsCardOrder,
       setGuidedChatEnabled,
       setBetterAnalyticsEnabled,
       setMinimalIconsEnabled,
       setAnimationsEnabled,
+      setLabsNoticeDismissed,
       setInsightsCardOrder,
       toggleGuidedChatEnabled,
       toggleBetterAnalyticsEnabled,
@@ -236,12 +269,14 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       betterAnalyticsEnabled,
       minimalIconsEnabled,
       animationsEnabled,
+      labsNoticeDismissed,
       isHydrated,
       insightsCardOrder,
       setGuidedChatEnabled,
       setBetterAnalyticsEnabled,
       setMinimalIconsEnabled,
       setAnimationsEnabled,
+      setLabsNoticeDismissed,
       setInsightsCardOrder,
       toggleGuidedChatEnabled,
       toggleBetterAnalyticsEnabled,

@@ -4,3 +4,7 @@ export type CardThemeProps = {
   textColor: string;
   muted: string;
 };
+
+export type PillCardThemeProps = CardThemeProps & {
+  accentColor: string;
+};

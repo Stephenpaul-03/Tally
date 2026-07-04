@@ -71,7 +71,7 @@ export function TransactionList({
         cardedRows
           ? {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
+              borderColor: theme.colors.outline,
               borderWidth: 0.5,
               borderRadius: 20,
               overflow: "hidden",
@@ -83,8 +83,17 @@ export function TransactionList({
         <Animated.View key={transaction.id} style={getAnimStyle(index)}>
           <TransactionRow
             transaction={transaction}
-            onPress={() => onEdit(transaction.id)}
+            onPressTransaction={onEdit}
             grouped={cardedRows}
+            groupPosition={
+              transactions.length === 1
+                ? "single"
+                : index === 0
+                  ? "first"
+                  : index === transactions.length - 1
+                    ? "last"
+                    : "middle"
+            }
             showDivider={cardedRows && index < transactions.length - 1}
           />
         </Animated.View>

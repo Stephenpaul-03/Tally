@@ -1,362 +1,490 @@
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
+import { useAppSelector } from "@/hooks/Redux";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
-import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, View } from "react-native";
-import { Text } from "react-native-paper";
-import type { MonthSummary } from "../../Types";
-import { formatChange, formatInr } from "../../Utils";
+import { Animated, StyleProp, View, ViewStyle } from "react-native";
+import { Text, useTheme } from "react-native-paper";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type TimeOfDay = "morning" | "afternoon" | "evening" | "night";
+
+type SummaryMetric = {
+  label: string;
+  value: string;
+  caption: string;
+};
+
+type DailyMetric = {
+  label: string;
+  value: string;
+  caption?: string;
+};
 
 type HeroCardProps = {
-  summary: MonthSummary;
-  comparison: ReturnType<typeof formatChange>;
-  bg: string;
+  summaryLabel?: string;
+  left: SummaryMetric;
+  middle?: SummaryMetric;
+  right: SummaryMetric;
+  accentColor: string;
   outline: string;
   textColor: string;
   muted: string;
+  style?: StyleProp<ViewStyle>;
+  showGreeting?: boolean;
+  daily?: {
+    left: DailyMetric;
+    middle: DailyMetric;
+    right: DailyMetric;
+  };
 };
 
-export function HeroCard({
-  summary,
-  comparison,
-  bg,
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getTimeOfDay(): TimeOfDay {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 21) return "evening";
+  return "night";
+}
+
+function getGreeting(): string {
+  const tod = getTimeOfDay();
+  if (tod === "morning") return "Good Morning";
+  if (tod === "afternoon") return "Good Afternoon";
+  if (tod === "evening") return "Good Evening";
+  return "Good Night";
+}
+
+function getDateLabel(): string {
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.toLocaleString("en-IN", { month: "long" });
+  const v = day % 100;
+  const s = ["th", "st", "nd", "rd"];
+  const suffix = s[(v - 20) % 10] ?? s[v] ?? s[0];
+  return `${day}${suffix} ${month}`;
+}
+
+function getTimeIcon(): React.ComponentProps<
+  typeof MaterialCommunityIcons
+>["name"] {
+  const tod = getTimeOfDay();
+  if (tod === "morning") return "weather-sunset-up";
+  if (tod === "afternoon") return "weather-sunny";
+  if (tod === "evening") return "weather-sunset-down";
+  return "weather-night";
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function BorderLabel({
+  label,
+  muted,
+  surfaceColor,
+  accentColor,
+}: {
+  label: string;
+  muted: string;
+  surfaceColor: string;
+  accentColor: string;
+}) {
+  return (
+    <View
+      style={{
+        position: "absolute",
+        top: -9,
+        alignSelf: "center",
+        backgroundColor: surfaceColor,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderWidth: 0.5,
+        borderColor: muted,
+        borderRadius: 20,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 9,
+          lineHeight: 14,
+          fontWeight: "500",
+          letterSpacing: 0.8,
+          color: accentColor,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function SummaryColumn({
+  metric,
+  muted,
+}: {
+  metric: SummaryMetric;
+  muted: string;
+}) {
+  const theme = useTheme();
+  const isNegativeValue = metric.value.includes("-");
+
+  return (
+    <View style={{ flex: 1, alignItems: "center" }}>
+      <Text
+        style={{
+          borderColor: palette.transparent,
+          borderWidth: 0.5,
+          fontSize: 10,
+          lineHeight: 18,
+          fontWeight: "400",
+          letterSpacing: 0.5,
+          color: muted,
+          textAlign: "center",
+          includeFontPadding: false,
+          textAlignVertical: "center",
+          textTransform: "uppercase",
+        }}
+      >
+        {metric.label}
+      </Text>
+      <Text
+        style={{
+          ...typography.editorial.sectionLabel,
+          fontSize: 20,
+          lineHeight: 32,
+          letterSpacing: 0.5,
+          textAlign: "center",
+          color: isNegativeValue ? theme.colors.error : theme.colors.onSurface,
+        }}
+      >
+        {metric.value}
+      </Text>
+      <Text
+        style={{
+          fontSize: 10,
+          lineHeight: 20,
+          color: muted,
+          textAlign: "center",
+        }}
+      >
+        {metric.caption}
+      </Text>
+    </View>
+  );
+}
+
+const INLINE_CHAR_THRESHOLD = 26;
+
+// ─── Greeting Card ──────────────────────────────────────────────────────────
+
+type GreetingCardProps = {
+  accentColor: string;
+  outline: string;
+  textColor: string;
+  muted: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function GreetingCard({
+  accentColor,
   outline,
   textColor,
   muted,
-}: HeroCardProps) {
-  const isEmpty = summary.expenseTotal === 0 && summary.incomeTotal === 0;
-  const savingsRate =
-    summary.incomeTotal > 0
-      ? Math.round(
-          ((summary.incomeTotal - summary.expenseTotal) / summary.incomeTotal) *
-            100,
-        )
-      : 0;
+  style,
+}: GreetingCardProps) {
+  const theme = useTheme();
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
 
-  const comparisonColor =
-    comparison.direction === "flat"
-      ? muted
-      : comparison.direction === "down"
-        ? "#89C8AF"
-        : "#D9919B";
+  const greeting = getGreeting();
+  const dateLabel = getDateLabel();
+  const ownerName = activeWorkspace?.ownerName?.trim() || null;
 
-  const trendIconName =
-    comparison.direction === "down"
-      ? "trending-down"
-      : comparison.direction === "up"
-        ? "trending-up"
-        : "minus";
+  const greetingText = ownerName ? `${greeting}, ${ownerName}` : greeting;
+  const isInline = greetingText.length <= INLINE_CHAR_THRESHOLD;
 
   const { animStyle } = useFadeSlide({
     from: "top",
-    distance: 20,
-    duration: 750,
+    distance: 18,
+    duration: 650,
   });
 
-  const metricRows = [
-    {
-      label: "Income",
-      value: formatInr(summary.incomeTotal),
-      valueColor: palette.status.success,
-    },
-    {
-      label: "Balance",
-      value: formatInr(summary.balanceInHand),
-      valueColor:
-        summary.balanceInHand >= 0 ? textColor : palette.status.danger,
-    },
-    {
-      label: "Saved",
-      value: `${savingsRate}%`,
-      valueColor: savingsRate > 0 ? textColor : palette.status.danger,
-    },
-  ];
+  const greetingRow = (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        flexShrink: 1,
+        minWidth: 0,
+      }}
+    >
+      <MaterialCommunityIcons
+        name={getTimeIcon()}
+        size={16}
+        color={accentColor}
+      />
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={{
+          ...typography.editorial.sectionLabel,
+          fontSize: 14,
+          lineHeight: 20,
+          color: textColor,
+          flexShrink: 1,
+          minWidth: 0,
+        }}
+      >
+        {greeting}
+        {ownerName ? (
+          <Text
+            style={{
+              ...typography.editorial.sectionLabel,
+              fontSize: 14,
+              lineHeight: 20,
+              color: accentColor,
+            }}
+          >
+            {`, ${ownerName}`}
+          </Text>
+        ) : null}
+      </Text>
+    </View>
+  );
 
-  const previousTotal = summary.previousMonthExpenseTotal ?? 0;
+  const dateAndPillRow = (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: isInline ? "flex-start" : "space-between",
+        gap: 10,
+        flexShrink: 0,
+        width: isInline ? undefined : "100%",
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        <MaterialCommunityIcons
+          name="calendar-outline"
+          size={13}
+          color={muted}
+        />
+        <Text
+          style={{
+            ...typography.editorial.sectionLabel,
+            fontSize: 12,
+            lineHeight: 18,
+            color: muted,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+          }}
+        >
+          {dateLabel}
+        </Text>
+      </View>
 
-  const formatMonthKeyLabel = (monthKey: string) => {
-    const [year, month] = monthKey.split("-").map(Number);
-    const date = new Date(year, (month ?? 1) - 1, 1);
-    return date.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  };
-
-  const currentLabel = formatMonthKeyLabel(summary.monthKey);
-
-  const previousMonthKey = (() => {
-    const [year, month] = summary.monthKey.split("-").map(Number);
-    const date = new Date(year, (month ?? 1) - 1, 1);
-    date.setMonth(date.getMonth() - 1);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  })();
-
-  const previousLabel = formatMonthKeyLabel(previousMonthKey);
-
-  const maxTotal = Math.max(summary.expenseTotal, previousTotal, 1);
-  const currentPct = Math.min(100, (summary.expenseTotal / maxTotal) * 100);
-  const previousPct = Math.min(100, (previousTotal / maxTotal) * 100);
+      {activeWorkspace ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 5,
+            backgroundColor: `${accentColor}10`,
+            borderWidth: 0.5,
+            borderColor: `${accentColor}28`,
+            borderRadius: 99,
+            paddingVertical: 3,
+            paddingHorizontal: 9,
+            flexShrink: 0,
+          }}
+        >
+          <View
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 99,
+              backgroundColor: activeWorkspace.color ?? accentColor,
+            }}
+          />
+          <MaterialCommunityIcons
+            name={activeWorkspace.icon as any}
+            size={11}
+            color={accentColor}
+          />
+          <Text
+            numberOfLines={1}
+            style={{
+              fontSize: 11,
+              fontWeight: "500",
+              color: accentColor,
+              letterSpacing: 0.1,
+              maxWidth: 90,
+            }}
+          >
+            {activeWorkspace.name}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <Animated.View
-      style={{
-        backgroundColor: bg,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: outline,
-        paddingHorizontal: 20,
-        paddingTop: 18,
-        paddingBottom: 18,
-        gap: 14,
-        marginBottom: 12,
-        opacity: animStyle.opacity,
-        transform: animStyle.transform,
-      }}
+      style={[
+        {
+          backgroundColor: theme.colors.surface,
+          borderRadius: 20,
+          borderWidth: 0.5,
+          borderColor: outline,
+          overflow: "hidden",
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          opacity: animStyle.opacity,
+          transform: animStyle.transform,
+        },
+        style,
+      ]}
     >
-      {isEmpty ? (
-        <View style={{ alignItems: "center", paddingVertical: 18, gap: 8 }}>
-          <MaterialCommunityIcons
-            name="chart-bar-stacked"
-            size={22}
-            color={muted}
-          />
-          <Text
-            style={{
-              fontSize: 13,
-              lineHeight: 20,
-              color: muted,
-              textAlign: "center",
-            }}
-          >
-            No transactions recorded for this month.
-          </Text>
+      {isInline ? (
+        // Short name: everything fits comfortably on one row.
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          {greetingRow}
+          {dateAndPillRow}
         </View>
       ) : (
-        <>
-          {/* Top row: title + month */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Text
-              style={{
-                ...typography.editorial.sectionLabel,
-                fontSize: 18,
-                lineHeight: 20,
-                color: textColor,
-                letterSpacing: 0.5,
-              }}
-            >
-              Monthly Summary
-            </Text>
-            <Text
-              style={{
-                ...typography.editorial.sectionLabel,
-                fontSize: 12,
-                fontWeight: "500",
-                letterSpacing: 1.5,
-                color: muted,
-              }}
-            >
-              {currentLabel}
-            </Text>
-          </View>
-
-          {/* Total spent */}
-          <View style={{ gap: 4 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                color: muted,
-                lineHeight: 18,
-              }}
-            >
-              Total spent
-            </Text>
-            <Text
-              style={{
-                ...typography.display,
-                fontSize: 40,
-                lineHeight: 46,
-                color: textColor,
-                letterSpacing: 0.8,
-              }}
-            >
-              {formatInr(summary.expenseTotal)}
-            </Text>
-          </View>
-
-          {/* Comparison bars */}
-          <View style={{ gap: 10, marginTop: 4 }}>
-            {/* Previous month bar */}
-            <View style={{ gap: 6 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 12,
-                    fontWeight: "500",
-                    letterSpacing: 1.5,
-                    color: muted,
-                  }}
-                >
-                  {previousLabel}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: muted,
-                  }}
-                >
-                  {formatInr(previousTotal)}
-                </Text>
-              </View>
-              <View
-                style={{
-                  height: 8,
-                  borderRadius: 999,
-                  backgroundColor: withOpacity(muted, "20"),
-                  overflow: "hidden",
-                }}
-              >
-                <View
-                  style={{
-                    width: `${previousPct}%`,
-                    height: "100%",
-                    borderRadius: 999,
-                    backgroundColor: withOpacity(muted, "40"),
-                  }}
-                />
-              </View>
-            </View>
-
-            {/* Current month bar */}
-            <View style={{ gap: 6 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 12,
-                    fontWeight: "500",
-                    letterSpacing: 1.5,
-                    color: palette.status.success,
-                  }}
-                >
-                  {currentLabel}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: palette.status.success,
-                  }}
-                >
-                  {formatInr(summary.expenseTotal)}
-                </Text>
-              </View>
-              <View
-                style={{
-                  height: 8,
-                  borderRadius: 999,
-                  backgroundColor: withOpacity(palette.status.success, "15"),
-                  overflow: "hidden",
-                }}
-              >
-                <View
-                  style={{
-                    width: `${currentPct}%`,
-                    height: "100%",
-                    borderRadius: 999,
-                    backgroundColor: palette.status.success,
-                  }}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Comparison line */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <MaterialCommunityIcons
-              name={trendIconName}
-              size={14}
-              color={comparisonColor}
-            />
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "500",
-                color: comparisonColor,
-                lineHeight: 18,
-              }}
-            >
-              {comparison.text}
-              {comparison.previousLabel ? ` (${comparison.previousLabel})` : ""}
-            </Text>
-          </View>
-
-          {/* Divider + metrics */}
-          <View
-            style={{
-              borderTopWidth: 1,
-              borderTopColor: outline,
-              flexDirection: "row",
-              paddingTop: 14,
-            }}
-          >
-            {metricRows.map((metric, index) => (
-              <View
-                key={metric.label}
-                style={{
-                  flex: 1,
-                  gap: 6,
-                  paddingLeft: index === 0 ? 0 : 14,
-                  marginLeft: index === 0 ? 0 : 14,
-                  borderLeftWidth: index === 0 ? 0 : 1,
-                  borderLeftColor: outline,
-                }}
-              >
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    color: muted,
-                    fontSize: 12,
-                    fontWeight: "500",
-                  }}
-                >
-                  {metric.label}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    color: metric.valueColor,
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 17,
-                    letterSpacing: 1.5,
-                  }}
-                >
-                  {metric.value}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </>
+        // Long name: greeting gets the full row to itself, date + pill
+        // move to a second row that's never fighting it for space.
+        <View style={{ gap: 10 }}>
+          {greetingRow}
+          {dateAndPillRow}
+        </View>
       )}
     </Animated.View>
+  );
+}
+
+// ─── Summary Card ─────────────────────────────────────────────────────────────
+
+type SummaryCardProps = {
+  summaryLabel?: string;
+  left: SummaryMetric;
+  middle?: SummaryMetric;
+  right: SummaryMetric;
+  accentColor: string;
+  outline: string;
+  muted: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+function SummaryCard({
+  summaryLabel = "Month Summary",
+  left,
+  middle,
+  right,
+  accentColor,
+  outline,
+  muted,
+  style,
+}: SummaryCardProps) {
+  const theme = useTheme();
+  const metrics = middle ? [left, middle, right] : [left, right];
+
+  const { animStyle } = useFadeSlide({
+    from: "top",
+    distance: 18,
+    duration: 650,
+    delay: 80,
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          backgroundColor: theme.colors.surface,
+          borderRadius: 20,
+          borderWidth: 0.5,
+          borderColor: outline,
+          overflow: "visible",
+          padding: 10,
+          paddingVertical: 20,
+          position: "relative",
+          opacity: animStyle.opacity,
+          transform: animStyle.transform,
+        },
+        style,
+      ]}
+    >
+      <BorderLabel
+        label={summaryLabel}
+        muted={muted}
+        surfaceColor={theme.colors.surface}
+        accentColor={accentColor}
+      />
+      <View style={{ flexDirection: "row", alignItems: "stretch" }}>
+        {metrics.map((metric, index) => (
+          <React.Fragment key={metric.label}>
+            {index > 0 ? (
+              <View
+                style={{
+                  width: 0.5,
+                  backgroundColor: outline,
+                  marginHorizontal: 8,
+                }}
+              />
+            ) : null}
+            <SummaryColumn metric={metric} muted={muted} />
+          </React.Fragment>
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
+
+export function HeroCard({
+  summaryLabel,
+  left,
+  middle,
+  right,
+  accentColor,
+  outline,
+  textColor,
+  muted,
+  style,
+  showGreeting = true,
+}: HeroCardProps) {
+  return (
+    <View style={[{ gap: showGreeting ? 25 : 0 }, style]}>
+      {showGreeting ? (
+        <GreetingCard
+          accentColor={accentColor}
+          outline={outline}
+          textColor={textColor}
+          muted={muted}
+        />
+      ) : null}
+      <SummaryCard
+        summaryLabel={summaryLabel}
+        left={left}
+        middle={middle}
+        right={right}
+        accentColor={accentColor}
+        outline={outline}
+        muted={muted}
+      />
+    </View>
   );
 }

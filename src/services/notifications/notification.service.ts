@@ -14,15 +14,12 @@ import {
   subscribeToNotificationResponses,
 } from "./notification.scheduler";
 import { notificationStorage } from "./notification.storage";
-import {
-  handleNotificationResponse,
-  registerPhaseTwoNotificationHandlers,
-} from "./notification.handlers";
+import { handleNotificationResponse } from "./notification.handlers";
 import {
   DailyFinanceReminderFrequency,
+  DEFAULT_DAILY_FINANCE_REMINDER,
   MonthlyInsightTiming,
   NotificationChannelId,
-  NotificationCategoryId,
   NotificationPermissionStatus,
   NotificationType,
   type DailyFinanceReminderConfig,
@@ -34,7 +31,7 @@ import {
   type NotificationResponseEnvelope,
   type NotificationsStateSnapshot,
   type NotificationScheduleRecord,
-  type PhaseTwoNotificationActionHandlers,
+  type ReminderTime,
   type SchedulerNotificationContent,
   type StoredNotificationPreference,
 } from "./notification.types";
@@ -72,6 +69,24 @@ function assertValidTime(hour: number, minute: number) {
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
     throw new Error("Notification time must use a valid 24-hour clock value.");
   }
+}
+
+function withUpdatedReminderTime(
+  reminders: ReminderTime[],
+  index: number,
+  time: ReminderTime,
+) {
+  return reminders.map((reminder, reminderIndex) =>
+    reminderIndex === index ? time : reminder,
+  );
+}
+
+function withoutReminderTime(reminders: ReminderTime[], index: number) {
+  if (reminders.length <= 1 || index < 0 || index >= reminders.length) {
+    return reminders;
+  }
+
+  return reminders.filter((_, reminderIndex) => reminderIndex !== index);
 }
 
 function mapNativePermissionToResult(
@@ -132,37 +147,6 @@ function buildMonthlyInsightContent(
     channelId: NotificationChannelId.Insights,
     data: payload,
     title: `Ready to review ${MONTH_NAMES[date.getMonth()]}?`,
-  };
-}
-
-function buildPendingUpiRecoveryContent(
-  transactionId: string,
-): SchedulerNotificationContent {
-  return {
-    body: "Open Tally to confirm how it turned out.",
-    categoryId: NotificationCategoryId.PendingUpiRecovery,
-    channelId: NotificationChannelId.Transactions,
-    data: {
-      createdAt: new Date().toISOString(),
-      transactionId,
-      type: NotificationType.PendingUpiTransactionRecovery,
-    },
-    title: "Still waiting on this payment?",
-  };
-}
-
-function buildFailedTransactionFollowUpContent(
-  transactionId: string,
-): SchedulerNotificationContent {
-  return {
-    body: "You can revisit the transaction whenever it feels right.",
-    channelId: NotificationChannelId.Transactions,
-    data: {
-      createdAt: new Date().toISOString(),
-      transactionId,
-      type: NotificationType.FailedTransactionFollowUp,
-    },
-    title: "Want to review that payment?",
   };
 }
 
@@ -388,10 +372,6 @@ class NotificationService {
     }
   }
 
-  registerPhaseTwoHandlers(handlers: PhaseTwoNotificationActionHandlers) {
-    registerPhaseTwoNotificationHandlers(handlers);
-  }
-
   async refreshPermissionStatusAsync() {
     return this.syncPermissionSnapshot();
   }
@@ -436,50 +416,6 @@ class NotificationService {
     );
   }
 
-  async sendTestPendingUpiRecoveryAsync(transactionId?: string) {
-    const permission = await this.ensurePermissionsAsync({
-      openSettingsOnDeny: true,
-      promptIfNeeded: true,
-    });
-
-    if (permission.status !== NotificationPermissionStatus.Granted) {
-      return null;
-    }
-
-    return scheduleNotificationAsync(
-      buildPendingUpiRecoveryContent(
-        transactionId ?? `debug-upi-${Date.now()}`,
-      ),
-      {
-        channelId: NotificationChannelId.Transactions,
-        kind: "seconds",
-        seconds: 2,
-      },
-    );
-  }
-
-  async sendTestFailedTransactionFollowUpAsync(transactionId?: string) {
-    const permission = await this.ensurePermissionsAsync({
-      openSettingsOnDeny: true,
-      promptIfNeeded: true,
-    });
-
-    if (permission.status !== NotificationPermissionStatus.Granted) {
-      return null;
-    }
-
-    return scheduleNotificationAsync(
-      buildFailedTransactionFollowUpContent(
-        transactionId ?? `debug-failed-${Date.now()}`,
-      ),
-      {
-        channelId: NotificationChannelId.Transactions,
-        kind: "seconds",
-        seconds: 2,
-      },
-    );
-  }
-
   async scheduleDailyFinanceReminder(
     config: DailyFinanceReminderConfig,
     options?: {
@@ -487,7 +423,9 @@ class NotificationService {
       promptIfNeeded?: boolean;
     },
   ) {
-    assertValidTime(config.hour, config.minute);
+    config.reminders.forEach(({ hour, minute }) => {
+      assertValidTime(hour, minute);
+    });
 
     const permission = await this.ensurePermissionsAsync({
       openSettingsOnDeny: options?.openSettingsOnDeny ?? true,
@@ -512,28 +450,30 @@ class NotificationService {
     const content = buildDailyReminderContent();
     const ids: string[] = [];
 
-    if (config.frequency === DailyFinanceReminderFrequency.Daily) {
-      ids.push(
-        await scheduleNotificationAsync(content, {
-          channelId: NotificationChannelId.Reminders,
-          hour: config.hour,
-          kind: "daily",
-          minute: config.minute,
-        }),
-      );
-    } else {
-      const weekdays = getWeekdaysForFrequency(config.frequency);
-
-      for (const weekday of weekdays) {
+    for (const reminder of config.reminders) {
+      if (config.frequency === DailyFinanceReminderFrequency.Daily) {
         ids.push(
           await scheduleNotificationAsync(content, {
             channelId: NotificationChannelId.Reminders,
-            hour: config.hour,
-            kind: "weekly",
-            minute: config.minute,
-            weekday,
+            hour: reminder.hour,
+            kind: "daily",
+            minute: reminder.minute,
           }),
         );
+      } else {
+        const weekdays = getWeekdaysForFrequency(config.frequency);
+
+        for (const weekday of weekdays) {
+          ids.push(
+            await scheduleNotificationAsync(content, {
+              channelId: NotificationChannelId.Reminders,
+              hour: reminder.hour,
+              kind: "weekly",
+              minute: reminder.minute,
+              weekday,
+            }),
+          );
+        }
       }
     }
 
@@ -554,7 +494,7 @@ class NotificationService {
   }
 
   async scheduleDailyReminder(
-    time: { hour: number; minute: number },
+    time: ReminderTime,
     options?: {
       openSettingsOnDeny?: boolean;
       promptIfNeeded?: boolean;
@@ -563,8 +503,7 @@ class NotificationService {
     return this.scheduleDailyFinanceReminder({
       enabled: true,
       frequency: DailyFinanceReminderFrequency.Daily,
-      hour: time.hour,
-      minute: time.minute,
+      reminders: [time],
     }, options);
   }
 
@@ -575,10 +514,14 @@ class NotificationService {
       return this.cancelDailyFinanceReminder();
     }
 
-    return this.scheduleDailyReminder(
+    return this.scheduleDailyFinanceReminder(
       {
-        hour: current.config.hour,
-        minute: current.config.minute,
+        ...current.config,
+        enabled: true,
+        reminders:
+          current.config.reminders.length > 0
+            ? current.config.reminders
+            : DEFAULT_DAILY_FINANCE_REMINDER.reminders,
       },
       {
         openSettingsOnDeny: false,
@@ -587,19 +530,94 @@ class NotificationService {
     );
   }
 
-  async setDailyReminderTime(time: { hour: number; minute: number }) {
+  async setDailyReminderTime(time: ReminderTime, index = 0) {
     const current = notificationStorage.getDailyFinanceReminder();
+    const reminders = withUpdatedReminderTime(
+      current.config.reminders,
+      index,
+      time,
+    );
 
     if (current.config.enabled) {
-      return this.scheduleDailyReminder(time);
+      return this.scheduleDailyFinanceReminder({
+        ...current.config,
+        reminders,
+      });
     }
 
     const nextPreference: StoredNotificationPreference<DailyFinanceReminderConfig> =
       {
         config: {
           ...current.config,
-          hour: time.hour,
-          minute: time.minute,
+          reminders,
+        },
+        schedule: null,
+      };
+
+    notificationStorage.setDailyFinanceReminder(nextPreference);
+    this.refreshStateFromStorage();
+
+    return nextPreference;
+  }
+
+  async addDailyReminderTime(time?: ReminderTime) {
+    const current = notificationStorage.getDailyFinanceReminder();
+
+    if (current.config.reminders.length >= 3) {
+      return current;
+    }
+
+    const lastReminder =
+      current.config.reminders[current.config.reminders.length - 1] ??
+      DEFAULT_DAILY_FINANCE_REMINDER.reminders[0];
+    const nextTime = time ?? {
+      hour: (lastReminder.hour + 1) % 24,
+      minute: lastReminder.minute,
+    };
+    const reminders = [...current.config.reminders, nextTime];
+
+    if (current.config.enabled) {
+      return this.scheduleDailyFinanceReminder({
+        ...current.config,
+        reminders,
+      });
+    }
+
+    const nextPreference: StoredNotificationPreference<DailyFinanceReminderConfig> =
+      {
+        config: {
+          ...current.config,
+          reminders,
+        },
+        schedule: null,
+      };
+
+    notificationStorage.setDailyFinanceReminder(nextPreference);
+    this.refreshStateFromStorage();
+
+    return nextPreference;
+  }
+
+  async removeDailyReminderTime(index: number) {
+    const current = notificationStorage.getDailyFinanceReminder();
+    const reminders = withoutReminderTime(current.config.reminders, index);
+
+    if (reminders === current.config.reminders) {
+      return current;
+    }
+
+    if (current.config.enabled) {
+      return this.scheduleDailyFinanceReminder({
+        ...current.config,
+        reminders,
+      });
+    }
+
+    const nextPreference: StoredNotificationPreference<DailyFinanceReminderConfig> =
+      {
+        config: {
+          ...current.config,
+          reminders,
         },
         schedule: null,
       };

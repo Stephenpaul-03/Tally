@@ -19,15 +19,8 @@ type Props = {
   bg: string;
   theme: MD3Theme;
   onSubmit: () => void;
+  onBack: () => void;
   footer?: React.ReactNode;
-  renderHeader: (opts: {
-    title: string;
-    subtitle?: string;
-    showBack?: boolean;
-    accentColor?: string;
-    iconName?: string;
-    rightAccessory?: React.ReactNode;
-  }) => React.ReactNode;
 };
 
 export function CategoryEditScreen({
@@ -45,8 +38,8 @@ export function CategoryEditScreen({
   bg,
   theme,
   onSubmit,
+  onBack,
   footer,
-  renderHeader,
 }: Props) {
   const c = theme.colors;
   const isEditing = !!management.editingCategory;
@@ -86,25 +79,19 @@ export function CategoryEditScreen({
       deleteAccessory={deleteAccessory}
       emptyPreviewLabel="Category name"
       footer={footer}
+      headerSubtitle={isEditing ? management.editingCategory!.name : undefined}
       iconGrid={iconGrid}
       iconPickerVariant="category"
       isEditing={isEditing}
       localColor={localColor}
       localIcon={localIcon}
       localName={localName}
-      nameLabel="Category name"
       namePlaceholder="e.g. Groceries"
+      onBack={onBack}
       onChangeColor={setLocalColor}
       onChangeIcon={setLocalIcon}
       onChangeName={setLocalName}
       onSubmit={onSubmit}
-      renderHeader={(opts) =>
-        renderHeader({
-          ...opts,
-          title: isEditing ? "Edit category" : `New ${editType} category`,
-          subtitle: isEditing ? management.editingCategory!.name : undefined,
-        })
-      }
       submitLabelCreate="Add category"
       submitLabelEdit="Save changes"
       theme={theme}

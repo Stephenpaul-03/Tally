@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { financeDb } from "@/modules/Data/Repository/SQLiteRepo";
+import { financeDb } from "@/modules/Core/Repository/SQLiteRepo";
 import { typography } from "@/theme/typography";
 import { withOpacity } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

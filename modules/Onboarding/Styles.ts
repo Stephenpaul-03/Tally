@@ -41,7 +41,6 @@ export function createStyles(theme: MD3Theme) {
     content: {
       flexGrow: 1,
       justifyContent: "center",
-      padding: 12,
     },
     screenTopStack: {
       justifyContent: "flex-start",
@@ -65,7 +64,7 @@ export function createStyles(theme: MD3Theme) {
       alignItems: "center",
       gap: 16,
     },
-    screenStack: {},
+    screenStack: { paddingHorizontal: 20 },
     logoSlot: {
       alignItems: "center",
       backgroundColor: theme.colors.elevation.level1,

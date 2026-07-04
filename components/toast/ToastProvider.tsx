@@ -15,6 +15,7 @@ interface ToastState {
 }
 
 export const pushOffsetAnimValue = new Animated.Value(0);
+export const headerInsetCollapseAnimValue = new Animated.Value(0);
 
 type ShowToastFn = (
   message: string,
@@ -121,6 +122,12 @@ function ToastBanner() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
+      Animated.timing(headerInsetCollapseAnimValue, {
+        toValue: 0,
+        duration: HIDE_DURATION,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
     ]).start(({ finished }) => {
       if (finished) {
         phaseRef.current = "hidden";
@@ -166,12 +173,14 @@ function ToastBanner() {
         // We do NOT reset slideAnim — we spring from wherever it currently is.
         slideAnim.stopAnimation();
         pushOffsetAnimValue.stopAnimation();
+        headerInsetCollapseAnimValue.stopAnimation();
         swipeAnim.stopAnimation();
         swipeAnim.setValue(0);
       } else {
         // ── Case C: hidden → normal open ──────────────────────────────────
         slideAnim.setValue(-totalHeight);
         pushOffsetAnimValue.setValue(0);
+        headerInsetCollapseAnimValue.setValue(0);
         swipeAnim.setValue(0);
       }
 
@@ -185,6 +194,12 @@ function ToastBanner() {
           Animated.spring(pushOffsetAnimValue, {
             toValue: totalHeight,
             ...SPRING_CONFIG,
+          }),
+          Animated.spring(headerInsetCollapseAnimValue, {
+            toValue: 1,
+            tension: SPRING_CONFIG.tension,
+            friction: SPRING_CONFIG.friction,
+            useNativeDriver: false,
           }),
         ]).start(({ finished }) => {
           if (finished) {
@@ -202,6 +217,7 @@ function ToastBanner() {
     globalShowToast = show;
     return () => {
       globalShowToast = null;
+      headerInsetCollapseAnimValue.setValue(0);
     };
   }, [show]);
 

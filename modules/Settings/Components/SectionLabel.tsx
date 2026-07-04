@@ -13,7 +13,7 @@ export function SectionLabel({ label }: Props) {
     <Text
       style={[
         {
-          paddingHorizontal: 20,
+          paddingHorizontal: 40,
           ...typography.editorial.sectionLabel,
           fontSize: 14,
           color: theme.colors.onSurfaceVariant,

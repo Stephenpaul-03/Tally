@@ -4,6 +4,7 @@ export type RootParamList = {
     | {
         source?: "notification";
         transactionId?: string;
+        date?: string;
       }
     | undefined;
   Insights:

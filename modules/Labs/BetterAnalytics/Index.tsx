@@ -1,8 +1,7 @@
-export { CategoryComparisonCard } from "./Cards/CategoryComparisonCard";
-export { IncomeVsExpensesCard } from "./Cards/IncomeVsExpenseCard";
-export { SpendingTrendCard } from "./Cards/SpendingTrendCard";
+export { CategoryTrendsCard } from "./Cards/CategoryTrendsCard";
+export { BudgetSummaryCard } from "./Cards/BudgetCard";
+export { WeeklySpendingCard } from "./Cards/WeeklySpendingCard";
 export {
     ComparisonArcRing,
     PercentDeltaPill
 } from "./Molecules/ComparisonArcRing";
-

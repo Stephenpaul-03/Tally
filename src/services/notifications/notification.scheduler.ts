@@ -2,9 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import {
-  NotificationActionId,
   NotificationChannelId,
-  NotificationCategoryId,
   NotificationPermissionStatus,
   isAppNotificationPayload,
   type NativePermissionSnapshot,
@@ -102,13 +100,6 @@ export async function configureNotificationChannelsAsync() {
       importance: Notifications.AndroidImportance.DEFAULT,
       showBadge: false,
     }),
-    Notifications.setNotificationChannelAsync(NotificationChannelId.Transactions, {
-      name: "Transaction follow-ups",
-      description: "Transaction recovery and follow-up reminders",
-      enableVibrate: true,
-      importance: Notifications.AndroidImportance.DEFAULT,
-      showBadge: false,
-    }),
     Notifications.setNotificationChannelAsync(NotificationChannelId.Insights, {
       name: "Monthly insights",
       description: "Monthly reflection prompts",
@@ -120,27 +111,7 @@ export async function configureNotificationChannelsAsync() {
 }
 
 export async function configureNotificationCategoriesAsync() {
-  if (Platform.OS === "web") {
-    return;
-  }
-
-  await Notifications.setNotificationCategoryAsync(
-    NotificationCategoryId.PendingUpiRecovery,
-    [
-      {
-        buttonTitle: "Confirm success",
-        identifier: NotificationActionId.ConfirmSuccess,
-      },
-      {
-        buttonTitle: "Mark failed",
-        identifier: NotificationActionId.MarkFailed,
-      },
-      {
-        buttonTitle: "Remind later",
-        identifier: NotificationActionId.RemindLater,
-      },
-    ],
-  );
+  return;
 }
 
 export function configureForegroundPresentation() {

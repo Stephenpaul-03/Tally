@@ -17,7 +17,7 @@ import {
   deleteTransactionAsync,
   selectCategoryColors,
   selectCategoryIcons,
-} from "@/modules/Data/Slices/TransactionSlice";
+} from "@/modules/Core/Slices/TransactionSlice";
 import {
   formatAccountLabel,
   formatCurrencyWithSymbol,
@@ -29,14 +29,20 @@ import {
 import { Transaction } from "@/utils/Types";
 
 type SecondaryLabelMode = "time" | "date" | "none";
+export type TransactionGroupPosition =
+  | "single"
+  | "first"
+  | "middle"
+  | "last";
 
 interface TransactionRowProps {
   transaction: Transaction;
-  onPress: () => void;
+  onPressTransaction: (id: string) => void;
   onEdit?: () => void;
   isLast?: boolean;
   grouped?: boolean;
   showDivider?: boolean;
+  groupPosition?: TransactionGroupPosition;
   secondaryLabelMode?: SecondaryLabelMode;
   disableLongPress?: boolean;
 }
@@ -45,11 +51,12 @@ function accountLabel(account: Transaction["account"]) {
   return formatAccountLabel(account);
 }
 
-export function TransactionRow({
+function TransactionRowComponent({
   transaction,
-  onPress,
+  onPressTransaction,
   grouped = false,
   showDivider = false,
+  groupPosition,
   secondaryLabelMode = "time",
   disableLongPress = false,
 }: TransactionRowProps) {
@@ -105,6 +112,10 @@ export function TransactionRow({
     setDeleteConfirmOpen(true);
   }, []);
 
+  const handlePress = useCallback(() => {
+    onPressTransaction(transaction.id);
+  }, [onPressTransaction, transaction.id]);
+
   const handleConfirmDelete = useCallback(async () => {
     await dispatch(deleteTransactionAsync(transaction.id));
     toast.success("Transaction deleted");
@@ -114,16 +125,33 @@ export function TransactionRow({
   return (
     <>
       <TouchableRipple
-        onPress={onPress}
+        onPress={handlePress}
         onLongPress={disableLongPress ? undefined : handleLongPress}
         delayLongPress={350}
         rippleColor={theme.colors.surfaceVariant}
         style={[
           styles.touchable,
+          grouped
+            ? {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+              }
+            : null,
+          grouped && groupPosition === "single"
+            ? styles.singleGrouped
+            : null,
+          grouped && groupPosition === "first"
+            ? styles.firstGrouped
+            : null,
+          grouped && groupPosition === "middle"
+            ? styles.middleGrouped
+            : null,
+          grouped && groupPosition === "last"
+            ? styles.lastGrouped
+            : null,
           grouped && showDivider
             ? {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: theme.colors.outlineVariant,
+                borderBottomWidth: 0.5,
               }
             : null,
         ]}
@@ -134,7 +162,7 @@ export function TransactionRow({
               style={[
                 styles.iconCircle,
                 {
-                  backgroundColor: theme.colors.background,
+                  // backgroundColor: theme.colors.background,
                 },
               ]}
             >
@@ -194,15 +222,56 @@ export function TransactionRow({
   );
 }
 
+function areTransactionRowPropsEqual(
+  previous: TransactionRowProps,
+  next: TransactionRowProps,
+) {
+  return (
+    previous.transaction === next.transaction &&
+    previous.grouped === next.grouped &&
+    previous.showDivider === next.showDivider &&
+    previous.groupPosition === next.groupPosition &&
+    previous.secondaryLabelMode === next.secondaryLabelMode &&
+    previous.disableLongPress === next.disableLongPress
+  );
+}
+
+export const TransactionRow = React.memo(
+  TransactionRowComponent,
+  areTransactionRowPropsEqual,
+);
+
 const styles = StyleSheet.create({
   touchable: {
     overflow: "hidden",
+  },
+  singleGrouped: {
+    borderWidth: 0.5,
+    borderRadius: 20,
+  },
+  firstGrouped: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 0.5,
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+  },
+  middleGrouped: {
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+  },
+  lastGrouped: {
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingVertical: 16,
+    paddingVertical: 12,
     width: "100%",
   },
   left: {

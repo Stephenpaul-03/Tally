@@ -1,26 +1,31 @@
 import { useAppSelector } from "@/hooks/Redux";
 import {
-    selectCategoryColors,
-    selectCategoryIcons,
-    selectExpenseTransactions,
-    selectIncomeTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
-import { getCategoryColor, getCategoryIconName } from "@/utils/Helpers";
+  selectCategoryColors,
+  selectCategoryBudgets,
+  selectCategoryIcons,
+  selectExpenseTransactions,
+  selectIncomeTransactions,
+  selectOverallBudget,
+} from "@/modules/Core/Slices/TransactionSlice";
+import { getCategoryColor, getCategoryIconName, getTodayDate } from "@/utils/Helpers";
 import type { Transaction } from "@/utils/Types";
 import { useNavigation } from "@react-navigation/native";
 import { useMemo, useState } from "react";
 import { Platform } from "react-native";
 import type { AnalyticsData, BreakdownItem, PaymentItem } from "./Types";
 import {
-    formatChange,
-    formatMonthKey,
-    formatMonthLabel,
-    formatPercentChange,
-    formatShortMonthLabel,
-    formatTrendSummary,
-    getMonthSummary,
-    getPaymentMethodMeta,
-    shiftMonth,
+  formatChange,
+  formatMonthKey,
+  formatMonthLabel,
+  formatPercentChange,
+  formatShortMonthLabel,
+  formatWeekRangeLabel,
+  formatWeekTitle,
+  formatTrendSummary,
+  getMonthSummary,
+  monthStart,
+  getPaymentMethodMeta,
+  shiftMonth,
 } from "./Utils";
 
 type CategorySheetState = {
@@ -41,6 +46,22 @@ type AccountSheetState = {
   transactions: Transaction[];
 };
 
+function startOfIsoWeek(date: Date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  const day = normalized.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  normalized.setDate(normalized.getDate() + diff);
+  return normalized;
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function useInsights() {
   const navigation = useNavigation<any>();
 
@@ -48,6 +69,8 @@ export function useInsights() {
   const incomeTransactions = useAppSelector(selectIncomeTransactions);
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
+  const categoryBudgets = useAppSelector(selectCategoryBudgets);
+  const overallBudget = useAppSelector(selectOverallBudget);
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetMode, setSheetMode] = useState<"expense" | "income">("expense");
@@ -64,6 +87,7 @@ export function useInsights() {
   const [selectedDate, setSelectedDate] = useState(
     () => `${formatMonthKey(new Date())}-01`,
   );
+  const todayKey = getTodayDate();
   const selectedMonth = selectedDate.slice(0, 7);
   const previousMonthKey = shiftMonth(selectedMonth, -1);
 
@@ -129,7 +153,32 @@ export function useInsights() {
     [incomeTransactions, selectedMonth],
   );
 
+  const todayExpenseTransactions = useMemo(
+    () => expenseTransactions.filter((tx) => tx.date === todayKey),
+    [expenseTransactions, todayKey],
+  );
+
+  const todayIncomeTransactions = useMemo(
+    () => incomeTransactions.filter((tx) => tx.date === todayKey),
+    [incomeTransactions, todayKey],
+  );
+
   const analytics = useMemo<AnalyticsData>(() => {
+    const today = new Date();
+    const currentMonthKey = formatMonthKey(today);
+    const selectedMonthDate = monthStart(selectedMonth);
+    const selectedMonthIsCurrent = selectedMonth === currentMonthKey;
+    const selectedMonthIsFuture = selectedMonth > currentMonthKey;
+    const daysInSelectedMonth = new Date(
+      selectedMonthDate.getFullYear(),
+      selectedMonthDate.getMonth() + 1,
+      0,
+    ).getDate();
+    const daysElapsed = selectedMonthIsFuture
+      ? 0
+      : selectedMonthIsCurrent
+        ? today.getDate()
+        : daysInSelectedMonth;
     const monthKeys = Array.from({ length: 6 }, (_, index) =>
       shiftMonth(selectedMonth, index - 5),
     );
@@ -180,6 +229,10 @@ export function useInsights() {
             currentAmount,
             previousAmount,
             percentChange: formatPercentChange(currentAmount, previousAmount),
+            deltaAmount: currentAmount - previousAmount,
+            lastMonthAmount: previousAmount,
+            changePercent: formatPercentChange(currentAmount, previousAmount),
+            differenceAmount: currentAmount - previousAmount,
             currentShare:
               currentMonthTotal > 0
                 ? (currentAmount / currentMonthTotal) * 100
@@ -214,6 +267,150 @@ export function useInsights() {
       incomeCategoryTotalsByMonth,
       "income",
     );
+    const currentExpenseTotals =
+      expenseCategoryTotalsByMonth.get(selectedMonth) ?? new Map<string, number>();
+    const historyMonthKeys = Array.from(expenseCategoryTotalsByMonth.keys())
+      .filter((monthKey) => monthKey !== selectedMonth)
+      .sort();
+
+    const weeklyBuckets = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        title: string;
+        rangeLabel: string;
+        amount: number;
+        isCurrentWeek: boolean;
+      }
+    >();
+    // Historical months use the last day of that month as the reference point
+    // so weekly/pacing cards still render a stable comparison outside the live month.
+    const currentWeekKey = dateKey(
+      startOfIsoWeek(
+        new Date(
+          selectedMonthDate.getFullYear(),
+          selectedMonthDate.getMonth(),
+          Math.max(1, daysElapsed || 1),
+        ),
+      ),
+    );
+    for (let day = 1; day <= daysInSelectedMonth; day += 1) {
+      const dayDate = new Date(
+        selectedMonthDate.getFullYear(),
+        selectedMonthDate.getMonth(),
+        day,
+      );
+      const weekStart = startOfIsoWeek(dayDate);
+      const key = dateKey(weekStart);
+      if (weeklyBuckets.has(key)) continue;
+
+      const visibleStart = Math.max(1, dayDate.getDate() - ((dayDate.getDay() + 6) % 7));
+      const visibleEnd = Math.min(visibleStart + 6, daysInSelectedMonth);
+      const weekNumber = weeklyBuckets.size + 1;
+      weeklyBuckets.set(key, {
+        key,
+        label: `Week ${weekNumber}`,
+        title: formatWeekTitle(
+          weekNumber,
+          visibleStart,
+          visibleEnd,
+          selectedMonth,
+        ),
+        rangeLabel: formatWeekRangeLabel(
+          visibleStart,
+          visibleEnd,
+          selectedMonth,
+        ),
+        amount: 0,
+        isCurrentWeek: key === currentWeekKey,
+      });
+    }
+
+    for (const tx of selectedMonthExpenseTransactions) {
+      const bucketKey = dateKey(startOfIsoWeek(new Date(`${tx.date}T00:00:00`)));
+      const bucket = weeklyBuckets.get(bucketKey);
+      if (bucket) {
+        bucket.amount += Math.abs(tx.amount);
+      }
+    }
+
+    const weeklySeries = Array.from(weeklyBuckets.values());
+    const currentWeekAmount =
+      weeklySeries.find((week) => week.isCurrentWeek)?.amount ?? 0;
+    const selectedMonthExpenseTotal = selectedMonthExpenseTransactions.reduce(
+      (sum, tx) => sum + Math.abs(tx.amount),
+      0,
+    );
+    const averageWeekAmount =
+      weeklySeries.length > 0
+        ? selectedMonthExpenseTotal / weeklySeries.length
+        : 0;
+
+    const projectedAmount =
+      daysElapsed > 0
+        ? (selectedMonthExpenseTotal / daysElapsed) * daysInSelectedMonth
+        : 0;
+    const lastMonthAmount = expenseMonthTotals.get(previousMonthKey) ?? 0;
+    const projectionDelta = projectedAmount - lastMonthAmount;
+    const projectionDirection =
+      Math.abs(projectionDelta) < 1
+        ? ("flat" as const)
+        : projectionDelta > 0
+          ? ("over" as const)
+          : ("under" as const);
+
+    const allHistoricalCategories = new Set<string>();
+    historyMonthKeys.forEach((monthKey) => {
+      for (const category of expenseCategoryTotalsByMonth.get(monthKey)?.keys() ??
+        []) {
+        allHistoricalCategories.add(category);
+      }
+    });
+    for (const category of currentExpenseTotals.keys()) {
+      allHistoricalCategories.add(category);
+    }
+
+    const unusualRows = Array.from(allHistoricalCategories)
+      .map((category) => {
+        if (historyMonthKeys.length === 0) return null;
+        const currentAmount = currentExpenseTotals.get(category) ?? 0;
+        const usualAmount =
+          historyMonthKeys.reduce(
+            (sum, monthKey) =>
+              sum +
+              (expenseCategoryTotalsByMonth.get(monthKey)?.get(category) ?? 0),
+            0,
+          ) / historyMonthKeys.length;
+
+        if (usualAmount <= 0) return null;
+        if (currentAmount >= usualAmount * 2) {
+          return {
+            category,
+            currentAmount,
+            usualAmount,
+            direction: "up" as const,
+            color: getCategoryColor(category, "expense", categoryColors),
+          };
+        }
+        if (currentAmount <= usualAmount * 0.5) {
+          return {
+            category,
+            currentAmount,
+            usualAmount,
+            direction: "down" as const,
+            color: getCategoryColor(category, "expense", categoryColors),
+          };
+        }
+        return null;
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null)
+      .sort((left, right) => {
+        const leftRatio = Math.abs(left.currentAmount - left.usualAmount) / left.usualAmount;
+        const rightRatio =
+          Math.abs(right.currentAmount - right.usualAmount) / right.usualAmount;
+        return rightRatio - leftRatio;
+      });
 
     const expenseMonthsWithData = points.filter(
       (point) => point.expenseTotal > 0,
@@ -244,16 +441,131 @@ export function useInsights() {
         hasPreviousMonthData: expenseComparison.hasPreviousMonthData,
         currentMonthTotal: expenseComparison.currentMonthTotal,
         previousMonthTotal: expenseComparison.previousMonthTotal,
+        currentMonthLabel: formatMonthLabel(selectedMonth),
+        lastMonthLabel: formatMonthLabel(previousMonthKey),
+      },
+      categoryTrends: (() => {
+        const monthsWithData = monthKeys.filter(
+          (monthKey) =>
+            (expenseCategoryTotalsByMonth.get(monthKey)?.size ?? 0) > 0,
+        );
+
+        if (monthsWithData.length < 2) {
+          return {
+            rows: [],
+            hasEnoughHistory: false,
+            monthKeys,
+            comparisonStartLabel: formatShortMonthLabel(monthKeys[0]),
+            comparisonEndLabel:
+              formatShortMonthLabel(monthKeys[monthKeys.length - 1]),
+          };
+        }
+
+        const comparisonStartMonthKey = monthsWithData[0];
+        const comparisonStartIndex = Math.max(
+          monthKeys.indexOf(comparisonStartMonthKey),
+          0,
+        );
+        const comparisonMonthKeys = monthKeys.slice(comparisonStartIndex);
+        const categories = new Set<string>();
+        comparisonMonthKeys.forEach((monthKey) => {
+          for (const category of expenseCategoryTotalsByMonth.get(monthKey)?.keys() ??
+            []) {
+            categories.add(category);
+          }
+        });
+
+        const rows = Array.from(categories)
+          .map((category) => {
+            const trendPoints = comparisonMonthKeys.map((monthKey) => ({
+              monthKey,
+              label: formatShortMonthLabel(monthKey),
+              amount:
+                expenseCategoryTotalsByMonth.get(monthKey)?.get(category) ?? 0,
+            }));
+            const activePoints = trendPoints.filter((point) => point.amount > 0);
+
+            if (activePoints.length < 2) {
+              return null;
+            }
+
+            const lastPoint = trendPoints[trendPoints.length - 1];
+            const totalAmount = trendPoints.reduce(
+              (sum, point) => sum + point.amount,
+              0,
+            );
+            const averageAmount =
+              trendPoints.length > 0 ? totalAmount / trendPoints.length : 0;
+            const currentAmount = lastPoint?.amount ?? 0;
+            const differenceAmount = currentAmount - averageAmount;
+            const changePercent =
+              averageAmount > 0
+                ? Number(((differenceAmount / averageAmount) * 100).toFixed(1))
+                : currentAmount > 0
+                  ? null
+                  : 0;
+
+            return {
+              category,
+              currentAmount,
+              averageAmount,
+              differenceAmount,
+              changePercent,
+              budgetAmount: categoryBudgets[category],
+              color: getCategoryColor(category, "expense", categoryColors),
+              icon: getCategoryIconName(category, "expense", categoryIcons),
+              points: trendPoints,
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row != null)
+          .sort((left, right) => {
+            if (right.currentAmount !== left.currentAmount) {
+              return right.currentAmount - left.currentAmount;
+            }
+            return right.averageAmount - left.averageAmount;
+          });
+
+        return {
+          rows,
+          hasEnoughHistory: rows.length > 0,
+          monthKeys: comparisonMonthKeys,
+          comparisonStartLabel: formatShortMonthLabel(comparisonMonthKeys[0]),
+          comparisonEndLabel: formatShortMonthLabel(
+            comparisonMonthKeys[comparisonMonthKeys.length - 1],
+          ),
+        };
+      })(),
+      weeklySpending: {
+        weeks: weeklySeries,
+        currentWeekAmount,
+        averageWeekAmount,
+        hasData: weeklySeries.some((week) => week.amount > 0),
+      },
+      spendingPace: {
+        projectedAmount,
+        lastMonthAmount,
+        deltaAmount: Math.abs(projectionDelta),
+        direction: projectionDirection,
+        progressPercent:
+          daysInSelectedMonth > 0 ? (daysElapsed / daysInSelectedMonth) * 100 : 0,
+        totalSpentSoFar: selectedMonthExpenseTotal,
+        hasProjection: daysElapsed > 0,
+      },
+      unusualSpending: {
+        rows: unusualRows,
+        hasHistory: historyMonthKeys.length > 0,
       },
     };
   }, [
+    categoryColors,
+    categoryBudgets,
     expenseCategoryTotalsByMonth,
     incomeCategoryTotalsByMonth,
     expenseMonthTotals,
     incomeMonthTotals,
-    categoryColors,
     categoryIcons,
     previousMonthKey,
+    selectedMonthExpenseTransactions,
     selectedMonth,
   ]);
 
@@ -302,6 +614,50 @@ export function useInsights() {
     }),
     [selectedMonthExpenseTransactions, selectedMonthIncomeTransactions],
   );
+
+  const todaySummary = useMemo(
+    () => ({
+      expenseTotal: todayExpenseTransactions.reduce(
+        (sum, tx) => sum + Math.abs(tx.amount),
+        0,
+      ),
+      incomeTotal: todayIncomeTransactions.reduce(
+        (sum, tx) => sum + Math.abs(tx.amount),
+        0,
+      ),
+      transactionCount:
+        todayExpenseTransactions.length + todayIncomeTransactions.length,
+      label: todayKey,
+    }),
+    [todayExpenseTransactions, todayIncomeTransactions, todayKey],
+  );
+
+  const heroSummary = useMemo(() => {
+    const today = new Date();
+    const currentMonthKey = formatMonthKey(today);
+    const selectedMonthStart = new Date(`${selectedMonth}-01T00:00:00`);
+    const daysInSelectedMonth = new Date(
+      selectedMonthStart.getFullYear(),
+      selectedMonthStart.getMonth() + 1,
+      0,
+    ).getDate();
+    const daysUntilMonthEnd =
+      selectedMonth === currentMonthKey
+        ? Math.max(0, daysInSelectedMonth - today.getDate())
+        : selectedMonth > currentMonthKey
+          ? daysInSelectedMonth
+          : 0;
+
+    return {
+      expenseTransactionCount: selectedMonthExpenseTransactions.length,
+      incomeTransactionCount: selectedMonthIncomeTransactions.length,
+      daysUntilMonthEnd,
+    };
+  }, [
+    selectedMonth,
+    selectedMonthExpenseTransactions.length,
+    selectedMonthIncomeTransactions.length,
+  ]);
 
   const openSheet = (mode: "expense" | "income") => {
     setSheetMode(mode);
@@ -374,8 +730,11 @@ export function useInsights() {
     navigation,
     canOpenDrawer,
     selectedDate,
+    selectedMonth,
     setSelectedDate,
+    expenseTransactions,
     summary,
+    overallBudget,
     comparison,
     analytics,
     heatmapMax,
@@ -394,5 +753,7 @@ export function useInsights() {
     openCategorySheetFromBreakdownSheet,
     categorySheetMonthLabel: formatMonthLabel(selectedMonth),
     accountSheetMonthLabel: formatMonthLabel(selectedMonth),
+    todaySummary,
+    heroSummary,
   };
 }

@@ -60,7 +60,7 @@ export function BiometricSettingsRow() {
       <ActionRow
         icon="lock-outline"
         label="Biometric Lock"
-        description="Protect Tally using Face ID or fingerprint authentication."
+        description="Protect using biometric authentication."
         onPress={() => void handleToggle(!enabled)}
         theme={theme}
         showChevron={false}

@@ -10,7 +10,7 @@ import {
     selectActiveExpenseCategories,
     selectActiveIncomeCategories,
     selectNonDeletedTransactions,
-} from "@/modules/Data/Slices/TransactionSlice";
+} from "@/modules/Core/Slices/TransactionSlice";
 import type { TransactionFilters } from "@/utils/Types";
 
 function formatMonthLabel(monthKey: string) {

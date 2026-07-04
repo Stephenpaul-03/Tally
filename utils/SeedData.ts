@@ -1,169 +1,166 @@
-import { addTransactionAsync } from "@/modules/Data/Slices/TransactionSlice";
-import { AppDispatch } from "@/modules/Data/Store";
+import { addTransactionAsync } from "@/modules/Core/Slices/TransactionSlice";
+import { AppDispatch } from "@/modules/Core/Store";
 import type { TransactionFormData } from "@/utils/Types";
 
-/**
- * Generate realistic test transaction data in INR from January through today.
- * Mix of income and expense categories with varied amounts.
- * All amounts are rounded to 2 decimal places.
- */
-export function generateTestTransactions(): TransactionFormData[] {
-  const incomeCategories = [
-    "Salary",
-    "Freelance",
-    "Investments",
-    "Gifts",
-    "Refunds",
-    "Other Income",
-  ];
+export type SeedDensity = "light" | "moderate" | "heavy";
+
+export type SeedConfig = {
+  months: number[];          // 0-based, e.g. [0, 1, 2] = Jan–Mar
+  transport: { max: number };
+  food: { max: number };
+  misc: { max: number };
+  salary: { max: number };
+  includeIncome: boolean;
+  includeWeekendTravel: boolean;
+  density: SeedDensity;
+};
+
+export const DEFAULT_SEED_CONFIG: SeedConfig = {
+  months: [0, 1, 2, 3],
+  transport: { max: 600 },
+  food: { max: 700 },
+  misc: { max: 2300 },
+  salary: { max: 60000 },
+  includeIncome: true,
+  includeWeekendTravel: true,
+  density: "light",
+};
+
+const DENSITY_MISC_CHANCE: Record<SeedDensity, number> = {
+  light: 0.4,
+  moderate: 0.65,
+  heavy: 0.9,
+};
+
+const rand = (min: number, max: number) =>
+  Math.round((min + Math.random() * (max - min)) * 100) / 100;
+
+const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+export function generateTestTransactions(
+  config: SeedConfig = DEFAULT_SEED_CONFIG
+): TransactionFormData[] {
+  const incomeCategories = ["Salary", "Freelance", "Investments", "Gifts", "Refunds", "Other Income"];
   const expenseCategories = [
-    "Food & Dining",
-    "Transportation",
-    "Shopping",
-    "Bills & Utilities",
-    "Entertainment",
-    "Healthcare",
-    "Education",
-    "Travel",
-    "Other Expense",
+    "Food & Dining", "Transportation", "Shopping", "Bills & Utilities",
+    "Entertainment", "Healthcare", "Education", "Travel", "Other Expense",
   ];
   const accounts = ["Cash", "Card", "UPI"];
-
   const transactions: TransactionFormData[] = [];
   const now = new Date();
   const year = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-based
-  const currentDay = now.getDate();
+  const miscChance = DENSITY_MISC_CHANCE[config.density];
 
-  for (let month = 1; month <= currentMonth; month += 1) {
-    const y = year;
-    const daysInMonth = new Date(y, month, 0).getDate();
-    const monthStr = String(month).padStart(2, "0");
-    const maxDay =
-      month === currentMonth ? Math.min(currentDay, daysInMonth) : daysInMonth;
+  for (const month of config.months) {
+    const m1 = month + 1;                          // 1-based for Date
+    const daysInMonth = new Date(year, m1, 0).getDate();
+    const isCurrentMonth = m1 === now.getMonth() + 1;
+    const maxDay = isCurrentMonth ? Math.min(now.getDate(), daysInMonth) : daysInMonth;
+    const monthStr = String(m1).padStart(2, "0");
 
     for (let day = 1; day <= maxDay; day++) {
-      const date = `${y}-${monthStr}-${String(day).padStart(2, "0")}`;
+      const date = `${year}-${monthStr}-${String(day).padStart(2, "0")}`;
 
-      // Morning commute / transport
+      // Transport
       transactions.push({
         title: "Daily commute",
         date,
-        amount: Math.round((150 + Math.random() * 200) * 100) / 100,
+        amount: rand(50, config.transport.max),
         type: "expense",
         category: expenseCategories[1],
-        account: accounts[Math.floor(Math.random() * 3)],
+        account: pick(accounts),
       });
 
-      // Food (lunch + dinner)
-      ["Lunch", "Dinner"].forEach((meal) => {
-        const amt = Math.round((200 + Math.random() * 500) * 100) / 100;
+      // Food
+      for (const meal of ["Lunch", "Dinner"]) {
         transactions.push({
           title: meal,
           date,
-          amount: amt,
+          amount: rand(100, config.food.max),
           type: "expense",
           category: expenseCategories[0],
-          account: accounts[Math.floor(Math.random() * 3)],
+          account: pick(accounts),
         });
-      });
+      }
 
-      // Miscellaneous expenses
-      if (Math.random() < 0.6) {
-        const misc = [
-          {
-            cat: expenseCategories[2],
-            title: "Shopping",
-            amt: Math.round((300 + Math.random() * 2000) * 100) / 100,
-          },
-          {
-            cat: expenseCategories[5],
-            title: "Medical / Health",
-            amt: Math.round((200 + Math.random() * 1500) * 100) / 100,
-          },
-          {
-            cat: expenseCategories[6],
-            title: "Education",
-            amt: Math.round((100 + Math.random() * 800) * 100) / 100,
-          },
-          {
-            cat: expenseCategories[4],
-            title: "Entertainment",
-            amt: Math.round((250 + Math.random() * 1000) * 100) / 100,
-          },
+      // Misc expenses
+      if (Math.random() < miscChance) {
+        const miscOptions = [
+          { cat: expenseCategories[2], title: "Shopping" },
+          { cat: expenseCategories[5], title: "Medical / Health" },
+          { cat: expenseCategories[6], title: "Education" },
+          { cat: expenseCategories[4], title: "Entertainment" },
         ];
-        const pick = misc[Math.floor(Math.random() * misc.length)];
+        const chosen = pick(miscOptions);
         transactions.push({
-          title: pick.title,
+          title: chosen.title,
           date,
-          amount: pick.amt,
+          amount: rand(200, config.misc.max),
           type: "expense",
-          category: pick.cat,
-          account: accounts[Math.floor(Math.random() * 3)],
+          category: chosen.cat,
+          account: pick(accounts),
         });
       }
 
       // Weekend travel
-      const dayOfWeek = new Date(y, month - 1, day).getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
+      if (config.includeWeekendTravel) {
+        const dow = new Date(year, month, day).getDay();
+        if (dow === 0 || dow === 6) {
+          transactions.push({
+            title: "Weekend outing",
+            date,
+            amount: rand(800, 3000),
+            type: "expense",
+            category: expenseCategories[7],
+            account: pick(accounts),
+          });
+        }
+      }
+    }
+
+    // Bills on 15th and last day
+    for (const billDay of [15, maxDay]) {
+      if (billDay > maxDay) continue;
+      const billDate = `${year}-${monthStr}-${String(billDay).padStart(2, "0")}`;
+      for (const title of ["Electricity Bill", "Internet / WiFi", "Phone Recharge", "Streaming Subscription"]) {
         transactions.push({
-          title: "Weekend outing",
-          date,
-          amount: Math.round((800 + Math.random() * 3000) * 100) / 100,
+          title,
+          date: billDate,
+          amount: rand(500, 2500),
           type: "expense",
-          category: expenseCategories[7],
-          account: accounts[Math.floor(Math.random() * 3)],
+          category: expenseCategories[3],
+          account: pick(accounts),
         });
       }
     }
 
-    // Mid-month bill payments (15th) and end-of-month
-    [15, maxDay].forEach((billDay) => {
-      if (billDay > maxDay) return;
-      const billDate = `${y}-${monthStr}-${String(billDay).padStart(2, "0")}`;
-      const bills = [
-        "Electricity Bill",
-        "Internet / WiFi",
-        "Phone Recharge",
-        "Streaming Subscription",
-      ];
-      bills.forEach((billTitle) => {
-        transactions.push({
-          title: billTitle,
-          date: billDate,
-          amount: Math.round((500 + Math.random() * 2500) * 100) / 100,
-          type: "expense",
-          category: expenseCategories[3],
-          account: accounts[Math.floor(Math.random() * 3)],
-        });
-      });
-    });
+    if (!config.includeIncome) continue;
 
-    // Bi-weekly salary / freelance
-    [10, 25].forEach((salaryDay) => {
-      const salaryDate = `${y}-${monthStr}-${String(salaryDay).padStart(2, "0")}`;
+    // Bi-weekly salary
+    for (const salaryDay of [10, 25]) {
       if (salaryDay <= maxDay) {
+        const salaryDate = `${year}-${monthStr}-${String(salaryDay).padStart(2, "0")}`;
         transactions.push({
           title: "Salary",
           date: salaryDate,
-          amount: Math.round((45000 + Math.random() * 15000) * 100) / 100,
+          amount: rand(45000, config.salary.max),
           type: "income",
           category: incomeCategories[0],
-          account: accounts[Math.floor(Math.random() * 3)],
+          account: pick(accounts),
         });
       }
-    });
+    }
 
-    // Occasional freelance income
+    // Occasional freelance
     if (Math.random() < 0.08) {
-      const lastDay = `${y}-${monthStr}-${String(maxDay).padStart(2, "0")}`;
+      const lastDate = `${year}-${monthStr}-${String(maxDay).padStart(2, "0")}`;
       transactions.push({
         title: "Freelance project",
-        date: lastDay,
-        amount: Math.round((5000 + Math.random() * 20000) * 100) / 100,
+        date: lastDate,
+        amount: rand(5000, 20000),
         type: "income",
         category: incomeCategories[1],
-        account: accounts[Math.floor(Math.random() * 3)],
+        account: pick(accounts),
       });
     }
   }
@@ -171,24 +168,14 @@ export function generateTestTransactions(): TransactionFormData[] {
   return transactions;
 }
 
-/**
- * Dispatch all generated test transactions to the store, and reset filters
- * to show all dates after import.
- */
-export async function seedTestData(dispatch: AppDispatch): Promise<void> {
-  const data = generateTestTransactions();
-
-  // Seed transactions sequentially
+export async function seedTestData(
+  dispatch: AppDispatch,
+  config: SeedConfig = DEFAULT_SEED_CONFIG
+): Promise<void> {
+  const data = generateTestTransactions(config);
   for (const tx of data) {
     await dispatch(addTransactionAsync(tx));
   }
-
-  // Reset date filters to show all data
-  dispatch({
-    type: "filters/setDatePreset",
-    payload: "all",
-  } as any);
-  dispatch({
-    type: "filters/resetDateRange",
-  } as any);
+  dispatch({ type: "filters/setDatePreset", payload: "all" } as any);
+  dispatch({ type: "filters/resetDateRange" } as any);
 }

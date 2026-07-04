@@ -15,6 +15,10 @@ import {
 import { Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  DEFAULT_WORKSPACE_CURRENCY,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
 import { useAppDispatch } from "@/hooks/Redux";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -100,6 +104,9 @@ export function OnboardingScreen({ onComplete }: Props) {
 
   const [stepIndex, setStepIndex] = React.useState(0);
   const [workspaceName, setWorkspaceName] = React.useState("");
+  const [workspaceOwnerName, setWorkspaceOwnerName] = React.useState("");
+  const [workspaceCurrency, setWorkspaceCurrency] =
+    React.useState<WorkspaceCurrency>(DEFAULT_WORKSPACE_CURRENCY);
   const [workspaceIcon, setWorkspaceIcon] = React.useState("briefcase-outline");
   const [workspaceColor, setWorkspaceColor] = React.useState("#6366F1");
   const [workspaceTouched, setWorkspaceTouched] = React.useState(false);
@@ -121,6 +128,7 @@ export function OnboardingScreen({ onComplete }: Props) {
   const [revealOrigin, setRevealOrigin] = React.useState<SplashOrigin | null>(
     null,
   );
+  const [isExitingWelcome, setIsExitingWelcome] = React.useState(false);
 
   const expandRipple = React.useCallback(
     (origin: SplashOrigin, onFullyCovered: () => void) => {
@@ -165,6 +173,7 @@ export function OnboardingScreen({ onComplete }: Props) {
 
   const step = ONBOARDING_STEPS[stepIndex];
   const isWelcomeStep = step.id === "welcome";
+  const showWelcomeScreen = isWelcomeStep && !isExitingWelcome;
   const isWorkspaceInvalid = workspaceTouched && !workspaceName.trim();
   const isFinalStep = step.id === "complete";
   const footerHint = getFooterHint(step.id);
@@ -217,6 +226,7 @@ export function OnboardingScreen({ onComplete }: Props) {
 
   const handleWelcomeContinue = React.useCallback(
     (origin: SplashOrigin) => {
+      setIsExitingWelcome(true);
       expandRipple(origin, () => {
         // Switch the step while fully covered — WelcomeScreen stays mounted,
         // just hidden via display:none, so there is no unmount/remount flash.
@@ -251,6 +261,10 @@ export function OnboardingScreen({ onComplete }: Props) {
     const draft: OnboardingDraft = {
       setupType: "simple",
       workspaceName: workspaceName.trim(),
+      workspaceOwnerName: workspaceOwnerName.trim(),
+      workspaceCurrencyCode: workspaceCurrency.code,
+      workspaceCurrencySymbol: workspaceCurrency.symbol,
+      workspaceCurrencyName: workspaceCurrency.name,
       workspaceIcon,
       workspaceColor,
       quickStart,
@@ -283,8 +297,10 @@ export function OnboardingScreen({ onComplete }: Props) {
     setThemeId,
     themePreference,
     workspaceColor,
+    workspaceCurrency,
     workspaceIcon,
     workspaceName,
+    workspaceOwnerName,
   ]);
 
   const goNext = React.useCallback(() => {
@@ -352,7 +368,10 @@ export function OnboardingScreen({ onComplete }: Props) {
        * layout/paint work happening during the ripple transition.
        */}
       <View
-        style={[StyleSheet.absoluteFill, isWelcomeStep ? s.visible : s.hidden]}
+        style={[
+          StyleSheet.absoluteFill,
+          showWelcomeScreen ? s.visible : s.hidden,
+        ]}
       >
         <WelcomeScreen
           onContinue={handleWelcomeContinue}
@@ -362,7 +381,10 @@ export function OnboardingScreen({ onComplete }: Props) {
       </View>
 
       <View
-        style={[StyleSheet.absoluteFill, isWelcomeStep ? s.hidden : s.visible]}
+        style={[
+          StyleSheet.absoluteFill,
+          showWelcomeScreen ? s.hidden : s.visible,
+        ]}
       >
         <SafeAreaView
           style={[
@@ -431,16 +453,20 @@ export function OnboardingScreen({ onComplete }: Props) {
                   <WorkspaceScreen
                     colorOptions={colorOptions}
                     isWorkspaceInvalid={isWorkspaceInvalid}
+                    setWorkspaceCurrency={setWorkspaceCurrency}
                     setWorkspaceColor={setWorkspaceColor}
                     setWorkspaceIcon={setWorkspaceIcon}
                     setWorkspaceName={setWorkspaceName}
+                    setWorkspaceOwnerName={setWorkspaceOwnerName}
                     setWorkspaceTouched={setWorkspaceTouched}
                     styles={styles}
                     theme={theme}
                     workspaceColor={workspaceColor}
+                    workspaceCurrency={workspaceCurrency}
                     workspaceIcon={workspaceIcon}
                     workspaceIconOptions={workspaceIconOptions}
                     workspaceName={workspaceName}
+                    workspaceOwnerName={workspaceOwnerName}
                   />
                 ) : null}
                 {step.id === "quick-start" ? (

@@ -2,8 +2,8 @@ import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
+import { View } from "react-native";
 import { TouchableRipple, type MD3Theme } from "react-native-paper";
-import { AccountModalHeader } from "../Components/ModalHeader";
 import { PROTECTED_ACCOUNTS } from "../Constants";
 
 type Props = {
@@ -78,39 +78,53 @@ export function AccountEditScreen({
       </TouchableRipple>
     ) : null;
 
+  const closeAccessory = !hideCloseButton ? (
+    <TouchableRipple
+      borderless
+      onPress={onClose}
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#ffffff26",
+      }}
+    >
+      <MaterialCommunityIcons name="close" size={18} color="#fff" />
+    </TouchableRipple>
+  ) : null;
+
+  const headerAccessory =
+    deleteAccessory || closeAccessory ? (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {deleteAccessory}
+        {closeAccessory}
+      </View>
+    ) : undefined;
+
   return (
     <EntityEditLayout
       allColors={allColors}
       allIcons={allIcons}
       background={background}
       canSubmit={canSubmitEdit}
-      deleteAccessory={deleteAccessory}
+      deleteAccessory={headerAccessory}
       emptyPreviewLabel="Account name"
       footer={footer}
+      headerSubtitle={management.editingAccount?.name}
       iconGrid={iconGrid}
       iconPickerVariant="account"
       isEditing={isEditing}
       localColor={localColor}
       localIcon={localIcon}
       localName={localName}
-      nameLabel="Account name"
       namePlaceholder="e.g. HDFC Credit Card"
+      onBack={onBack}
       onChangeColor={onChangeColor}
       onChangeIcon={onChangeIcon}
       onChangeName={onChangeName}
       onSubmit={onSubmit}
-      renderHeader={({ rightAccessory }) => (
-        <AccountModalHeader
-          hideCloseButton={hideCloseButton}
-          onBack={onBack}
-          onClose={onClose}
-          rightAccessory={rightAccessory}
-          showBack
-          subtitle={management.editingAccount?.name}
-          theme={theme}
-          title={isEditing ? "Edit account" : "New account"}
-        />
-      )}
       submitLabelCreate="Add account"
       submitLabelEdit="Save changes"
       theme={theme}

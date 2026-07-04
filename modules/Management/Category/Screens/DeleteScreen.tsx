@@ -145,7 +145,7 @@ export function DeleteScreen({
       {deleteDestinations.length > 0 && (
         <>
           <SectionLabel label="Move transactions to" theme={theme} />
-          <View style={{ maxHeight: 500, marginHorizontal: 12 }}>
+          <View style={{ flex: 1, marginHorizontal: 12 }}>
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ gap: 8, paddingBottom: 8 }}

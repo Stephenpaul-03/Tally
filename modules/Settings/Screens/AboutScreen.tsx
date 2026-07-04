@@ -1,8 +1,7 @@
 import { ActionRow } from "@/components/ActionRow";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
-import { useThemedAsset } from "@/hooks/use-themed-insights";
-import { DevSheet } from "@/modules/Settings/Components/DevSheet";
-import { useDevTools, useSettings } from "@/modules/Settings/hooks";
+import { toast } from "@/components/toast/ToastProvider";
 import { typography } from "@/theme/typography";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -10,14 +9,18 @@ import Constants from "expo-constants";
 import React from "react";
 import {
   Image,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Button, Text, TextInput, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  DEV_TOOLS_PASSCODE,
+  isDeveloperToolsUnlockedForSession,
+  unlockDeveloperToolsForSession,
+} from "../DeveloperToolsSession";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
@@ -28,10 +31,41 @@ export function AboutScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const appVersion = Constants.expoConfig?.version ?? "0.1.0";
-  const devTools = useDevTools();
-  const { handleSeedData, handleClearAllTransactions } = useSettings();
-  const [devSheetOpen, setDevSheetOpen] = React.useState(false);
-  const logoSource = useThemedAsset("logo");
+  const devTapCountRef = React.useRef(0);
+  const [passcodeOpen, setPasscodeOpen] = React.useState(false);
+  const [passcode, setPasscode] = React.useState("");
+
+  const handleDeveloperTap = React.useCallback(() => {
+    const next = devTapCountRef.current + 1;
+    devTapCountRef.current = next;
+
+    if (next >= 7) {
+      devTapCountRef.current = 0;
+      if (isDeveloperToolsUnlockedForSession()) {
+        toast.info("Developer tools are already on for this app session");
+        return;
+      }
+      setPasscodeOpen(true);
+    }
+  }, []);
+
+  const handleUnlockDeveloperTools = React.useCallback(() => {
+    if (passcode !== DEV_TOOLS_PASSCODE) {
+      toast.error("Incorrect developer code");
+      setPasscode("");
+      return;
+    }
+
+    unlockDeveloperToolsForSession();
+    setPasscode("");
+    setPasscodeOpen(false);
+    toast.success("Developer tools are on for this app session");
+  }, [passcode]);
+
+  const handleWebRedirectPress = React.useCallback(() => {
+    toast.info("Work in progress");
+  }, []);
+
   return (
     <SafeAreaView
       style={[
@@ -50,8 +84,7 @@ export function AboutScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open developer tools"
-            onLongPress={() => setDevSheetOpen(true)}
-            delayLongPress={400}
+            onPress={handleDeveloperTap}
             style={[
               styles.appIcon,
               {
@@ -61,7 +94,7 @@ export function AboutScreen() {
             ]}
           >
             <Image
-              source={logoSource}
+              source={require("@/assets/images/icon-foreground-Mono-White.png")}
               style={styles.appImage}
               resizeMode="contain"
             />
@@ -90,7 +123,7 @@ export function AboutScreen() {
             icon="heart-outline"
             label="Support Development"
             description="Help fund future updates"
-            onPress={() => Linking.openURL("https://buymeacoffee.com")}
+            onPress={handleWebRedirectPress}
             theme={theme}
             showChevron
           />
@@ -98,7 +131,7 @@ export function AboutScreen() {
             icon="message-alert-outline"
             label="Report an Issue"
             description="Help improve Tally"
-            onPress={() => Linking.openURL("mailto:support@tally.app")}
+            onPress={handleWebRedirectPress}
             theme={theme}
             showChevron
           />
@@ -106,11 +139,7 @@ export function AboutScreen() {
             icon="lightbulb-outline"
             label="Suggest a Feature"
             description="Share your ideas with us"
-            onPress={() =>
-              Linking.openURL(
-                "mailto:support@tally.app?subject=Feature Suggestion",
-              )
-            }
+            onPress={handleWebRedirectPress}
             theme={theme}
             showChevron
           />
@@ -123,7 +152,7 @@ export function AboutScreen() {
             icon="shield-check-outline"
             label="Privacy Policy"
             description="How your data is handled"
-            onPress={() => navigation.navigate("Workspaces")}
+            onPress={handleWebRedirectPress}
             theme={theme}
             showChevron
           />
@@ -131,7 +160,7 @@ export function AboutScreen() {
             icon="file-document-outline"
             label="Open Source Licenses"
             description="Third-party acknowledgements"
-            onPress={() => navigation.navigate("Workspaces")}
+            onPress={handleWebRedirectPress}
             theme={theme}
             showChevron
           />
@@ -160,27 +189,86 @@ export function AboutScreen() {
             }
           />
         </SheetCard>
-
-        <DevSheet
-          visible={devSheetOpen}
-          onDismiss={() => setDevSheetOpen(false)}
-          notificationPermissionLabel={devTools.notificationPermissionLabel}
-          handleRefreshNotificationPermission={
-            devTools.handleRefreshNotificationPermission
-          }
-          handleOpenNotificationSettings={
-            devTools.handleOpenNotificationSettings
-          }
-          handleTestDailyReminder={devTools.handleTestDailyReminder}
-          handleTestMonthlyInsight={devTools.handleTestMonthlyInsight}
-          handleTestPendingUpiRecovery={devTools.handleTestPendingUpiRecovery}
-          handleTestFailedTransactionFollowUp={
-            devTools.handleTestFailedTransactionFollowUp
-          }
-          handleSeedData={handleSeedData}
-          handleClearAllTransactions={handleClearAllTransactions}
-        />
       </ScrollView>
+
+      <AnimatedPaperModal
+        visible={passcodeOpen}
+        onDismiss={() => {
+          setPasscodeOpen(false);
+          setPasscode("");
+        }}
+        presentation="sheet"
+        keyboardAware
+        contentContainerStyle={{
+          justifyContent: "flex-end",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.background,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 12,
+            paddingHorizontal: 20,
+            paddingBottom: 24,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 42,
+              height: 4,
+              borderRadius: 999,
+              backgroundColor: theme.colors.outlineVariant,
+              marginBottom: 14,
+            }}
+          />
+
+          <View style={{ paddingHorizontal: 4, gap: 14 }}>
+            <View style={{ gap: 4 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.colors.onSurface,
+                }}
+              >
+                Enter Developer Code
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  lineHeight: 18,
+                  color: theme.colors.onSurfaceVariant,
+                }}
+              >
+                Unlock developer tools for this app session.
+              </Text>
+            </View>
+
+            <TextInput
+              mode="outlined"
+              label="Passcode"
+              value={passcode}
+              onChangeText={(value) =>
+                setPasscode(value.replace(/[^0-9]/g, "").slice(0, 4))
+              }
+              keyboardType="number-pad"
+              secureTextEntry={false}
+              maxLength={4}
+              autoFocus
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleUnlockDeveloperTools}
+              disabled={passcode.length !== 4}
+            >
+              Unlock
+            </Button>
+          </View>
+        </View>
+      </AnimatedPaperModal>
     </SafeAreaView>
   );
 }

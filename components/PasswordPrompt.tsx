@@ -1,9 +1,9 @@
 // Hooks/UsePasswordPrompt.ts
-import { AlertModal } from "@/components/alert/AlertModal";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import { Text, TextInput, useTheme } from "react-native-paper";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Button, Text, TextInput, useTheme } from "react-native-paper";
 
 type PromptMode = "set" | "unlock";
 
@@ -72,125 +72,234 @@ export function usePasswordPrompt() {
     : password.trim().length > 0;
 
   const PasswordPromptModal = prompt ? (
-    <AlertModal
-      isOpen
-      title={isWrongPassword ? "Try again" : prompt.title}
-      message={prompt.message}
-      confirmLabel={isSetMode ? "Set password" : "Unlock"}
-      cancelLabel="Cancel"
-      onConfirm={() => closePrompt(password.trim() || null)}
-      onCancel={() => closePrompt(null)}
-      confirmDisabled={!canConfirm}
-      icon={
-        isWrongPassword
-          ? "lock-alert-outline"
-          : isSetMode
-            ? "lock-plus-outline"
-            : "lock-outline"
-      }
-      containerMaxHeight={isSetMode ? 480 : 400}
-      forceModal
+    <AnimatedPaperModal
+      visible
+      onDismiss={() => closePrompt(null)}
+      presentation="sheet"
+      keyboardAware
+      contentContainerStyle={{
+        paddingTop: 12,
+        backgroundColor: theme.colors.elevation.level2,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+      }}
     >
-      <View style={{ paddingTop: 8, gap: 12 }}>
-        {/* Password input */}
-        <TextInput
-          mode="outlined"
-          value={password}
-          onChangeText={setPassword}
-          placeholder={isSetMode ? "New password" : "Enter password"}
-          secureTextEntry={!showPassword}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus
-          outlineColor={
-            isWrongPassword ? theme.colors.error : theme.colors.outlineVariant
-          }
-          activeOutlineColor={
-            isWrongPassword ? theme.colors.error : theme.colors.primary
-          }
-          style={{ backgroundColor: "transparent" }}
-          outlineStyle={{ borderRadius: 12 }}
-          left={
-            <TextInput.Icon
-              icon="lock-outline"
-              color={
-                isWrongPassword
-                  ? theme.colors.error
-                  : theme.colors.onSurfaceVariant
-              }
-            />
-          }
-          right={
-            <TextInput.Icon
-              icon={showPassword ? "eye-off" : "eye"}
-              color={theme.colors.onSurfaceVariant}
-              onPress={() => setShowPassword((v) => !v)}
-            />
-          }
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: 20,
+        }}
+      >
+        <View
+          style={{
+            alignSelf: "center",
+            width: 42,
+            height: 4,
+            borderRadius: 999,
+            marginBottom: 16,
+            backgroundColor: theme.colors.outlineVariant,
+          }}
         />
 
-        {/* Confirm input — only in set mode */}
-        {isSetMode ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: 12,
+            marginBottom: 14,
+          }}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isWrongPassword
+                ? theme.colors.errorContainer
+                : theme.colors.surfaceVariant,
+            }}
+          >
+            <MaterialCommunityIcons
+              name={
+                isWrongPassword
+                  ? "lock-alert-outline"
+                  : isSetMode
+                    ? "lock-plus-outline"
+                    : "lock-outline"
+              }
+              size={22}
+              color={
+                isWrongPassword ? theme.colors.error : theme.colors.primary
+              }
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: theme.colors.onSurface,
+              }}
+            >
+              {isWrongPassword ? "Try again" : prompt.title}
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                lineHeight: 19,
+                color: theme.colors.onSurfaceVariant,
+              }}
+            >
+              {prompt.message}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Close"
+            hitSlop={8}
+            onPress={() => closePrompt(null)}
+            style={({ pressed }) => ({
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: theme.colors.surfaceVariant,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+        </View>
+
+        <View style={{ paddingTop: 8, gap: 12 }}>
+          {/* Password input */}
           <TextInput
             mode="outlined"
-            value={confirm}
-            onChangeText={setConfirm}
-            placeholder="Confirm password"
-            secureTextEntry={!showConfirm}
+            value={password}
+            onChangeText={setPassword}
+            placeholder={isSetMode ? "New password" : "Enter password"}
+            secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
+            autoFocus
             outlineColor={
-              mismatch ? theme.colors.error : theme.colors.outlineVariant
+              isWrongPassword ? theme.colors.error : theme.colors.outlineVariant
             }
             activeOutlineColor={
-              mismatch ? theme.colors.error : theme.colors.primary
+              isWrongPassword ? theme.colors.error : theme.colors.primary
             }
             style={{ backgroundColor: "transparent" }}
             outlineStyle={{ borderRadius: 12 }}
             left={
               <TextInput.Icon
-                icon="lock-check-outline"
+                icon="lock-outline"
                 color={
-                  mismatch ? theme.colors.error : theme.colors.onSurfaceVariant
+                  isWrongPassword
+                    ? theme.colors.error
+                    : theme.colors.onSurfaceVariant
                 }
               />
             }
             right={
               <TextInput.Icon
-                icon={showConfirm ? "eye-off" : "eye"}
+                icon={showPassword ? "eye-off" : "eye"}
                 color={theme.colors.onSurfaceVariant}
-                onPress={() => setShowConfirm((v) => !v)}
+                onPress={() => setShowPassword((v) => !v)}
               />
             }
           />
-        ) : null}
 
-        {/* Error states */}
-        {mismatch ? (
-          <View style={styles.errorRow}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={14}
-              color={theme.colors.error}
+          {/* Confirm input — only in set mode */}
+          {isSetMode ? (
+            <TextInput
+              mode="outlined"
+              value={confirm}
+              onChangeText={setConfirm}
+              placeholder="Confirm password"
+              secureTextEntry={!showConfirm}
+              autoCapitalize="none"
+              autoCorrect={false}
+              outlineColor={
+                mismatch ? theme.colors.error : theme.colors.outlineVariant
+              }
+              activeOutlineColor={
+                mismatch ? theme.colors.error : theme.colors.primary
+              }
+              style={{ backgroundColor: "transparent" }}
+              outlineStyle={{ borderRadius: 12 }}
+              left={
+                <TextInput.Icon
+                  icon="lock-check-outline"
+                  color={
+                    mismatch
+                      ? theme.colors.error
+                      : theme.colors.onSurfaceVariant
+                  }
+                />
+              }
+              right={
+                <TextInput.Icon
+                  icon={showConfirm ? "eye-off" : "eye"}
+                  color={theme.colors.onSurfaceVariant}
+                  onPress={() => setShowConfirm((v) => !v)}
+                />
+              }
             />
-            <Text style={[styles.errorText, { color: theme.colors.error }]}>
-              Passwords don&apos;t match
-            </Text>
-          </View>
-        ) : isWrongPassword ? (
-          <View style={styles.errorRow}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={14}
-              color={theme.colors.error}
-            />
-            <Text style={[styles.errorText, { color: theme.colors.error }]}>
-              Incorrect password — please try again
-            </Text>
-          </View>
-        ) : null}
+          ) : null}
+
+          {/* Error states */}
+          {mismatch ? (
+            <View style={styles.errorRow}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={14}
+                color={theme.colors.error}
+              />
+              <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                Passwords don&apos;t match
+              </Text>
+            </View>
+          ) : isWrongPassword ? (
+            <View style={styles.errorRow}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={14}
+                color={theme.colors.error}
+              />
+              <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                Incorrect password — please try again
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+          <Button
+            mode="outlined"
+            onPress={() => closePrompt(null)}
+            style={{ flex: 1, borderRadius: 14 }}
+            contentStyle={{ paddingVertical: 6 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            mode="contained"
+            disabled={!canConfirm}
+            onPress={() => closePrompt(password.trim() || null)}
+            style={{ flex: 1, borderRadius: 14 }}
+            contentStyle={{ paddingVertical: 6 }}
+          >
+            {isSetMode ? "Set password" : "Unlock"}
+          </Button>
+        </View>
       </View>
-    </AlertModal>
+    </AnimatedPaperModal>
   ) : null;
 
   return { promptPassword, PasswordPromptModal };

@@ -46,10 +46,9 @@ export function ActionRow({
           borderRadius: 10,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: theme.colors.background,
         }}
       >
-        <MaterialCommunityIcons name={icon as any} size={18} color={color} />
+        <MaterialCommunityIcons name={icon as any} size={20} color={color} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <Text

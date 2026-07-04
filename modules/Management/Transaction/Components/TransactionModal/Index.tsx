@@ -1,10 +1,14 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import { DateChip } from "@/components/pageheader/DateChip";
+import {
+  formatDayChipLabel,
+  parseIso,
+} from "@/components/pageheader/Dateutils";
 import { toast } from "@/components/toast/ToastProvider";
 import { TypeToggle } from "@/components/TypeToggle";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
-import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import {
   addTransactionAsync,
@@ -12,24 +16,22 @@ import {
   selectAccountColors,
   selectAccountIcons,
   selectActiveAccounts,
+  selectActiveExpenseCategories,
+  selectActiveIncomeCategories,
   selectCategoryColors,
   selectCategoryIcons,
   selectEditingTransactionId,
   selectModalMode,
   selectTransactionById,
+  selectTransactions,
   updateTransactionAsync,
-} from "@/modules/Data/Slices/TransactionSlice";
-import { AccountManagementModal } from "@/modules/Management/Account/Index";
+} from "@/modules/Core/Slices/TransactionSlice";
 import { typography } from "@/theme/typography";
 import { getContrastColor } from "@/utils/ColorHelpers";
 import { parseIsoDateOnlyParts } from "@/utils/Date";
 import {
   formatAccountLabel,
-  formatDate,
-  getAccountColor,
-  getAccountIconName,
-  getCategoryColor,
-  getCategoryIconName,
+  getLastTransaction,
   getTodayDate,
   validateAmount,
 } from "@/utils/Helpers";
@@ -37,7 +39,7 @@ import { TransactionFormData, TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useLayoutEffect, useMemo, useState } from "react";
 import { Keyboard, Pressable, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   Portal,
   Surface,
@@ -46,11 +48,12 @@ import {
   type MD3Theme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AccountChips } from "./Molecules/AccountChips";
+import { AccountPicker } from "./Molecules/AccountPicker";
 import { AmountHero } from "./Molecules/AmountHero";
 import { CategoryPicker } from "./Molecules/CategoryPicker";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
 import { FieldRow } from "./Molecules/FieldRow";
+import { SelectionCard } from "./Molecules/SelectionCard";
 import { TransactionRowPreview } from "./Molecules/TransactionRowPreview";
 import { mainContent, modal } from "./Styles";
 
@@ -60,6 +63,7 @@ interface TransactionModalProps {
   defaultType?: TransactionType;
   monthMode?: boolean;
   initialAmount?: string | null;
+  initialDate?: string | null;
 }
 
 export function TransactionModal({
@@ -68,6 +72,7 @@ export function TransactionModal({
   defaultType = "expense",
   monthMode = false,
   initialAmount = null,
+  initialDate = null,
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const theme = useTheme<MD3Theme>();
@@ -76,6 +81,7 @@ export function TransactionModal({
 
   const modalMode = useAppSelector(selectModalMode);
   const editingTransactionId = useAppSelector(selectEditingTransactionId);
+  const transactions = useAppSelector(selectTransactions);
   const editingTransaction = useAppSelector(
     editingTransactionId
       ? selectTransactionById(editingTransactionId)
@@ -83,10 +89,11 @@ export function TransactionModal({
   );
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
+  const activeIncomeCategories = useAppSelector(selectActiveIncomeCategories);
+  const activeExpenseCategories = useAppSelector(selectActiveExpenseCategories);
   const activeAccounts = useAppSelector(selectActiveAccounts);
   const accountIcons = useAppSelector(selectAccountIcons);
   const accountColors = useAppSelector(selectAccountColors);
-  const accountManagement = useAccountManagement();
 
   const isEditMode = modalMode === "edit";
 
@@ -110,8 +117,45 @@ export function TransactionModal({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
-  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
-  const [isAccountPickerOpen, setIsAccountPickerOpen] = useState(false);
+  const titleInputRef = React.useRef<any>(null);
+  const addModeDate = useMemo(
+    () => initialDate?.trim() || getTodayDate(),
+    [initialDate],
+  );
+  const selectedDateObj = useMemo(() => {
+    const { year, month, day } = parseIso(formData.date);
+    return new Date(year, month, day);
+  }, [formData.date]);
+  const dateChipLabel = useMemo(
+    () => formatDayChipLabel(selectedDateObj),
+    [selectedDateObj],
+  );
+  const resolveDefaultCategory = React.useCallback(
+    (type: TransactionType) => {
+      const categories =
+        type === "income" ? activeIncomeCategories : activeExpenseCategories;
+      const recent = getLastTransaction(transactions, type);
+      if (recent?.category && categories.includes(recent.category)) {
+        return recent.category;
+      }
+      return categories[0] || "";
+    },
+    [activeExpenseCategories, activeIncomeCategories, transactions],
+  );
+  const resolveDefaultAccount = React.useCallback(
+    (type: TransactionType) => {
+      const recent = getLastTransaction(transactions, type);
+      if (recent?.account && activeAccounts.includes(recent.account)) {
+        return recent.account;
+      }
+      return activeAccounts[0] || "Card";
+    },
+    [activeAccounts, transactions],
+  );
+  const defaultAccountForType = useMemo(
+    () => resolveDefaultAccount(formData.type),
+    [formData.type, resolveDefaultAccount],
+  );
 
   const [calendarMonth, setCalendarMonth] = useState(() =>
     new Date().getMonth(),
@@ -147,20 +191,19 @@ export function TransactionModal({
       }
       setIsNotesExpanded(!!editingTransaction.notes);
     } else {
-      const today = getTodayDate();
       setFormData({
         title: "",
-        date: today,
+        date: addModeDate,
         amount: parsedInitialAmount,
         type: defaultType,
-        category: "",
-        account: activeAccounts[0] || "Card",
+        category: resolveDefaultCategory(defaultType),
+        account: resolveDefaultAccount(defaultType),
         notes: "",
       });
       setAmountString(
         normalizedInitialAmount ? String(parsedInitialAmount) : "",
       );
-      const parsed = parseIsoDateOnlyParts(today);
+      const parsed = parseIsoDateOnlyParts(addModeDate);
       if (parsed) {
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
@@ -172,10 +215,13 @@ export function TransactionModal({
     setIsDeleteConfirmOpen(false);
     setIsDatePickerOpen(false);
   }, [
-    activeAccounts,
     defaultType,
+    resolveDefaultAccount,
+    resolveDefaultCategory,
     editingTransaction,
     initialAmount,
+    initialDate,
+    addModeDate,
     isEditMode,
     isOpen,
   ]);
@@ -187,7 +233,11 @@ export function TransactionModal({
   }, [activeAccounts, formData.account]);
 
   const handleTypeChange = (type: TransactionType) =>
-    setFormData((prev) => ({ ...prev, type, category: "" }));
+    setFormData((prev) => ({
+      ...prev,
+      type,
+      category: resolveDefaultCategory(type),
+    }));
 
   const handleAmountChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, "");
@@ -202,7 +252,6 @@ export function TransactionModal({
 
   const validateForm = (): boolean => {
     const next: Partial<Record<keyof TransactionFormData, string>> = {};
-    if (!formData.title.trim()) next.title = "Title is required";
     if (!amountString.trim()) next.amount = "Amount is required";
     else {
       const v = validateAmount(parseFloat(amountString) || 0);
@@ -219,7 +268,7 @@ export function TransactionModal({
     const amount = Math.abs(parseFloat(amountString) || 0);
     const data: TransactionFormData = {
       ...formData,
-      title: formData.title.trim(),
+      title: formData.title.trim() || formData.category,
       amount,
       notes: formData.notes?.trim() ? formData.notes.trim() : undefined,
       tags: undefined,
@@ -253,48 +302,17 @@ export function TransactionModal({
   };
 
   const isExpense = formData.type === "expense";
-  const dateLabel = formData.date ? formatDate(formData.date) : "Select date";
   const previewTimestamp =
     editingTransaction?.createdAt || editingTransaction?.updatedAt;
 
-  const accountOptions = useMemo(
-    () =>
-      activeAccounts.map((name) => ({
-        name,
-        icon: getAccountIconName(name, accountIcons),
-        color: getAccountColor(name, accountColors),
-      })),
-    [accountColors, accountIcons, activeAccounts],
-  );
-
-  // Derived display info for category & account cells
-  const selectedCategoryIcon = formData.category
-    ? (getCategoryIconName(
-        formData.category,
-        formData.type,
-        categoryIcons,
-      ) as any)
-    : null;
-  const selectedCategoryColor = formData.category
-    ? getCategoryColor(formData.category, formData.type, categoryColors)
-    : null;
-
-  const selectedAccount = accountOptions.find(
-    (o) => o.name === formData.account,
-  );
+  const selectedCategory =
+    formData.category || resolveDefaultCategory(formData.type);
+  const selectedAccountValue = formData.account || defaultAccountForType;
 
   const content = (
     <View style={[mainContent.keyboardView, { overflow: "visible" }]}>
       {/* ── Modal Header ── */}
-      <View
-        style={[
-          mainContent.header,
-          {
-            borderBottomColor: theme.colors.outlineVariant,
-            borderTopColor: theme.colors.outlineVariant,
-          },
-        ]}
-      >
+      <View style={mainContent.header}>
         {/* Close (X) — always left */}
         <Pressable
           accessibilityRole="button"
@@ -302,7 +320,7 @@ export function TransactionModal({
           onPress={onClose}
           style={[
             mainContent.closeButton,
-            { backgroundColor: theme.colors.elevation.level3 },
+            { backgroundColor: theme.colors.surface },
           ]}
         >
           <MaterialCommunityIcons
@@ -333,55 +351,25 @@ export function TransactionModal({
           )}
         </View>
 
-        {/* Right action: delete in edit mode, calendar icon in add mode */}
-        {isEditMode ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Delete transaction"
-            onPress={() => setIsDeleteConfirmOpen(true)}
-            style={[
-              mainContent.closeButton,
-              {
-                backgroundColor: theme.colors.errorContainer,
-                borderWidth: 0.5,
-                borderColor: theme.colors.error + "44",
-              },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="trash-can-outline"
-              size={18}
-              color={theme.colors.error}
-            />
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Pick date"
-            onPress={() => {
-              Keyboard.dismiss();
-              setIsDatePickerOpen(true);
-            }}
-            style={[
-              mainContent.closeButton,
-              { backgroundColor: theme.colors.elevation.level3 },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="calendar-month-outline"
-              size={18}
-              color={theme.colors.primary}
-            />
-          </Pressable>
-        )}
+        <DateChip
+          label={dateChipLabel}
+          expanded={isDatePickerOpen}
+          onPress={() => {
+            Keyboard.dismiss();
+            setIsDatePickerOpen(true);
+          }}
+          onLongPress={() => {
+            Keyboard.dismiss();
+            setIsDatePickerOpen(true);
+          }}
+          backgroundColor={theme.colors.elevation.level3}
+        />
       </View>
 
       <KeyboardAwareScrollView
         style={[mainContent.scrollView]}
         contentContainerStyle={mainContent.scrollContent}
         keyboardShouldPersistTaps="handled"
-        enableOnAndroid
-        enableAutomaticScroll
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Preview row — edit mode only */}
@@ -405,265 +393,36 @@ export function TransactionModal({
         />
 
         {/* 3. Category + Account — two-column card */}
-        {isEditMode ? (
-          /* Edit mode: keep existing chips layout */
-          <View style={mainContent.twoColRow}>
-            <Surface
-              elevation={0}
-              style={[
-                mainContent.twoColCard,
-                {
-                  borderColor: errors.category
-                    ? theme.colors.error
-                    : theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                },
-              ]}
-            >
-              <Text
-                variant="labelSmall"
-                style={[
-                  mainContent.stackedLabel,
-                  {
-                    color: errors.category
-                      ? theme.colors.error
-                      : theme.colors.primary,
-                  },
-                ]}
-              >
-                CATEGORY
-              </Text>
-              <CategoryPicker
-                value={formData.category}
-                onChange={(v) => {
-                  setFormData((prev) => ({ ...prev, category: v }));
-                  if (errors.category)
-                    setErrors((prev) => ({ ...prev, category: undefined }));
-                }}
-                transactionType={formData.type}
-                categoryIcons={categoryIcons}
-                categoryColors={categoryColors}
-                isMobileLayout={isMobileLayout}
-                maxWidth={Math.min(420, width - 64)}
-              />
-              {errors.category && (
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.error, marginTop: 2 }}
-                >
-                  {errors.category}
-                </Text>
-              )}
-            </Surface>
-
-            <Surface
-              elevation={0}
-              style={[
-                mainContent.twoColCard,
-                {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                },
-              ]}
-            >
-              <Text
-                variant="labelSmall"
-                style={[
-                  mainContent.stackedLabel,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                ACCOUNT
-              </Text>
-              <AccountChips
-                value={formData.account}
-                options={accountOptions}
-                onSelect={(account) =>
-                  setFormData((prev) => ({ ...prev, account }))
-                }
-              />
-            </Surface>
-          </View>
-        ) : (
-          /* Add mode: new design — two-column card with icon + label + chevron */
-          <View style={[mainContent.twoColRow]}>
-            {/* Category cell */}
-            <Pressable
-              onPress={() => {
-                Keyboard.dismiss();
-                setIsCategoryPickerOpen(true);
+        <View style={[mainContent.twoColRow]}>
+          <SelectionCard label="CATEGORY" error={errors.category}>
+            <CategoryPicker
+              value={selectedCategory}
+              onChange={(v) => {
+                setFormData((prev) => ({ ...prev, category: v }));
+                if (errors.category)
+                  setErrors((prev) => ({ ...prev, category: undefined }));
               }}
-              style={[
-                mainContent.twoColCard,
-                {
-                  borderColor: errors.category
-                    ? theme.colors.error
-                    : theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                  gap: 10,
-                },
-              ]}
-            >
-              <Text
-                variant="labelSmall"
-                style={[
-                  mainContent.stackedLabel,
-                  {
-                    color: errors.category
-                      ? theme.colors.error
-                      : theme.colors.primary,
-                  },
-                ]}
-              >
-                CATEGORY
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                {/* Icon circle */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: selectedCategoryColor
-                      ? selectedCategoryColor + "22"
-                      : theme.colors.elevation.level3,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name={selectedCategoryIcon ?? "help-circle-outline"}
-                    size={18}
-                    color={
-                      selectedCategoryColor ?? theme.colors.onSurfaceVariant
-                    }
-                  />
-                </View>
-                <Text
-                  variant="bodyMedium"
-                  style={{
-                    flex: 1,
-                    color: formData.category
-                      ? theme.colors.onSurface
-                      : theme.colors.onSurfaceVariant,
-                    opacity: formData.category ? 1 : 0.5,
-                    fontWeight: formData.category ? "600" : "400",
-                  }}
-                  numberOfLines={1}
-                >
-                  {formData.category || "Select"}
-                </Text>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={16}
-                  color={theme.colors.primary}
-                />
-              </View>
-              {errors.category && (
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.error, marginTop: 2 }}
-                >
-                  {errors.category}
-                </Text>
-              )}
-            </Pressable>
+              transactionType={formData.type}
+              categoryIcons={categoryIcons}
+              categoryColors={categoryColors}
+              isMobileLayout={isMobileLayout}
+              maxWidth={Math.min(420, width - 64)}
+            />
+          </SelectionCard>
 
-            {/* Account cell */}
-            <Pressable
-              onPress={() => accountManagement.handleOpenManagement()}
-              style={[
-                mainContent.twoColCard,
-                {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                  gap: 10,
-                },
-              ]}
-            >
-              <Text
-                variant="labelSmall"
-                style={[
-                  mainContent.stackedLabel,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                ACCOUNT
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                {/* Icon circle */}
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: selectedAccount?.color
-                      ? selectedAccount.color + "22"
-                      : theme.colors.elevation.level3,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name={(selectedAccount?.icon as any) ?? "bank-outline"}
-                    size={18}
-                    color={
-                      selectedAccount?.color ?? theme.colors.onSurfaceVariant
-                    }
-                  />
-                </View>
-                <Text
-                  variant="bodyMedium"
-                  style={{
-                    flex: 1,
-                    color: theme.colors.onSurface,
-                    fontWeight: "600",
-                  }}
-                  numberOfLines={1}
-                >
-                  {formData.account}
-                </Text>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={16}
-                  color={theme.colors.primary}
-                />
-              </View>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Hidden CategoryPicker for add mode (driven by isCategoryPickerOpen) */}
-        {!isEditMode && (
-          <CategoryPicker
-            value={formData.category}
-            onChange={(v) => {
-              setFormData((prev) => ({ ...prev, category: v }));
-              if (errors.category)
-                setErrors((prev) => ({ ...prev, category: undefined }));
-              setIsCategoryPickerOpen(false);
-            }}
-            transactionType={formData.type}
-            categoryIcons={categoryIcons}
-            categoryColors={categoryColors}
-            isMobileLayout={isMobileLayout}
-            maxWidth={Math.min(420, width - 64)}
-            // externalOpen={isCategoryPickerOpen}
-            // onExternalClose={() => setIsCategoryPickerOpen(false)}
-          />
-        )}
+          <SelectionCard label="ACCOUNT" style={{ gap: 10 }}>
+            <AccountPicker
+              value={selectedAccountValue}
+              onChange={(account) =>
+                setFormData((prev) => ({ ...prev, account }))
+              }
+              accountIcons={accountIcons}
+              accountColors={accountColors}
+              isMobileLayout={isMobileLayout}
+              maxWidth={Math.min(420, width - 64)}
+            />
+          </SelectionCard>
+        </View>
 
         {/* 4a. Title — individual card */}
         {isEditMode ? (
@@ -683,10 +442,12 @@ export function TransactionModal({
                 icon="pencil-outline"
                 label="Title"
                 error={errors.title}
+                onPress={() => titleInputRef.current?.focus?.()}
               >
                 <DebouncedTextInput
                   mode="flat"
                   dense
+                  ref={titleInputRef}
                   initialValue={formData.title}
                   onChangeText={(v) =>
                     setFormData((prev) => ({ ...prev, title: v }))
@@ -704,28 +465,6 @@ export function TransactionModal({
                   placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
                   contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
                 />
-              </FieldRow>
-
-              <FieldRow
-                icon="calendar-month-outline"
-                label="Date"
-                error={errors.date}
-                isLast={!isNotesExpanded}
-              >
-                <Text
-                  variant="bodyMedium"
-                  style={{
-                    color: errors.date
-                      ? theme.colors.error
-                      : theme.colors.onSurface,
-                  }}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setIsDatePickerOpen(true);
-                  }}
-                >
-                  {dateLabel}
-                </Text>
               </FieldRow>
 
               {isNotesExpanded ? (
@@ -779,217 +518,121 @@ export function TransactionModal({
             </Surface>
           </View>
         ) : (
-          /* Add mode: separate individual cards for Title, Notes, Date */
-          <>
-            {/* Title card */}
+          /* Add mode: same grouped details card as edit mode */
+          <View style={mainContent.detailsCard}>
             <Surface
               elevation={0}
               style={[
-                mainContent.inlineFieldCard,
-                {
-                  borderColor: errors.title
-                    ? theme.colors.error
-                    : theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  mainContent.inlineFieldIcon,
-                  { backgroundColor: theme.colors.elevation.level3 },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name="pencil-outline"
-                  size={16}
-                  color={
-                    errors.title
-                      ? theme.colors.error
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              </View>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-              >
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    mainContent.inlineFieldLabel,
-                    {
-                      color: errors.title
-                        ? theme.colors.error
-                        : theme.colors.onSurface,
-                      marginRight: 6,
-                    },
-                  ]}
-                >
-                  Title
-                </Text>
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    mainContent.inlineFieldLabelOptional,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  (optional)
-                </Text>
-              </View>
-              <DebouncedTextInput
-                mode="flat"
-                dense
-                initialValue={formData.title}
-                onChangeText={(v) =>
-                  setFormData((prev) => ({ ...prev, title: v }))
-                }
-                onBlur={(v) => {
-                  setFormData((prev) => ({ ...prev, title: v }));
-                  if (errors.title)
-                    setErrors((prev) => ({ ...prev, title: undefined }));
-                }}
-                placeholder="e.g. Milk, Tea…"
-                style={[
-                  mainContent.inlineFieldValue,
-                  { color: theme.colors.onSurface },
-                ]}
-                underlineColor="transparent"
-                activeUnderlineColor="transparent"
-                cursorColor={theme.colors.primary}
-                placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                textAlign="right"
-              />
-            </Surface>
-
-            {/* Notes card */}
-            <Surface
-              elevation={0}
-              style={[
-                mainContent.inlineFieldCard,
+                mainContent.surface,
                 {
                   borderColor: theme.colors.outlineVariant,
                   backgroundColor: theme.colors.elevation.level1,
                 },
               ]}
             >
-              <View
-                style={[
-                  mainContent.inlineFieldIcon,
-                  { backgroundColor: theme.colors.elevation.level3 },
-                ]}
+              <FieldRow
+                icon="pencil-outline"
+                label="Title"
+                error={errors.title}
+                onPress={() => titleInputRef.current?.focus?.()}
               >
-                <MaterialCommunityIcons
-                  name="note-text-outline"
-                  size={16}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </View>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-              >
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    mainContent.inlineFieldLabel,
-                    { color: theme.colors.onSurface, marginRight: 6 },
-                  ]}
-                >
-                  Notes
-                </Text>
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    mainContent.inlineFieldLabelOptional,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  (optional)
-                </Text>
-              </View>
-              <DebouncedTextInput
-                mode="flat"
-                dense
-                initialValue={formData.notes || ""}
-                onChangeText={(v) =>
-                  setFormData((prev) => ({ ...prev, notes: v }))
-                }
-                onBlur={(v) => setFormData((prev) => ({ ...prev, notes: v }))}
-                placeholder="Add a note…"
-                style={[
-                  mainContent.inlineFieldValue,
-                  { color: theme.colors.onSurface },
-                ]}
-                underlineColor="transparent"
-                activeUnderlineColor="transparent"
-                cursorColor={theme.colors.primary}
-                placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                textAlign="right"
-              />
-            </Surface>
-
-            {/* Date card */}
-            <Pressable
-              onPress={() => {
-                Keyboard.dismiss();
-                setIsDatePickerOpen(true);
-              }}
-              style={[
-                mainContent.dateLabelSection,
-                {
-                  borderColor: errors.date
-                    ? theme.colors.error
-                    : theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                },
-              ]}
-            >
-              <View style={mainContent.dateLabelRow}>
-                <Text
-                  style={[
-                    mainContent.dateLabelText,
-                    { color: theme.colors.primary },
-                  ]}
-                >
-                  DATE
-                </Text>
-              </View>
-              <View style={mainContent.dateValueRow}>
-                <MaterialCommunityIcons
-                  name="calendar-month-outline"
-                  size={18}
-                  color={
-                    errors.date
-                      ? theme.colors.error
-                      : theme.colors.onSurfaceVariant
+                <DebouncedTextInput
+                  mode="flat"
+                  dense
+                  ref={titleInputRef}
+                  initialValue={formData.title}
+                  onChangeText={(v) =>
+                    setFormData((prev) => ({ ...prev, title: v }))
                   }
-                />
-                <Text
-                  variant="bodyMedium"
-                  style={{
-                    flex: 1,
-                    color: errors.date
-                      ? theme.colors.error
-                      : theme.colors.onSurface,
-                    fontWeight: "500",
+                  onBlur={(v) => {
+                    setFormData((prev) => ({ ...prev, title: v }));
+                    if (errors.title)
+                      setErrors((prev) => ({ ...prev, title: undefined }));
                   }}
-                >
-                  {dateLabel}
-                </Text>
-                <MaterialCommunityIcons
-                  name="chevron-down"
-                  size={18}
-                  color={theme.colors.primary}
+                  placeholder="e.g. Milk, Tea…"
+                  style={mainContent.titleInput}
+                  underlineColor="transparent"
+                  activeUnderlineColor="transparent"
+                  cursorColor={theme.colors.primary}
+                  placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
+                  contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
                 />
-              </View>
-            </Pressable>
-          </>
+              </FieldRow>
+
+              {isNotesExpanded ? (
+                <FieldRow icon="note-text-outline" label="Notes" isLast>
+                  <DebouncedTextInput
+                    mode="flat"
+                    dense
+                    initialValue={formData.notes || ""}
+                    onChangeText={(v) =>
+                      setFormData((prev) => ({ ...prev, notes: v }))
+                    }
+                    onBlur={(v) =>
+                      setFormData((prev) => ({ ...prev, notes: v }))
+                    }
+                    placeholder="Add a note…"
+                    style={mainContent.titleInput}
+                    underlineColor="transparent"
+                    activeUnderlineColor="transparent"
+                    cursorColor={theme.colors.primary}
+                    placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
+                    contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
+                    autoFocus
+                  />
+                </FieldRow>
+              ) : (
+                <Pressable
+                  onPress={() => setIsNotesExpanded(true)}
+                  style={[
+                    mainContent.notesCollapsed,
+                    { borderTopColor: theme.colors.outlineVariant },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="note-text-outline"
+                    size={15}
+                    color={theme.colors.onSurfaceVariant}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={{
+                      color: formData.notes
+                        ? theme.colors.onSurface
+                        : theme.colors.onSurfaceVariant + "88",
+                    }}
+                  >
+                    {formData.notes || "Add a note…"}
+                  </Text>
+                </Pressable>
+              )}
+            </Surface>
+          </View>
         )}
 
         {/* 5. Save button */}
         <View style={mainContent.footer}>
+          {isEditMode && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Delete transaction"
+              onPress={() => setIsDeleteConfirmOpen(true)}
+              style={[
+                mainContent.deleteButton,
+                {
+                  backgroundColor: theme.colors.errorContainer,
+                  borderColor: theme.colors.error + "44",
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={18}
+                color={theme.colors.error}
+              />
+            </Pressable>
+          )}
           <Pressable
             accessibilityRole="button"
             onPress={handleSubmit}
@@ -1037,16 +680,6 @@ export function TransactionModal({
         onMonthChange={setCalendarMonth}
         onYearChange={setCalendarYear}
       />
-
-      <AccountManagementModal
-        isOpen={accountManagement.isManagementOpen}
-        onClose={accountManagement.handleCloseManagement}
-        management={accountManagement}
-        selectedAccount={formData.account}
-        onSelectAccount={(account) =>
-          setFormData((prev) => ({ ...prev, account }))
-        }
-      />
     </View>
   );
 
@@ -1060,6 +693,7 @@ export function TransactionModal({
           escapeEnabled={!isDatePickerOpen}
           zIndex={1000}
           style={modal.sheet}
+          keyboardAware
           contentContainerStyle={[
             modal.sheetContent,
             {

@@ -27,8 +27,6 @@ export type TransactionTokens = {
   colors: TransactionColors;
   expenseTone: TransactionTone;
   incomeTone: TransactionTone;
-  navigationBarBackground: string;
-  navigationBarButtonStyle: "light" | "dark";
 };
 
 export function buildTransactionTokens(theme: MD3Theme): TransactionTokens {
@@ -59,7 +57,5 @@ export function buildTransactionTokens(theme: MD3Theme): TransactionTokens {
       text: palette.status.success,
       icon: palette.status.success,
     },
-    navigationBarBackground: theme.colors.elevation.level4,
-    navigationBarButtonStyle: theme.dark ? "light" : "dark",
   };
 }

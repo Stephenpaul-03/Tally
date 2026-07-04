@@ -2,22 +2,22 @@ import { useCallback, useMemo, useState } from "react";
 
 import { toast } from "@/components/toast/ToastProvider";
 import {
-  addAccountAsync,
-  deleteAccountAsync,
-  removeAccountAndReassign,
-  reorderAccounts,
-  selectAccountColors,
-  selectAccountIcons,
-  selectActiveAccounts,
-  selectNonDeletedTransactions,
-  updateAccountAsync,
-  updateAccountOrderAsync,
-} from "@/modules/Data/Slices/TransactionSlice";
+    addAccountAsync,
+    deleteAccountAsync,
+    removeAccountAndReassign,
+    reorderAccounts,
+    selectAccountColors,
+    selectAccountIcons,
+    selectActiveAccounts,
+    selectNonDeletedTransactions,
+    updateAccountAsync,
+    updateAccountOrderAsync,
+} from "@/modules/Core/Slices/TransactionSlice";
 import {
-  getAccountColor,
-  getAccountColorOptions,
-  getAccountIconName,
-  getAccountIconOptions,
+    getAccountColor,
+    getAccountColorOptions,
+    getAccountIconName,
+    getAccountIconOptions,
 } from "@/utils/Helpers";
 import { useAppDispatch, useAppSelector } from "./Redux";
 

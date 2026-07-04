@@ -1,11 +1,11 @@
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { palette } from "@/theme/color_palette";
 import {
-    formatAccountLabel,
-    formatCurrencyWithSymbol,
-    formatTransactionDateTime,
-    getCategoryColor,
-    getCategoryIconName,
+  formatAccountLabel,
+  formatCurrencyWithSymbol,
+  formatTransactionDateTime,
+  getCategoryColor,
+  getCategoryIconName,
 } from "@/utils/Helpers";
 import { TransactionFormData } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -78,12 +78,7 @@ export const TransactionRowPreview = React.memo(
       >
         <View style={previewStyles.row}>
           <View style={previewStyles.left}>
-            <View
-              style={[
-                previewStyles.iconCircle,
-                { backgroundColor: theme.colors.background },
-              ]}
-            >
+            <View style={[previewStyles.iconCircle]}>
               <MaterialCommunityIcons
                 name={categoryIcon as any}
                 size={22}

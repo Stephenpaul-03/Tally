@@ -7,12 +7,15 @@ import {
     closeModal,
     deleteTransactionAsync,
     openAddModal,
+    openDraftModal,
     openEditModal,
     selectExpenseTransactions,
     selectIncomeTransactions,
     selectIsModalOpen,
+    selectModalDefaultType,
     selectModalInitialDate,
     selectOverallBudget,
+    selectTransactionDrafts,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { calculateTotal, matchesFilters, sortByDate } from "@/utils/Helpers";
 import { TransactionType } from "@/utils/Types";
@@ -32,6 +35,8 @@ export function useTransactionsPage(): TransactionsPageState {
   const overallBudget = useAppSelector(selectOverallBudget);
   const isModalOpen = useAppSelector(selectIsModalOpen);
   const modalInitialDate = useAppSelector(selectModalInitialDate);
+  const modalDefaultType = useAppSelector(selectModalDefaultType);
+  const transactionDrafts = useAppSelector(selectTransactionDrafts);
 
   const [activeTab] = useState<TransactionType>("expense");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -83,9 +88,13 @@ export function useTransactionsPage(): TransactionsPageState {
 
   const handleEdit = useCallback(
     (id: string) => {
+      if (transactionDrafts.some((draft) => draft.id === id)) {
+        dispatch(openDraftModal(id));
+        return;
+      }
       dispatch(openEditModal(id));
     },
-    [dispatch],
+    [dispatch, transactionDrafts],
   );
 
   const handleCloseModal = useCallback(() => {
@@ -117,6 +126,7 @@ export function useTransactionsPage(): TransactionsPageState {
     transactionSearchScope,
     setTransactionSearchScope,
     isModalOpen,
+    modalDefaultType,
     modalInitialDate,
     handleCloseModal,
     pendingDeleteId,

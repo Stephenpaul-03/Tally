@@ -37,6 +37,7 @@ export type TransactionsPageState = {
   transactionSearchScope: TransactionSearchScope;
   setTransactionSearchScope: (scope: TransactionSearchScope) => void;
   isModalOpen: boolean;
+  modalDefaultType: TransactionType;
   modalInitialDate: string | null;
   handleCloseModal: () => void;
   pendingDeleteId: string | null;

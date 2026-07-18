@@ -320,9 +320,9 @@ export default function CalendarPage() {
             </View>
 
             <HeroCard
-              summaryLabel={`${monthLabel} Summary`}
+              heroLabel={`${monthLabel} Summary`}
               showGreeting={false}
-              left={{
+              primary={{
                 label: "Expense",
                 value: formatAmount(
                   runningTotals.expense,

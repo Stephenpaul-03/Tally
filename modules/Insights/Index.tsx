@@ -175,7 +175,12 @@ export default function InsightsPage() {
       },
     });
     return () => setTabBarEdgeButton(null);
-  }, [guidedChatEnabled, handleOpenGuidedChat, isFocused, setTabBarEdgeButton]);
+  }, [
+    guidedChatEnabled,
+    handleOpenGuidedChat,
+    isFocused,
+    setTabBarEdgeButton,
+  ]);
 
   const insightCards = useMemo(() => {
     const cardMap: Partial<Record<InsightCardId, React.ReactNode>> = {
@@ -391,7 +396,20 @@ export default function InsightsPage() {
             >
               <HeroCard
                 showGreeting={false}
-                left={{
+                heroLabel="Balance left"
+                primary={{
+                  label: "Balance left",
+                  value: formatAmount(
+                    savingsLeft,
+                    currencyCode,
+                    currencySymbol,
+                  ),
+                  caption:
+                    Number(heroSummary?.daysUntilMonthEnd) > 0
+                      ? `${heroSummary.daysUntilMonthEnd} days remaining`
+                      : "income - expense",
+                }}
+                middle={{
                   label: "Expense",
                   value: formatAmount(
                     summary.expenseTotal,
@@ -404,7 +422,7 @@ export default function InsightsPage() {
                       ? "spent until today"
                       : "spent this month",
                 }}
-                middle={{
+                right={{
                   label: "Income",
                   value: formatAmount(
                     summary.incomeTotal,
@@ -415,18 +433,6 @@ export default function InsightsPage() {
                     Number(heroSummary?.daysUntilMonthEnd) > 0
                       ? "earned until today"
                       : "earned this month",
-                }}
-                right={{
-                  label: "LeftOver",
-                  value: formatAmount(
-                    savingsLeft,
-                    currencyCode,
-                    currencySymbol,
-                  ),
-                  caption:
-                    Number(heroSummary?.daysUntilMonthEnd) > 0
-                      ? `${heroSummary.daysUntilMonthEnd} days remaining`
-                      : "money left",
                 }}
                 accentColor={theme.colors.primary}
                 outline={theme.colors.outline}
@@ -533,6 +539,256 @@ export default function InsightsPage() {
           </View>
         </AnimatedPaperModal>
       ) : null}
+    </View>
+  );
+}
+
+export function InsightsCardsOnly({
+  contentPaddingBottom = 24,
+}: {
+  contentPaddingBottom?: number;
+}) {
+  const theme = useTheme();
+  const { betterAnalyticsEnabled, insightsCardOrder } = useAddonPrefs();
+  const t = buildInsightsTokens(theme);
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const categoryBudgets = useAppSelector(selectCategoryBudgets);
+  const currencyCode = activeWorkspace?.currencyCode ?? "INR";
+  const currencySymbol = activeWorkspace?.currencySymbol ?? "";
+  const accountManagement = useAccountManagement();
+  const paymentMethodVisuals = useMemo(
+    () =>
+      Object.fromEntries(
+        accountManagement.activeAccounts.map((account) => [
+          account.trim().toLowerCase(),
+          {
+            accent: accountManagement.getAccountColor(account),
+            icon: accountManagement.getAccountIcon(
+              account,
+            ) as React.ComponentProps<typeof MaterialCommunityIcons>["name"],
+            label: account,
+          },
+        ]),
+      ),
+    [accountManagement],
+  );
+
+  const {
+    summary,
+    overallBudget,
+    sheetVisible,
+    setSheetVisible,
+    sheetMode,
+    activeFullBreakdown,
+    setSheetMode,
+    categorySheet,
+    setCategorySheet,
+    accountSheet,
+    setAccountSheet,
+    openCategorySheet,
+    openPaymentMethodSheet,
+    openCategorySheetFromBreakdownSheet,
+    categorySheetMonthLabel,
+    accountSheetMonthLabel,
+    analytics,
+  } = useInsights();
+
+  const isEmpty = summary.expenseTotal === 0 && summary.incomeTotal === 0;
+  const hasBudget = overallBudget > 0;
+
+  const insightCards = useMemo(() => {
+    const cardMap: Partial<Record<InsightCardId, React.ReactNode>> = {
+      spendingByCategory: (
+        <BreakdownCard
+          summary={summary}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+          trackColor={theme.colors.surfaceVariant}
+          onRowPress={openCategorySheet}
+          categoryComparison={analytics.categoryComparison.rows}
+          incomeCategoryComparison={analytics.categoryComparison.incomeRows}
+        />
+      ),
+      spendingByPaymentMethod: (
+        <PaymentMethodBreakdownCard
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+          trackColor={theme.colors.surfaceVariant}
+          items={summary.paymentMethodBreakdown}
+          onRowPress={openPaymentMethodSheet}
+          paymentMethodVisuals={paymentMethodVisuals}
+        />
+      ),
+    };
+
+    if (hasBudget) {
+      cardMap.budgetSummary = (
+        <BudgetSummaryCard
+          theme={theme}
+          totalBudget={overallBudget}
+          spent={summary.expenseTotal}
+          remaining={overallBudget - summary.expenseTotal}
+          currencyCode={currencyCode}
+          currencySymbol={currencySymbol}
+          categoryEntries={summary.groupedExpenseBreakdown.map((item) => ({
+            name: item.category,
+            budget: categoryBudgets[item.category] ?? 0,
+            spent: item.amount,
+          }))}
+        />
+      );
+    }
+
+    if (betterAnalyticsEnabled) {
+      cardMap.categoryTrends = (
+        <CategoryTrendsCard
+          analytics={analytics.categoryTrends}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+        />
+      );
+      cardMap.weeklySpending = (
+        <WeeklySpendingCard
+          analytics={analytics.weeklySpending}
+          bg={theme.colors.surface}
+          accentColor={theme.colors.primary}
+          outline={theme.colors.outline}
+          textColor={theme.colors.onSurface}
+          muted={theme.colors.onSurfaceVariant}
+        />
+      );
+    }
+
+    const visibleCardIds = DEFAULT_INSIGHTS_CARD_ORDER.filter(
+      (id) =>
+        id === "budgetSummary" ||
+        id === "spendingByCategory" ||
+        id === "spendingByPaymentMethod" ||
+        betterAnalyticsEnabled,
+    );
+    const orderedIds = [
+      ...insightsCardOrder.filter((id): id is InsightCardId =>
+        visibleCardIds.includes(id as InsightCardId),
+      ),
+      ...visibleCardIds.filter((id) => !insightsCardOrder.includes(id)),
+    ];
+
+    return orderedIds.map((id) => ({
+      id,
+      node: cardMap[id] ?? null,
+    }));
+  }, [
+    summary,
+    theme,
+    openCategorySheet,
+    analytics.categoryComparison.rows,
+    analytics.categoryComparison.incomeRows,
+    analytics.categoryTrends,
+    analytics.weeklySpending,
+    openPaymentMethodSheet,
+    paymentMethodVisuals,
+    hasBudget,
+    betterAnalyticsEnabled,
+    insightsCardOrder,
+    overallBudget,
+    currencyCode,
+    currencySymbol,
+    categoryBudgets,
+  ]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      {isEmpty ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 20,
+            paddingBottom: contentPaddingBottom,
+          }}
+        >
+          <EmptyState
+            icon="chart-bar-stacked"
+            title="No transactions"
+            subtitle={`Nothing recorded for this month \n Add a transaction to see your insights.`}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: contentPaddingBottom,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {insightCards.map((card) => (
+            <React.Fragment key={card.id}>{card.node}</React.Fragment>
+          ))}
+        </ScrollView>
+      )}
+
+      <BreakdownBottomSheet
+        visible={sheetVisible}
+        onDismiss={() => setSheetVisible(false)}
+        breakdown={activeFullBreakdown}
+        mode={sheetMode}
+        bg={t.baseCard}
+        outline={t.outline}
+        textColor={t.textColor}
+        muted={t.muted}
+        trackColor={t.paymentTrack}
+        categoryComparison={
+          sheetMode === "income"
+            ? analytics.categoryComparison.incomeRows
+            : analytics.categoryComparison.rows
+        }
+        onModeChange={setSheetMode}
+        onRowPress={openCategorySheetFromBreakdownSheet}
+      />
+
+      <CategoryTransactionsSheet
+        visible={Boolean(categorySheet)}
+        onDismiss={() => setCategorySheet(null)}
+        categoryLabel={categorySheet?.label ?? ""}
+        monthLabel={categorySheetMonthLabel}
+        total={categorySheet?.total ?? 0}
+        transactions={categorySheet?.transactions ?? []}
+        mode={categorySheet?.mode ?? "expense"}
+        bg={t.baseCard}
+        outline={t.outline}
+        textColor={t.textColor}
+        muted={t.muted}
+        categoryIcon={categorySheet?.icon}
+        categoryColor={categorySheet?.color}
+      />
+
+      <CategoryTransactionsSheet
+        visible={Boolean(accountSheet)}
+        onDismiss={() => setAccountSheet(null)}
+        categoryLabel={accountSheet?.label ?? ""}
+        monthLabel={accountSheetMonthLabel}
+        total={accountSheet?.total ?? 0}
+        transactions={accountSheet?.transactions ?? []}
+        mode={accountSheet?.mode ?? "expense"}
+        bg={t.baseCard}
+        outline={t.outline}
+        textColor={t.textColor}
+        muted={t.muted}
+        categoryIcon={accountSheet?.icon}
+        categoryColor={accountSheet?.color}
+      />
     </View>
   );
 }

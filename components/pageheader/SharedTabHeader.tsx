@@ -88,6 +88,9 @@ export function useSharedTabHeader(props: PageHeaderProps | null) {
 
   useLayoutEffect(() => {
     context.setHeader(routeName, props);
+    return () => {
+      context.setHeader(routeName, null);
+    };
   }, [context, props, routeName]);
 }
 

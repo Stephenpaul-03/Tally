@@ -26,17 +26,13 @@ import {
   getCategoryColor,
   getCategoryIconName,
 } from "@/utils/Helpers";
-import { Transaction } from "@/utils/Types";
+import { Transaction, TransactionDraft } from "@/utils/Types";
 
 type SecondaryLabelMode = "time" | "date" | "none";
-export type TransactionGroupPosition =
-  | "single"
-  | "first"
-  | "middle"
-  | "last";
+export type TransactionGroupPosition = "single" | "first" | "middle" | "last";
 
 interface TransactionRowProps {
-  transaction: Transaction;
+  transaction: Transaction | TransactionDraft;
   onPressTransaction: (id: string) => void;
   onEdit?: () => void;
   isLast?: boolean;
@@ -47,8 +43,14 @@ interface TransactionRowProps {
   disableLongPress?: boolean;
 }
 
-function accountLabel(account: Transaction["account"]) {
-  return formatAccountLabel(account);
+function darkenHex(hex: string, amount = 0.18) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return hex;
+  const num = parseInt(clean, 16);
+  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function TransactionRowComponent({
@@ -67,18 +69,28 @@ function TransactionRowComponent({
   const categoryColors = useAppSelector(selectCategoryColors);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
+  const isDraft = "isDraft" in transaction && transaction.isDraft;
   const isIncome = transaction.type === "income";
   const amountColor = isIncome ? palette.status.success : palette.status.danger;
   const amountPrefix = isIncome ? "+" : "-";
-  const amount = `${amountPrefix}${formatCurrencyWithSymbol(transaction.amount, "", false)}`;
-  const title = transaction.title?.trim() || transaction.category;
-  const meta = `${transaction.category} • ${accountLabel(transaction.account)}`;
-  const secondaryLabel =
-    secondaryLabelMode === "date"
+  const amount =
+    isDraft && !transaction.amountInput.trim()
+      ? "—"
+      : `${amountPrefix}${formatCurrencyWithSymbol(transaction.amount, "", false)}`;
+  const title =
+    transaction.title?.trim() || transaction.category || "Untitled draft";
+  const meta = transaction.category || "No category";
+  const accountLabel = formatAccountLabel(transaction.account);
+  const secondaryLabel = isDraft
+    ? `${formatDate(transaction.date)} • ${formatTransactionTime(transaction.updatedAt)}`
+    : secondaryLabelMode === "date"
       ? formatDate(transaction.date)
       : secondaryLabelMode === "time"
         ? formatTransactionTime(transaction.createdAt || transaction.updatedAt)
         : "";
+  const secondaryMetaLabel = [accountLabel, secondaryLabel]
+    .filter(Boolean)
+    .join(" · ");
 
   const categoryIcon = useMemo(
     () =>
@@ -92,20 +104,19 @@ function TransactionRowComponent({
 
   const categoryColor = useMemo(
     () =>
-      minimalIconsEnabled
-        ? theme.colors.primary
-        : getCategoryColor(
-            transaction.category,
-            transaction.type,
-            categoryColors,
-          ),
-    [
-      categoryColors,
-      minimalIconsEnabled,
-      theme.colors.primary,
-      transaction.category,
-      transaction.type,
-    ],
+      getCategoryColor(transaction.category, transaction.type, categoryColors),
+    [categoryColors, transaction.category, transaction.type],
+  );
+
+  const categoryIconBackground = useMemo(
+    () =>
+      minimalIconsEnabled ? theme.colors.background : darkenHex(categoryColor),
+    [categoryColor, minimalIconsEnabled, theme.colors.background],
+  );
+
+  const categoryIconBorder = useMemo(
+    () => (minimalIconsEnabled ? theme.colors.elevation.level1 : undefined),
+    [minimalIconsEnabled, theme.colors.elevation.level1],
   );
 
   const handleLongPress = useCallback(() => {
@@ -126,35 +137,10 @@ function TransactionRowComponent({
     <>
       <TouchableRipple
         onPress={handlePress}
-        onLongPress={disableLongPress ? undefined : handleLongPress}
+        onLongPress={disableLongPress || isDraft ? undefined : handleLongPress}
         delayLongPress={350}
         rippleColor={theme.colors.surfaceVariant}
-        style={[
-          styles.touchable,
-          grouped
-            ? {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outline,
-              }
-            : null,
-          grouped && groupPosition === "single"
-            ? styles.singleGrouped
-            : null,
-          grouped && groupPosition === "first"
-            ? styles.firstGrouped
-            : null,
-          grouped && groupPosition === "middle"
-            ? styles.middleGrouped
-            : null,
-          grouped && groupPosition === "last"
-            ? styles.lastGrouped
-            : null,
-          grouped && showDivider
-            ? {
-                borderBottomWidth: 0.5,
-              }
-            : null,
-        ]}
+        style={styles.touchable}
       >
         <View style={styles.row}>
           <View style={styles.left}>
@@ -162,14 +148,17 @@ function TransactionRowComponent({
               style={[
                 styles.iconCircle,
                 {
-                  // backgroundColor: theme.colors.background,
+                  backgroundColor: categoryIconBackground,
+                  borderColor: categoryIconBorder,
+                  borderWidth: minimalIconsEnabled ? 1 : 0,
                 },
+                isDraft ? styles.draftIconCluster : null,
               ]}
             >
               <MaterialCommunityIcons
                 name={categoryIcon as any}
-                size={22}
-                color={categoryColor}
+                size={20}
+                color={minimalIconsEnabled ? categoryColor : "#FFFFFF"}
                 style={styles.icon}
               />
             </View>
@@ -189,20 +178,31 @@ function TransactionRowComponent({
             </View>
           </View>
           <View style={styles.right}>
-            <Text
-              style={[styles.amount, { color: amountColor }]}
-              numberOfLines={1}
-            >
-              {amount}
-            </Text>
-            {secondaryLabel ? (
+            <View style={styles.amountInfo}>
               <Text
-                style={[styles.time, { color: theme.colors.onSurfaceVariant }]}
+                style={[styles.amount, { color: amountColor }]}
                 numberOfLines={1}
               >
-                {secondaryLabel}
+                {amount}
               </Text>
-            ) : null}
+              {secondaryMetaLabel ? (
+                <Text
+                  style={[
+                    styles.time,
+                    { color: theme.colors.onSurfaceVariant },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {secondaryMetaLabel}
+                </Text>
+              ) : null}
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={16}
+              color={theme.colors.onSurfaceDisabled}
+              style={styles.chevron}
+            />
           </View>
         </View>
       </TouchableRipple>
@@ -271,40 +271,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 8,
     width: "100%",
   },
   left: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 14,
+    gap: 10,
     flex: 1,
     minWidth: 0,
-    paddingLeft: 16,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
+  draftIconCluster: {
+    opacity: 0.58,
+  },
   icon: { flexShrink: 0, width: 22, textAlign: "center" },
-  info: { flex: 1, minWidth: 0, gap: 4, paddingTop: 1 },
+  info: { flex: 1, minWidth: 0, gap: 4, paddingTop: 1, fontWeight: "600" },
   name: { fontSize: 14, fontWeight: "600", letterSpacing: 0.1 },
   meta: { fontSize: 12, opacity: 0.84 },
   note: { fontSize: 10, opacity: 0.72 },
   right: {
-    alignItems: "flex-end",
+    flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "center",
-    alignSelf: "center",
     gap: 2,
     flexShrink: 0,
-    paddingLeft: 12,
-    paddingRight: 16,
-    minWidth: 92,
+    minWidth: 50,
+  },
+  amountInfo: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 4,
+    paddingTop: 1,
   },
   amount: { fontSize: 14, fontWeight: "600", letterSpacing: 0.2 },
   time: { fontSize: 12, opacity: 0.72 },
+  chevron: { marginTop: 2 },
 });

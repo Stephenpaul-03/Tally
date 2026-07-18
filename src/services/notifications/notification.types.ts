@@ -30,18 +30,14 @@ export type SettingsNavigationParams = {
   source?: "notification";
 };
 
-export type InsightsNavigationParams = {
-  source?: "notification";
-};
-
 export type TransactionsNavigationParams = {
   transactionId?: string;
   source?: "notification";
+  shellTab?: "calendar" | "transactions" | "insights";
 };
 
 export type NotificationNavigationTarget =
   | { screen: "Settings"; params?: SettingsNavigationParams }
-  | { screen: "Insights"; params?: InsightsNavigationParams }
   | { screen: "Transactions"; params?: TransactionsNavigationParams };
 
 export interface BaseNotificationPayload {

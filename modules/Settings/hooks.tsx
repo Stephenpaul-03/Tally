@@ -97,7 +97,7 @@ export function useSettings() {
   const notifications = useNotifications();
   const { reconcileSchedules } = notifications;
 
-  const { themeId, setThemeId } = useAppTheme();
+  const { themeId, setThemeId, trueBlack, setTrueBlack } = useAppTheme();
   const {
     guidedChatEnabled,
     betterAnalyticsEnabled,
@@ -281,6 +281,8 @@ export function useSettings() {
     handleBetterAnalyticsToggle,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
+    trueBlack,
+    setTrueBlack,
     labsNoticeDismissed,
     setLabsNoticeDismissed,
     insightsCardOrder,

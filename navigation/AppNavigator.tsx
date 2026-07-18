@@ -1,123 +1,123 @@
 import { SharedTabHeaderProvider } from "@/components/pageheader/SharedTabHeader";
+import {
+  AppShellProvider,
+  useAppShell,
+  type ShellTab,
+} from "@/components/AppShellContext";
 import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
 import {
   useSetTabBarHeight,
   useTabBarEdgeButton,
+  useSetTabBarEdgeButton,
 } from "@/components/tabbar/TabBarContext";
-import { APP_ROUTES, TAB_ROUTES } from "@/constants/routes";
+import { SHELL_TAB_ROUTES } from "@/constants/routes";
 import { SettingsScreen } from "@/modules/Settings/Index";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import React, { useEffect, useState } from "react";
+import { TransactionsScreen } from "@/screens/TransactionsScreen";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
-import type { AppRouteName } from "@/constants/routes";
 import type { RootParamList } from "./types";
 
-const Tab = createBottomTabNavigator<RootParamList>();
+const Stack = createNativeStackNavigator<RootParamList>();
 
 function TabBarHeightResetter() {
   const setTabBarHeight = useSetTabBarHeight();
+  const setTabBarEdgeButton = useSetTabBarEdgeButton();
+
   useEffect(() => {
     setTabBarHeight(0);
-  }, [setTabBarHeight]);
+    setTabBarEdgeButton(null);
+  }, [setTabBarEdgeButton, setTabBarHeight]);
+
   return null;
 }
 
-function MobileTabsNavigator() {
+function ShellBottomBar() {
   const edgeButtons = useTabBarEdgeButton();
-  const [activeRouteName, setActiveRouteName] =
-    useState<AppRouteName | null>("Transactions");
+  const { activeTab, activeTabProgress, requestTab, requestTabProgress } =
+    useAppShell();
+  const visibleRoutes = SHELL_TAB_ROUTES;
+  const activeIndex = visibleRoutes.findIndex((route) => route.key === activeTab);
+  const actionButtons = (() => {
+    const activeRoute = visibleRoutes[activeIndex];
+    if (!activeRoute || (!edgeButtons?.left && !edgeButtons?.right)) {
+      return undefined;
+    }
+
+    return {
+      [activeRoute.key]: {
+        left: edgeButtons.left
+          ? {
+              ...edgeButtons.left,
+              label: edgeButtons.left.label ?? "",
+            }
+          : undefined,
+        right: edgeButtons.right
+          ? {
+              ...edgeButtons.right,
+              label: edgeButtons.right.label ?? "",
+            }
+          : undefined,
+      },
+    };
+  })();
+
+  if (activeIndex < 0) {
+    return <TabBarHeightResetter />;
+  }
 
   return (
-    <SharedTabHeaderProvider activeRouteName={activeRouteName}>
-      <Tab.Navigator
-        initialRouteName="Transactions"
-        backBehavior="history"
-        screenListeners={({ route }) => ({
-          focus: () => {
-            if (APP_ROUTES.some((tabRoute) => tabRoute.name === route.name)) {
-              setActiveRouteName(route.name as AppRouteName);
-              return;
-            }
-            setActiveRouteName(null);
-          },
-        })}
-        screenOptions={{ headerShown: false }}
-        tabBar={({ navigation, state }) => {
-          const stateRoutesByName = new Map(state.routes.map((r) => [r.name, r]));
-          const visibleRoutes = TAB_ROUTES.map((tab) => {
-            const stateRoute = stateRoutesByName.get(tab.name);
-            return {
-              key: stateRoute?.key ?? tab.name,
-              name: tab.name,
-              title: tab.title,
-              icon: tab.icon,
-            };
-          });
-
-          const activeTabRouteName = state.routes[state.index]?.name;
-          const activeIndex = visibleRoutes.findIndex(
-            (r) => r.name === activeTabRouteName,
-          );
-          const actionButtons = (() => {
-            const activeRoute = visibleRoutes.find(
-              (route) => route.name === activeTabRouteName,
-            );
-            if (!activeRoute || (!edgeButtons?.left && !edgeButtons?.right)) {
-              return undefined;
-            }
-            return {
-              [activeRoute.key]: {
-                left: edgeButtons.left ?? undefined,
-                right: edgeButtons.right ?? undefined,
-              },
-            };
-          })();
-
-          if (activeIndex < 0) return <TabBarHeightResetter />;
-          return (
-            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-              <BottomTabBar
-                routes={visibleRoutes}
-                activeIndex={activeIndex}
-                actionButtons={actionButtons}
-                onTabPress={(index) => {
-                  const route = visibleRoutes[index];
-                  const event = navigation.emit({
-                    type: "tabPress",
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-                  if (!event.defaultPrevented) {
-                    navigation.navigate(route.name as never);
-                  }
-                }}
-              />
-            </View>
-          );
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <BottomTabBar
+        routes={visibleRoutes}
+        activeIndex={activeIndex}
+        activePosition={activeTabProgress}
+        actionButtons={actionButtons}
+        onTabPress={(index) => {
+          requestTab(visibleRoutes[index].key as ShellTab);
         }}
-      >
-        {APP_ROUTES.map((route) => {
-          const ScreenComponent = route.component;
+        onTabDrag={(position) => {
+          requestTabProgress(position);
+        }}
+      />
+    </View>
+  );
+}
 
-          return (
-            <Tab.Screen
-              key={route.name}
-              name={route.name}
-              options={{
-                title: route.title,
-                tabBarIcon: route.icon,
-              }}
-            >
-              {() => <ScreenComponent />}
-            </Tab.Screen>
-          );
-        })}
-        <Tab.Screen name="Settings" component={SettingsScreen} />
-      </Tab.Navigator>
+function TransactionsStackScreen() {
+  return (
+    <SharedTabHeaderProvider activeRouteName="Transactions">
+      <TransactionsScreen />
+      <ShellBottomBar />
     </SharedTabHeaderProvider>
   );
 }
 
+function SettingsStackScreen() {
+  return (
+    <>
+      <TabBarHeightResetter />
+      <SettingsScreen />
+    </>
+  );
+}
+
+function RootStackNavigator() {
+  return (
+    <Stack.Navigator
+      initialRouteName="Transactions"
+      screenOptions={{ headerShown: false }}
+    >
+      <Stack.Screen name="Transactions" component={TransactionsStackScreen} />
+      <Stack.Screen name="Settings" component={SettingsStackScreen} />
+    </Stack.Navigator>
+  );
+}
+
 export function AppNavigator() {
-  return <MobileTabsNavigator />;
+  return (
+    <AppShellProvider>
+      <RootStackNavigator />
+    </AppShellProvider>
+  );
 }

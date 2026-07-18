@@ -9,12 +9,14 @@ import {
 export function getPaperTheme({
   mode,
   themeId,
+  trueBlack = false,
 }: {
   mode: ThemeMode;
   themeId: ThemeId;
+  trueBlack?: boolean;
 }) {
   // Pass themeId directly — no more primarySeedHex/secondarySeedHex
-  return buildPaperTheme({ mode, themeId });
+  return buildPaperTheme({ mode, themeId, trueBlack });
 }
 
 export function getNavigationTheme(

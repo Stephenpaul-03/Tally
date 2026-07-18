@@ -8,10 +8,18 @@
  *   - ONLY accent slots (primary, secondary, tertiary + containers) change per theme.
  *   - Adding a new theme = add one entry to ACCENTS. Nothing else changes.
  *
+ * Base surfaces (mode-level, not accent-level):
+ *   - Light  → true white, cool-neutral. Reads like a printed page in daylight.
+ *   - Dark   → deep charcoal, not black. Comfortable for long reading sessions.
+ *   - Amoled → true black. Opt-in "true black" switch, only available in dark mode.
+ *              Battery-friendly on OLED screens, maximum contrast for night reading.
+ *
  * Aesthetic target: Linear / Raycast / Arc — premium minimal, NOT colorful fintech.
+ * Themed minimalism for a Bible app: quiet surfaces, one accent, nothing fighting the text.
  */
 
 import color from "color";
+import { Appearance } from "react-native";
 import type { MD3Theme } from "react-native-paper";
 import { MD3DarkTheme, MD3LightTheme } from "react-native-paper";
 import { paperFonts } from "./typography";
@@ -20,7 +28,11 @@ import { paperFonts } from "./typography";
 // Types
 // ─────────────────────────────────────────────
 
-export type ThemeMode = "light" | "dark";
+/** Stored user preference — "system" is resolved to light/dark at build time. */
+export type ThemeMode = "light" | "dark" | "system";
+
+/** Fully resolved mode, after "system" has been mapped to an actual scheme. */
+export type ResolvedThemeMode = "light" | "dark";
 
 export type ThemeId =
   | "slate"
@@ -63,22 +75,43 @@ export type ExtendedMD3Theme = MD3Theme & {
 };
 
 // ─────────────────────────────────────────────
-// Neutral base surfaces  (CONSTANT across themes)
+// Neutral base surfaces  (CONSTANT across accent themes)
 // ─────────────────────────────────────────────
 
+type BaseSurfaces = {
+  background: string;
+  onBackground: string;
+  surface: string;
+  onSurface: string;
+  surfaceVariant: string;
+  onSurfaceVariant: string;
+  outline: string;
+  outlineVariant: string;
+  error: string;
+  onError: string;
+  errorContainer: string;
+  onErrorContainer: string;
+  inverseSurface: string;
+  inverseOnSurface: string;
+  shadow: string;
+  scrim: string;
+  elevationOverlay: string;
+};
+
 /**
- * These never change regardless of which accent is applied.
- * High contrast, elderly-friendly readability, zero visual noise.
+ * Light — true white, cool-neutral.
+ * Pure #FFFFFF page and card surfaces; no cream/paper tint. High contrast,
+ * elderly-friendly readability, zero visual noise.
  */
-const BASE_LIGHT = {
-  background: "#F4F4F6", // ← was "#ffffff" — soft gray page wash
+const BASE_LIGHT: BaseSurfaces = {
+  background: "#FFFFFF",
   onBackground: "#0A0A0B",
-  surface: "#FFFFFF", // ← cards stay pure white, now they lift off
+  surface: "#FFFFFF",
   onSurface: "#0A0A0B",
-  surfaceVariant: "#EDEDF0", // ← was "#ffffff" — chips/input fills get a tint
+  surfaceVariant: "#F0F0F2", // chips/input fills — cool light gray, not warm
   onSurfaceVariant: "#4A4A52",
   outline: "#9A9AA8",
-  outlineVariant: "#DDDDE8",
+  outlineVariant: "#DDDDE2",
   error: "#C0392B",
   onError: "#FFFFFF",
   errorContainer: "#FDECEA",
@@ -88,34 +121,69 @@ const BASE_LIGHT = {
   shadow: "#000000",
   scrim: "#000000",
   elevationOverlay: "#6E7191",
-} as const;
+};
 
-const BASE_DARK = {
-  background: "#09090B",
-  onBackground: "#FAFAFA",
-  surface: "#18181B",
-  onSurface: "#FAFAFA",
-  surfaceVariant: "#27272A",
-  onSurfaceVariant: "#A1A1AA",
-  outline: "#52525B",
-  outlineVariant: "#3F3F46",
+/**
+ * Dark — deep charcoal, not black.
+ * Comfortable for long reading sessions; darker than before for a moodier,
+ * more premium feel, while still remaining clearly distinct from amoled's
+ * pure black.
+ */
+const BASE_DARK: BaseSurfaces = {
+  background: "#151517",
+  onBackground: "#EDEDED",
+  surface: "#1D1D20",
+  onSurface: "#EDEDED",
+  surfaceVariant: "#27272C",
+  onSurfaceVariant: "#A1A1A8",
+  outline: "#525259",
+  outlineVariant: "#323238",
   error: "#F87171",
   onError: "#7F1D1D",
   errorContainer: "#991B1B",
   onErrorContainer: "#FEE2E2",
   inverseSurface: "#F4F4F5",
-  inverseOnSurface: "#27272A",
+  inverseOnSurface: "#2A2A2E",
   shadow: "#000000",
   scrim: "#000000",
   elevationOverlay: "#FAFAFA",
-} as const;
+};
+
+/**
+ * Amoled — true black.
+ * Opt-in "true black" switch, only meaningful in dark mode. Battery-friendly
+ * on OLED panels and maximum contrast for reading in the dark. Non-background
+ * surfaces pulled darker still, so cards/chips sit closer to the pure-black
+ * page instead of standing out as mid-gray islands.
+ */
+const BASE_AMOLED: BaseSurfaces = {
+  background: "#000000",
+  onBackground: "#F2F2F2",
+  surface: "#050505",
+  onSurface: "#F2F2F2",
+  surfaceVariant: "#0D0D0D",
+  onSurfaceVariant: "#7A7A7A",
+  outline: "#2E2E2E",
+  outlineVariant: "#161616",
+  error: "#F87171",
+  onError: "#7F1D1D",
+  errorContainer: "#5C1717",
+  onErrorContainer: "#FEE2E2",
+  inverseSurface: "#F4F4F5",
+  inverseOnSurface: "#0D0D0D",
+  shadow: "#000000",
+  scrim: "#000000",
+  elevationOverlay: "#FAFAFA",
+};
 
 // ─────────────────────────────────────────────
 // Accent palettes  (ONLY these change per theme)
 // ─────────────────────────────────────────────
 
 /**
- * Each entry provides light + dark accent slots.
+ * Each entry provides light + dark accent slots. Amoled reuses the dark
+ * accent slots as-is — only base surfaces change for amoled, not accents.
+ *
  * primary   → buttons, FAB, active tabs, focus rings
  * secondary → chips, secondary actions
  * tertiary  → graphs, highlights, badges (optional)
@@ -159,8 +227,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Sakura — Warm ─────────────────────────────
-    // Muted rose — only buttons/tabs blush, surfaces stay white.
-    // Light mode: dusty rose accent. Dark mode: desaturated mauve.
     sakura: {
       light: {
         primary: "#9D5F6A",
@@ -193,7 +259,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Ink Blue — Technical ──────────────────────
-    // Deep technical indigo. Modern, calm focus workspace.
     inkBlue: {
       light: {
         primary: "#3730A3",
@@ -226,8 +291,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Forest — Natural ──────────────────────────
-    // Dark pine green — cooler and deeper than classic emerald.
-    // Reads organic and grounded; the tertiary drifts mossy to add depth.
     forest: {
       light: {
         primary: "#1E4D3A",
@@ -260,8 +323,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Mocha — Cozy ──────────────────────────────
-    // Warm espresso brown — grounded, calm, tactile.
-    // Light: deep roast primary, cream containers. Dark: latte on near-black.
     mocha: {
       light: {
         primary: "#6B3F2A",
@@ -294,8 +355,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Mono — Minimal ────────────────────────────
-    // Pure black & white accent — no hue whatsoever.
-    // Light: jet black primary on white. Dark: pure white primary on near-black.
     mono: {
       light: {
         primary: "#0A0A0B",
@@ -328,8 +387,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Ocean — Fresh ─────────────────────────────
-    // Teal-blue — crisp, open, sits between Ink Blue and Forest in hue.
-    // Light: deep sea primary. Dark: bright aqua on near-black.
     ocean: {
       light: {
         primary: "#0F5C78",
@@ -362,9 +419,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Amethyst — Creative ───────────────────────
-    // Muted purple — the only true violet in the set.
-    // Deeper and warmer than Lavender, distinct from the blue-leaning Ink Blue.
-    // Light: rich plum. Dark: dusty violet on near-black.
     amethyst: {
       light: {
         primary: "#6B4E9B",
@@ -397,8 +451,6 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
     },
 
     // ── Gold — Premium ────────────────────────────
-    // Antique bronze — warm, prestigious, NOT yellow-washed.
-    // Light: deep bronze with strong contrast. Dark: warm gold on near-black.
     gold: {
       light: {
         primary: "#A67C3A",
@@ -456,7 +508,7 @@ const SEMANTIC_DARK: SemanticColors = {
 // ─────────────────────────────────────────────
 
 /**
- * Dark mode: white overlay into dark surface → natural luminous lift.
+ * Dark/amoled: white overlay into dark surface → natural luminous lift.
  * Light mode: cool blue-gray tint overlay → airy depth, not muddy gray.
  */
 function buildElevationColors(
@@ -476,23 +528,48 @@ function buildElevationColors(
 }
 
 // ─────────────────────────────────────────────
+// System mode resolution
+// ─────────────────────────────────────────────
+
+/**
+ * Resolves a stored ThemeMode ("light" | "dark" | "system") to an actual
+ * "light" | "dark" scheme, using the OS setting when mode is "system".
+ * Falls back to "light" if the OS reports no preference.
+ */
+export function resolveThemeMode(
+  mode: ThemeMode | undefined | null,
+): ResolvedThemeMode {
+  if (mode === "dark") return "dark";
+  if (mode === "light") return "light";
+  // "system" (or unset) → ask the OS
+  return Appearance.getColorScheme() === "dark" ? "dark" : "light";
+}
+
+// ─────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────
 
 export type BuildPaperThemeInput = {
   themeId: ThemeId | undefined | null;
   mode: ThemeMode | undefined | null;
+  /**
+   * "True black" switch. Only takes effect when the resolved mode is "dark" —
+   * ignored in light mode. Swaps the deep-charcoal dark base for pure #000000
+   * (amoled) surfaces while keeping the same dark-mode accent colors.
+   */
+  trueBlack?: boolean;
 };
 
 export function buildPaperTheme(input: BuildPaperThemeInput): ExtendedMD3Theme {
-  const mode: ThemeMode = input.mode === "dark" ? "dark" : "light";
+  const resolvedMode = resolveThemeMode(input.mode);
   const themeId: ThemeId =
     input.themeId && input.themeId in ACCENTS ? input.themeId : "slate";
-  const isDark = mode === "dark";
+  const isDark = resolvedMode === "dark";
+  const isAmoled = isDark && Boolean(input.trueBlack);
 
   const baseTheme: MD3Theme = isDark ? MD3DarkTheme : MD3LightTheme;
-  const base = isDark ? BASE_DARK : BASE_LIGHT;
-  const accent = ACCENTS[themeId][mode];
+  const base = isAmoled ? BASE_AMOLED : isDark ? BASE_DARK : BASE_LIGHT;
+  const accent = ACCENTS[themeId][isDark ? "dark" : "light"];
   const semantic = isDark ? SEMANTIC_DARK : SEMANTIC_LIGHT;
 
   const elevation = buildElevationColors(base.surface, base.elevationOverlay);
@@ -630,10 +707,14 @@ export const THEME_PRESETS: Record<
 
 /** Build every theme variant at once (useful for theme preview screens). */
 export function buildAllThemes(
-  mode: ThemeMode,
+  mode: ResolvedThemeMode,
+  trueBlack = false,
 ): Record<ThemeId, ExtendedMD3Theme> {
   return (Object.keys(THEME_PRESETS) as ThemeId[]).reduce(
-    (acc, id) => ({ ...acc, [id]: buildPaperTheme({ themeId: id, mode }) }),
+    (acc, id) => ({
+      ...acc,
+      [id]: buildPaperTheme({ themeId: id, mode, trueBlack }),
+    }),
     {} as Record<ThemeId, ExtendedMD3Theme>,
   );
 }

@@ -28,6 +28,7 @@ type Props = {
   escapeEnabled?: boolean;
   dismissable?: boolean;
   keyboardAware?: boolean;
+  includeBottomInset?: boolean;
 };
 
 export function AnimatedPaperModal({
@@ -41,6 +42,7 @@ export function AnimatedPaperModal({
   escapeEnabled = true,
   dismissable = true,
   keyboardAware = false,
+  includeBottomInset = true,
 }: Props) {
   const { height } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
@@ -172,7 +174,9 @@ export function AnimatedPaperModal({
         paddingBottom:
           keyboardAware && keyboardHeight > 0
             ? Math.max(bottom, keyboardHeight + 20)
-            : bottom,
+            : includeBottomInset
+              ? bottom
+              : 0,
       },
       contentContainerStyle,
       { transform: [{ translateY: sheetTranslateY }] },
@@ -180,6 +184,7 @@ export function AnimatedPaperModal({
   }, [
     bottom,
     contentContainerStyle,
+    includeBottomInset,
     keyboardAware,
     keyboardHeight,
     presentation,

@@ -1,22 +1,18 @@
+import type { ShellTab } from "@/components/AppShellContext";
+
 export type RootParamList = {
-  Calendar: undefined;
   Transactions:
     | {
         source?: "notification";
         transactionId?: string;
         date?: string;
-      }
-    | undefined;
-  Insights:
-    | {
-        source?: "notification";
+        shellTab?: ShellTab;
       }
     | undefined;
   Settings:
     | {
-        section?: "notification-reminders";
+        section?: "notification-reminders" | "workspaces";
         source?: "notification";
       }
     | undefined;
-  CategoryManagement: undefined;
 };

@@ -4,7 +4,9 @@ import React from "react";
 
 export type TabBarMode = "basic";
 const STORAGE_KEY = "appTabBarMode";
+const ENABLED_STORAGE_KEY = "appTabBarEnabled";
 const DEFAULT_MODE: TabBarMode = "basic";
+const DEFAULT_ENABLED = true;
 
 function isTabBarMode(value: string): value is TabBarMode {
   return value === "basic";
@@ -12,8 +14,10 @@ function isTabBarMode(value: string): value is TabBarMode {
 
 type TabBarModePreferenceContextValue = {
   tabBarMode: TabBarMode;
+  tabBarEnabled: boolean;
   isHydrated: boolean;
   setTabBarMode: (mode: TabBarMode) => void;
+  setTabBarEnabled: (enabled: boolean) => void;
 };
 
 const TabBarModePreferenceContext =
@@ -26,16 +30,25 @@ export function TabBarModePreferenceProvider({
 }) {
   const [tabBarMode, setTabBarModeState] =
     React.useState<TabBarMode>(DEFAULT_MODE);
+  const [tabBarEnabled, setTabBarEnabledState] =
+    React.useState(DEFAULT_ENABLED);
   const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const [storedMode, storedEnabled] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(ENABLED_STORAGE_KEY),
+        ]);
         if (!isMounted) return;
-        if (stored && isTabBarMode(stored)) setTabBarModeState(stored);
+        if (storedMode && isTabBarMode(storedMode))
+          setTabBarModeState(storedMode);
         else setTabBarModeState(DEFAULT_MODE);
+        setTabBarEnabledState(
+          storedEnabled == null ? DEFAULT_ENABLED : storedEnabled === "true",
+        );
       } finally {
         if (isMounted) setIsHydrated(true);
       }
@@ -48,18 +61,37 @@ export function TabBarModePreferenceProvider({
   React.useEffect(() => {
     if (!isHydrated) return;
     const id = setTimeout(() => {
-      void AsyncStorage.setItem(STORAGE_KEY, tabBarMode);
+      void Promise.all([
+        AsyncStorage.setItem(STORAGE_KEY, tabBarMode),
+        AsyncStorage.setItem(ENABLED_STORAGE_KEY, String(tabBarEnabled)),
+      ]);
     }, 250);
     return () => clearTimeout(id);
-  }, [tabBarMode, isHydrated]);
+  }, [tabBarEnabled, tabBarMode, isHydrated]);
 
   const setTabBarMode = React.useCallback((mode: TabBarMode) => {
     setTabBarModeState(mode);
   }, []);
 
+  const setTabBarEnabled = React.useCallback((enabled: boolean) => {
+    setTabBarEnabledState(enabled);
+  }, []);
+
   const value = React.useMemo(
-    () => ({ tabBarMode, isHydrated, setTabBarMode }),
-    [tabBarMode, isHydrated, setTabBarMode],
+    () => ({
+      tabBarMode,
+      tabBarEnabled,
+      isHydrated,
+      setTabBarMode,
+      setTabBarEnabled,
+    }),
+    [
+      tabBarMode,
+      tabBarEnabled,
+      isHydrated,
+      setTabBarMode,
+      setTabBarEnabled,
+    ],
   );
 
   return (

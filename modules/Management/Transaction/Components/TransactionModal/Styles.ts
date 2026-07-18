@@ -212,7 +212,7 @@ export const mainContent = StyleSheet.create({
   // ── Two-column row (Category + Account) ──────────────────────────────────
   twoColRow: {
     flexDirection: "row",
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     gap: 10,
   },
   twoColCard: {
@@ -229,7 +229,7 @@ export const mainContent = StyleSheet.create({
   },
   // ── Inline field card (Title, Notes, Date — each its own card) ────────────
   inlineFieldCard: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     borderRadius: 14,
     borderWidth: 0.5,
     paddingHorizontal: 14,
@@ -270,7 +270,7 @@ export const mainContent = StyleSheet.create({
   },
   // ── Date card label row ───────────────────────────────────────────────────
   dateLabelSection: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     borderRadius: 14,
     borderWidth: 0.5,
     overflow: "hidden",
@@ -294,7 +294,7 @@ export const mainContent = StyleSheet.create({
   },
   // ── Details card (legacy grouped — kept for edit mode) ──────────────────
   detailsCard: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginBottom: 2,
   },
   detailsLabel: {
@@ -341,7 +341,7 @@ export const mainContent = StyleSheet.create({
   // ── Footer ───────────────────────────────────────────────────────────────
   footer: {
     flexDirection: "row",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 10,
   },
   submitButton: {
@@ -368,7 +368,7 @@ export const mainContent = StyleSheet.create({
   },
   // ── Keep legacy stubs so nothing breaks ─────────────────────────────────
   notesCard: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginBottom: 2,
   },
   notesRow: {
@@ -394,17 +394,21 @@ export const modal = StyleSheet.create({
     margin: 0,
   },
   sheetContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderTopWidth: 0.5,
     overflow: "hidden",
   },
+  sheetHandleZone: {
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginVertical: 12,
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    opacity: 0.45,
   },
   modalContent: {
     borderRadius: 20,
@@ -485,42 +489,64 @@ export const toggle = StyleSheet.create({
 // ── Moved from TransactionRowPreview.tsx ─────────────────────────────────────
 export const previewStyles = StyleSheet.create({
   container: {
-    marginHorizontal: 18,
-    marginTop: 4,
-    marginBottom: 2,
+    marginHorizontal: 20,
+    marginVertical: 4,
     borderRadius: 12,
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    paddingTop: 10,
+    paddingBottom: 15,
   },
   left: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+    alignItems: "flex-start",
+    gap: 15,
     flex: 1,
     minWidth: 0,
     paddingLeft: 14,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    position: "relative",
   },
-  info: { flex: 1, minWidth: 0, gap: 4 },
-  name: { fontSize: 16, fontWeight: "600", letterSpacing: 0.1 },
-  meta: { fontSize: 13, opacity: 0.84 },
+  accountPill: {
+    position: "absolute",
+    right: -8,
+    bottom: -8,
+    width: 20,
+    height: 20,
+    borderRadius: 20,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: { flexShrink: 0, width: 22, textAlign: "center" },
+  info: { flex: 1, minWidth: 0, gap: 4, paddingTop: 1 },
+  name: { fontSize: 14, fontWeight: "600", letterSpacing: 0.1 },
+  meta: { fontSize: 12, opacity: 0.84 },
   right: {
-    alignItems: "flex-end",
-    gap: 6,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 2,
     flexShrink: 0,
+    minWidth: 50,
     paddingHorizontal: 14,
   },
-  amount: { fontSize: 15, fontWeight: "600", letterSpacing: 0.2 },
+  amountInfo: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 4,
+    paddingTop: 1,
+  },
+  amount: { fontSize: 14, fontWeight: "600", letterSpacing: 0.2 },
   date: { fontSize: 12, opacity: 0.72 },
 });

@@ -1,13 +1,12 @@
 import { ActionRow } from "@/components/ActionRow";
 import { SheetCard } from "@/components/SheetCard";
-import { toast } from "@/components/toast/ToastProvider";
-import { useTransactionUiPrefs } from "@/hooks/use-transaction-ui-prefs";
+import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Pressable, ScrollView, Switch, View } from "react-native";
+import { useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppearanceSection } from "../Components/AppearanceSection";
 import { SectionLabel } from "../Components/SectionLabel";
@@ -20,6 +19,7 @@ export function AppearanceScreen() {
   const theme = useTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
+  const { tabBarEnabled, setTabBarEnabled } = useTabBarModePreference();
   const {
     themeId,
     setThemeId,
@@ -28,12 +28,9 @@ export function AppearanceScreen() {
     handleModeSelect,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
+    trueBlack,
+    setTrueBlack,
   } = useSettings();
-  const {
-    datePickerCalendarMode,
-    isHydrated: isPrefsHydrated,
-    toggleDatePickerCalendarMode,
-  } = useTransactionUiPrefs();
 
   return (
     <SafeAreaView
@@ -84,80 +81,46 @@ export function AppearanceScreen() {
           />
 
           <ActionRow
-            icon="calendar-outline"
-            label="Date picker"
-            description="Choose the calendar picker layout"
-            onPress={() => {}}
+            icon="dock-bottom"
+            label="Bottom bar"
+            description="Show the bottom navigation bar"
+            onPress={() => setTabBarEnabled(!tabBarEnabled)}
             theme={theme}
             showChevron={false}
             rightElement={
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                {[
-                  { id: "strip", label: "Strip", icon: "view-week-outline" },
-                  {
-                    id: "calendar",
-                    label: "Calendar",
-                    icon: "calendar-month-outline",
-                  },
-                ].map((opt) => {
-                  const active =
-                    opt.id === "calendar"
-                      ? datePickerCalendarMode
-                      : !datePickerCalendarMode;
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={() => {
-                        if (!isPrefsHydrated) return;
-                        if (opt.id === "calendar" && !datePickerCalendarMode) {
-                          toggleDatePickerCalendarMode();
-                          toast.success("Date picker set to Calendar mode");
-                        } else if (
-                          opt.id === "strip" &&
-                          datePickerCalendarMode
-                        ) {
-                          toggleDatePickerCalendarMode();
-                          toast.success("Date picker set to Strip mode");
-                        }
-                      }}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 8,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: active
-                          ? theme.colors.secondary
-                          : theme.colors.outlineVariant,
-                        backgroundColor: theme.colors.background,
-                        minWidth: 76,
-                        alignItems: "center",
-                        gap: 3,
-                      }}
-                    >
-                      <MaterialCommunityIcons
-                        name={opt.icon as any}
-                        size={15}
-                        color={
-                          active
-                            ? theme.colors.onSecondaryContainer
-                            : theme.colors.onSurfaceVariant
-                        }
-                      />
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: "600",
-                          color: active
-                            ? theme.colors.onSecondaryContainer
-                            : theme.colors.onSurfaceVariant,
-                        }}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <Switch
+                value={tabBarEnabled}
+                onValueChange={setTabBarEnabled}
+                trackColor={{
+                  false: theme.colors.outlineVariant,
+                  true: theme.colors.primary,
+                }}
+                thumbColor={
+                  tabBarEnabled ? theme.colors.onPrimary : theme.colors.surface
+                }
+              />
+            }
+          />
+
+          <ActionRow
+            icon="theme-light-dark"
+            label="AMOLED mode"
+            description="Use true black surfaces in dark mode"
+            onPress={() => setTrueBlack(!trueBlack)}
+            theme={theme}
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={trueBlack}
+                onValueChange={setTrueBlack}
+                trackColor={{
+                  false: theme.colors.outlineVariant,
+                  true: theme.colors.primary,
+                }}
+                thumbColor={
+                  trueBlack ? theme.colors.onPrimary : theme.colors.surface
+                }
+              />
             }
           />
         </SheetCard>

@@ -182,6 +182,14 @@ export function MainSettingsScreen() {
         onPress: () => navigateToScreen("Appearances"),
       },
       {
+        id: "bottom-bar",
+        icon: "dock-bottom",
+        label: "Bottom Bar",
+        description: "Show or hide the bottom navigation bar",
+        keywords: ["appearance", "interface", "bottom", "bar", "navigation"],
+        onPress: () => navigateToScreen("Appearances"),
+      },
+      {
         id: "date-picker",
         icon: "calendar-outline",
         label: "Date Picker",

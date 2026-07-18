@@ -63,7 +63,11 @@ function PushedAppContent({ children }: { children: React.ReactNode }) {
 function AppInner() {
   const themeMode = useThemeMode();
   const { mode } = themeMode;
-  const { themeId, isHydrated: isAppThemeHydrated } = useAppTheme();
+  const {
+    themeId,
+    trueBlack,
+    isHydrated: isAppThemeHydrated,
+  } = useAppTheme();
   const biometricLock = useBiomettricLock();
   const onboarding = useOnboardingState();
   const dispatch = useAppDispatch();
@@ -81,7 +85,7 @@ function AppInner() {
     return detach;
   }, []);
 
-  const paperTheme = getPaperTheme({ mode, themeId });
+  const paperTheme = getPaperTheme({ mode, themeId, trueBlack });
   const navigationTheme = getNavigationTheme(paperTheme);
   const isAppReady =
     biometricLock.isHydrated &&

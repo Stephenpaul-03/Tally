@@ -50,6 +50,14 @@ export interface Transaction {
   deleted: boolean; // For soft delete - deleted items don't show in main list
 }
 
+export interface TransactionDraft extends TransactionFormData {
+  id: string;
+  amountInput: string;
+  isDraft: true;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================================================
 // Form Data Types
 // ============================================================================
@@ -114,6 +122,8 @@ export interface BudgetStateData {
 export interface TransactionState {
   // Transactions
   transactions: Transaction[];
+  transactionDrafts: TransactionDraft[];
+  activeTransactionDraftId: string | null;
 
   // Categories
   incomeCategories: string[];
@@ -139,6 +149,7 @@ export interface TransactionState {
   editingTransactionId: string | null;
   isModalOpen: boolean;
   modalInitialDate: string | null;
+  modalDefaultType: TransactionType;
 
   // Quick tools
   isCategoryModalOpen: boolean;

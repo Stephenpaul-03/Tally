@@ -21,13 +21,15 @@ function getNavigationTarget(
         screen: "Transactions",
         params: {
           source: "notification",
+          shellTab: "transactions",
         },
       };
     case NotificationType.MonthlyInsightPrompt:
       return {
-        screen: "Insights",
+        screen: "Transactions",
         params: {
           source: "notification",
+          shellTab: "insights",
         },
       };
     default:

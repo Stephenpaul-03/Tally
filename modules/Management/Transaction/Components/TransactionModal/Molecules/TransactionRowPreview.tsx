@@ -1,9 +1,10 @@
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { palette } from "@/theme/color_palette";
 import {
-  formatAccountLabel,
   formatCurrencyWithSymbol,
   formatTransactionDateTime,
+  getAccountColor,
+  getAccountIconName,
   getCategoryColor,
   getCategoryIconName,
 } from "@/utils/Helpers";
@@ -19,8 +20,20 @@ interface TransactionRowPreviewProps {
   amountString: string;
   categoryIcons: Record<string, string>;
   categoryColors: Record<string, string>;
+  accountIcons: Record<string, string>;
+  accountColors: Record<string, string>;
   previewTimestamp?: string;
   monthMode?: boolean;
+}
+
+function darkenHex(hex: string, amount = 0.18) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return hex;
+  const num = parseInt(clean, 16);
+  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export const TransactionRowPreview = React.memo(
@@ -29,6 +42,8 @@ export const TransactionRowPreview = React.memo(
     amountString,
     categoryIcons,
     categoryColors,
+    accountIcons,
+    accountColors,
     previewTimestamp,
     monthMode = false,
   }: TransactionRowPreviewProps) {
@@ -49,19 +64,25 @@ export const TransactionRowPreview = React.memo(
     const title =
       formData.title?.trim() || formData.category || "New transaction";
 
-    const meta = [formData.category, formatAccountLabel(formData.account)]
-      .filter(Boolean)
-      .join(" • ");
+    const meta = formData.category || "No category";
 
     const categoryIcon = formData.category
       ? getCategoryIconName(formData.category, formData.type, categoryIcons)
       : "shape-outline";
 
     const categoryColor = formData.category
-      ? minimalIconsEnabled
-        ? theme.colors.primary
-        : getCategoryColor(formData.category, formData.type, categoryColors)
+      ? getCategoryColor(formData.category, formData.type, categoryColors)
       : theme.colors.primary;
+    const previewCardColor = theme.colors.surface;
+    const categoryIconBackground = minimalIconsEnabled
+      ? previewCardColor
+      : darkenHex(categoryColor);
+    const categoryIconBorder = minimalIconsEnabled
+      ? theme.colors.elevation.level1
+      : undefined;
+
+    const accountIcon = getAccountIconName(formData.account, accountIcons);
+    const accountColor = getAccountColor(formData.account, accountColors);
 
     const dateTimeLabel = formatTransactionDateTime(
       formData.date,
@@ -71,19 +92,45 @@ export const TransactionRowPreview = React.memo(
 
     return (
       <View
-        style={[
-          previewStyles.container,
-          { backgroundColor: theme.colors.surfaceVariant },
-        ]}
+        style={[previewStyles.container, { backgroundColor: previewCardColor }]}
       >
         <View style={previewStyles.row}>
           <View style={previewStyles.left}>
-            <View style={[previewStyles.iconCircle]}>
+            <View
+              style={[
+                previewStyles.iconCircle,
+                {
+                  backgroundColor: categoryIconBackground,
+                  borderColor: categoryIconBorder,
+                  borderWidth: minimalIconsEnabled ? 1 : 0,
+                },
+              ]}
+            >
               <MaterialCommunityIcons
                 name={categoryIcon as any}
-                size={22}
-                color={categoryColor}
+                size={20}
+                color={minimalIconsEnabled ? categoryColor : "#FFFFFF"}
+                style={previewStyles.icon}
               />
+              <View
+                style={[
+                  previewStyles.accountPill,
+                  {
+                    backgroundColor: minimalIconsEnabled
+                      ? theme.colors.elevation.level1
+                      : accountColor,
+                    borderColor: minimalIconsEnabled
+                      ? theme.colors.elevation.level1
+                      : previewCardColor,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={accountIcon as any}
+                  size={12}
+                  color={minimalIconsEnabled ? accountColor : "#FFFFFF"}
+                />
+              </View>
             </View>
             <View style={previewStyles.info}>
               <Text
@@ -99,26 +146,28 @@ export const TransactionRowPreview = React.memo(
                 ]}
                 numberOfLines={1}
               >
-                {meta || "No category"}
+                {meta}
               </Text>
             </View>
           </View>
           <View style={previewStyles.right}>
-            <Text
-              style={[previewStyles.amount, { color: amountColor }]}
-              numberOfLines={1}
-            >
-              {amountDisplay}
-            </Text>
-            <Text
-              style={[
-                previewStyles.date,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-              numberOfLines={1}
-            >
-              {dateTimeLabel || "-"}
-            </Text>
+            <View style={previewStyles.amountInfo}>
+              <Text
+                style={[previewStyles.amount, { color: amountColor }]}
+                numberOfLines={1}
+              >
+                {amountDisplay}
+              </Text>
+              <Text
+                style={[
+                  previewStyles.date,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+                numberOfLines={1}
+              >
+                {dateTimeLabel || "-"}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -134,5 +183,7 @@ export const TransactionRowPreview = React.memo(
     prev.formData.account === next.formData.account &&
     prev.formData.date === next.formData.date &&
     prev.categoryIcons === next.categoryIcons &&
-    prev.categoryColors === next.categoryColors,
+    prev.categoryColors === next.categoryColors &&
+    prev.accountIcons === next.accountIcons &&
+    prev.accountColors === next.accountColors,
 );

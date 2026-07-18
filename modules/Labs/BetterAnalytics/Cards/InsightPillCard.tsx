@@ -6,26 +6,26 @@ import { Text } from "react-native-paper";
 import type { PillCardThemeProps } from "../Types";
 
 // ─── Border header ────────────────────────────────────────────────────────────
+// Generic "floating label(s) on a border" header. Used both by InsightPillCard
+// (title + optional "View All" action) and reused elsewhere (e.g. the
+// date/amount section headers in MobileLayout) via the `rightContent` slot.
 type BorderHeaderProps = {
   title: string;
   muted: string;
   accentColor: string;
   surfaceColor: string;
-  hasData: boolean;
   outline: string;
-  viewAllLabel: string;
-  onViewAll: () => void;
+  /** Arbitrary node rendered as the floating pill on the right. Omit for a title-only header. */
+  rightContent?: React.ReactNode;
 };
 
-function BorderHeader({
+export function BorderHeader({
   title,
   muted,
   outline,
   accentColor,
   surfaceColor,
-  hasData,
-  viewAllLabel,
-  onViewAll,
+  rightContent,
 }: BorderHeaderProps) {
   return (
     <View
@@ -49,8 +49,8 @@ function BorderHeader({
           borderRadius: 20,
           borderColor: outline,
           borderWidth: 0.5,
-          flexShrink: 1, // allow it to shrink...
-          maxWidth: "70%", // ...but cap how much
+          flexShrink: 1,
+          maxWidth: "70%",
         }}
       >
         <Text
@@ -68,39 +68,7 @@ function BorderHeader({
           {title}
         </Text>
       </View>
-      {hasData ? (
-        <Pressable
-          onPress={onViewAll}
-          hitSlop={20}
-          style={({ pressed }) => ({
-            backgroundColor: surfaceColor,
-            borderRadius: 20,
-            borderColor: outline,
-            borderWidth: 0.5,
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            flexShrink: 0,
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Text
-            style={{
-              fontSize: 9,
-              lineHeight: 16,
-              fontWeight: "400",
-              letterSpacing: 0.8,
-              color: muted,
-              textTransform: "uppercase",
-            }}
-          >
-            {viewAllLabel}
-          </Text>
-          <MaterialCommunityIcons name="arrow-right" size={12} color={muted} />
-        </Pressable>
-      ) : null}
+      {rightContent ?? null}
     </View>
   );
 }
@@ -149,9 +117,45 @@ export function InsightPillCard({
         outline={outline}
         accentColor={accentColor}
         surfaceColor={bg}
-        hasData={!!onViewAll}
-        viewAllLabel="View All"
-        onViewAll={onViewAll ?? (() => {})}
+        rightContent={
+          onViewAll ? (
+            <Pressable
+              onPress={onViewAll}
+              hitSlop={20}
+              style={({ pressed }) => ({
+                backgroundColor: bg,
+                borderRadius: 20,
+                borderColor: outline,
+                borderWidth: 0.5,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  fontSize: 9,
+                  lineHeight: 16,
+                  fontWeight: "400",
+                  letterSpacing: 0.8,
+                  color: muted ?? accentColor,
+                  textTransform: "uppercase",
+                }}
+              >
+                View All
+              </Text>
+              <MaterialCommunityIcons
+                name="arrow-right"
+                size={12}
+                color={muted ?? accentColor}
+              />
+            </Pressable>
+          ) : null
+        }
       />
       {children}
     </Animated.View>

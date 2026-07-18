@@ -3,6 +3,7 @@ import {
   useSetTabBarHeight,
   useTabBarHidden,
 } from "@/components/tabbar/TabBarContext";
+import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { typography } from "@/theme/typography";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
@@ -60,11 +61,13 @@ function RaisedActionButton({
   visible,
   primaryColor,
   side,
+  detached = false,
 }: {
   action: TabActionButton;
   visible: boolean;
   primaryColor: string;
   side: "left" | "right";
+  detached?: boolean;
 }) {
   const { animStyle, slideIn, slideOut } = useFadeSlide({
     from: side, // left pill slides in from left, right from right
@@ -114,6 +117,7 @@ function RaisedActionButton({
       pointerEvents={visible ? "box-none" : "none"}
       style={[
         styles.actionWrapper,
+        detached ? styles.actionWrapperDetached : null,
         side === "left" ? styles.actionWrapperLeft : styles.actionWrapperRight,
         animStyle,
       ]}
@@ -143,6 +147,15 @@ function RaisedActionButton({
       </Pressable>
     </Animated.View>
   );
+}
+
+function getActiveActions(
+  routes: BottomTabRoute[],
+  activeIndex: number,
+  actionButtons?: Partial<Record<string, TabActionPair>>,
+) {
+  const activeRouteKey = routes[activeIndex]?.key;
+  return activeRouteKey ? actionButtons?.[activeRouteKey] : undefined;
 }
 
 // ─── TabButton ────────────────────────────────────────────────────────────────
@@ -215,12 +228,16 @@ function TabButton({
 function BasicTabBar({
   routes,
   activeIndex,
+  activePosition,
   onTabPress,
+  onTabDrag,
   actionButtons,
 }: {
   routes: BottomTabRoute[];
   activeIndex: number;
+  activePosition?: number;
   onTabPress: (index: number) => void;
+  onTabDrag?: (position: number) => void;
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
   const hidden = useTabBarHidden();
@@ -243,6 +260,11 @@ function BasicTabBar({
   useEffect(() => {
     onTabPressRef.current = onTabPress;
   }, [onTabPress]);
+
+  const onTabDragRef = useRef(onTabDrag);
+  useEffect(() => {
+    onTabDragRef.current = onTabDrag;
+  }, [onTabDrag]);
 
   const {
     animStyle: barEntranceStyle,
@@ -297,40 +319,58 @@ function BasicTabBar({
     [],
   );
 
-  const updatePill = useCallback(
-    (index: number, animated: boolean) => {
+  // Width only needs to change when barWidth/routes.length changes — not per tap.
+  const setPillWidth = useCallback(
+    (animated: boolean) => {
       const tabWidth = getTabWidth();
       if (!tabWidth) return;
-
       const nextWidth = Math.max(0, tabWidth - PILL_GAP);
-      const nextLeft = getLeftForIndex(index, tabWidth);
 
+      pillWidth.stopAnimation();
       if (animated) {
-        Animated.parallel([
-          Animated.timing(pillLeft, {
-            toValue: nextLeft,
-            duration: 220,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: false,
-          }),
-          Animated.timing(pillWidth, {
-            toValue: nextWidth,
-            duration: 220,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: false,
-          }),
-        ]).start();
+        Animated.timing(pillWidth, {
+          toValue: nextWidth,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false,
+        }).start();
       } else {
-        pillLeft.setValue(nextLeft);
         pillWidth.setValue(nextWidth);
       }
     },
-    [getLeftForIndex, getTabWidth, pillLeft, pillWidth],
+    [getTabWidth, pillWidth],
   );
 
+  // Position-only — safe to run on the native driver now that width isn't coupled to it.
+  const updatePill = useCallback(
+    (position: number, animated: boolean) => {
+      const tabWidth = getTabWidth();
+      if (!tabWidth) return;
+
+      const maxPosition = Math.max(0, routes.length - 1);
+      const nextPosition = Math.min(maxPosition, Math.max(0, position));
+      const nextLeft = getLeftForIndex(nextPosition, tabWidth);
+
+      pillLeft.stopAnimation();
+
+      if (animated) {
+        Animated.timing(pillLeft, {
+          toValue: nextLeft,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true, // transform-only now, safe to go native
+        }).start();
+      } else {
+        pillLeft.setValue(nextLeft);
+      }
+    },
+    [getLeftForIndex, getTabWidth, pillLeft, routes.length],
+  );
   useEffect(() => {
-    updatePill(activeIndex, true);
-  }, [activeIndex, updatePill]);
+    const nextPosition = activePosition ?? activeIndex;
+    const shouldAnimate = Number.isInteger(nextPosition);
+    updatePill(nextPosition, shouldAnimate);
+  }, [activeIndex, activePosition, updatePill]);
 
   // ─── Drag-to-select gesture ─────────────────────────────────────────────
   // The pill follows the finger 1:1 while dragging. The tab selection
@@ -365,7 +405,9 @@ function BasicTabBar({
           maxLeft,
           Math.max(minLeft, dragBaseLeftRef.current + gesture.dx),
         );
+        const nextPosition = (nextLeft - minLeft) / tabWidth;
         pillLeft.setValue(nextLeft);
+        onTabDragRef.current?.(nextPosition);
       },
 
       onPanResponderRelease: (_, gesture) => {
@@ -386,6 +428,7 @@ function BasicTabBar({
 
         // Snap the pill home (to the new index, or back to the current one).
         updatePill(nextIndex, true);
+        onTabDragRef.current?.(nextIndex);
 
         if (nextIndex !== activeIndexRef.current) {
           onTabPressRef.current(nextIndex);
@@ -394,14 +437,12 @@ function BasicTabBar({
 
       onPanResponderTerminate: () => {
         updatePill(activeIndexRef.current, true);
+        onTabDragRef.current?.(activeIndexRef.current);
       },
     }),
   ).current;
 
-  const activeRouteKey = routes[activeIndex]?.key;
-  const activeActions = activeRouteKey
-    ? actionButtons?.[activeRouteKey]
-    : undefined;
+  const activeActions = getActiveActions(routes, activeIndex, actionButtons);
 
   return (
     <Animated.View
@@ -453,6 +494,7 @@ function BasicTabBar({
           const nextWidth = e.nativeEvent.layout.width;
           if (nextWidth !== barWidthRef.current) {
             barWidthRef.current = nextWidth;
+            setPillWidth(false);
             updatePill(activeIndex, false);
           }
         }}
@@ -487,15 +529,63 @@ function BasicTabBar({
 
 // ─── BottomTabBar (public API) ────────────────────────────────────────────────
 
+function DisabledTabBarActions({
+  activeActions,
+}: {
+  activeActions?: TabActionPair;
+}) {
+  const setTabBarHeight = useSetTabBarHeight();
+  const hidden = useTabBarHidden();
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    setTabBarHeight(0);
+    return () => setTabBarHeight(0);
+  }, [setTabBarHeight]);
+
+  if (hidden || (!activeActions?.left && !activeActions?.right)) return null;
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[styles.actionOnlyContainer, { marginBottom: insets.bottom }]}
+    >
+      {activeActions.left ? (
+        <RaisedActionButton
+          action={activeActions.left}
+          visible
+          primaryColor={theme.colors.primary}
+          side="left"
+          detached
+        />
+      ) : null}
+      {activeActions.right ? (
+        <RaisedActionButton
+          action={activeActions.right}
+          visible
+          primaryColor={theme.colors.primary}
+          side="right"
+          detached
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function BottomTabBar({
   routes,
   activeIndex,
+  activePosition,
   onTabPress,
+  onTabDrag,
   actionButtons,
 }: {
   routes: BottomTabRoute[];
   activeIndex: number;
+  activePosition?: number;
   onTabPress: (index: number) => void;
+  onTabDrag?: (position: number) => void;
   /**
    * Map of route.key → { left?, right? } action pill config.
    * When that tab is active the pills float above the bar —
@@ -509,14 +599,23 @@ export function BottomTabBar({
    *       right: { label: "Add",    icon: PlusIcon,   onPress: handleAdd  },
    *     },
    *   }}
-   */
+  */
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
+  const { tabBarEnabled } = useTabBarModePreference();
+  const activeActions = getActiveActions(routes, activeIndex, actionButtons);
+
+  if (!tabBarEnabled) {
+    return <DisabledTabBarActions activeActions={activeActions} />;
+  }
+
   return (
     <BasicTabBar
       routes={routes}
       activeIndex={activeIndex}
+      activePosition={activePosition}
       onTabPress={onTabPress}
+      onTabDrag={onTabDrag}
       actionButtons={actionButtons}
     />
   );
@@ -532,6 +631,14 @@ const styles = StyleSheet.create({
     bottom: 5,
     borderRadius: 999,
     borderWidth: 1,
+    overflow: "visible",
+  },
+  actionOnlyContainer: {
+    position: "absolute",
+    left: BAR_SIDE_GAP,
+    right: BAR_SIDE_GAP,
+    bottom: 5,
+    height: ACTION_PILL_HEIGHT,
     overflow: "visible",
   },
   tabRow: {
@@ -593,6 +700,9 @@ const styles = StyleSheet.create({
     height: ACTION_PILL_HEIGHT,
     justifyContent: "center",
     zIndex: 20,
+  },
+  actionWrapperDetached: {
+    bottom: 0,
   },
   actionWrapperLeft: {
     left: 0,

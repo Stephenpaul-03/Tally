@@ -82,7 +82,7 @@ export function HeaderShell({
 const styles = StyleSheet.create({
   container: {
     zIndex: 1,
-    paddingBottom: 6,
+    paddingBottom: 0,
   },
   navRow: {
     flexDirection: "row",

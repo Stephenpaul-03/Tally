@@ -24,6 +24,7 @@ import {
     DEFAULT_EXPENSE_CATEGORIES,
     DEFAULT_INCOME_CATEGORIES,
     Transaction,
+    TransactionDraft,
     TransactionFilters,
     TransactionFormData,
     TransactionState,
@@ -47,6 +48,8 @@ const initialFilters: TransactionFilters = {
 // Initialize with empty transactions - no mock data
 const initialState: TransactionState = {
   transactions: [],
+  transactionDrafts: [],
+  activeTransactionDraftId: null,
   incomeCategories: [...DEFAULT_INCOME_CATEGORIES],
   expenseCategories: [...DEFAULT_EXPENSE_CATEGORIES],
   deletedIncomeCategories: [],
@@ -64,6 +67,7 @@ const initialState: TransactionState = {
   editingTransactionId: null,
   isModalOpen: false,
   modalInitialDate: null,
+  modalDefaultType: "expense",
   isCategoryModalOpen: false,
   categoryModalType: null,
   isLoading: false,
@@ -74,6 +78,16 @@ type OpenAddModalPayload = {
   type: TransactionType;
   date?: string | null;
 };
+
+type UpsertTransactionDraftPayload = {
+  id?: string | null;
+  data: TransactionFormData;
+  amountInput: string;
+};
+
+function createDraftId() {
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 type AddCategoryPayload =
   | string
@@ -116,17 +130,78 @@ const transactionSlice = createSlice({
       state.editingTransactionId = null;
       state.isModalOpen = true;
       state.modalInitialDate = action.payload.date ?? null;
+      state.modalDefaultType = action.payload.type;
+      state.activeTransactionDraftId = createDraftId();
+    },
+    openDraftModal: (state, action: PayloadAction<string>) => {
+      const draft = (state.transactionDrafts || []).find(
+        (item) => item.id === action.payload,
+      );
+      if (!draft) return;
+      state.modalMode = "add";
+      state.editingTransactionId = null;
+      state.isModalOpen = true;
+      state.modalInitialDate = draft.date;
+      state.modalDefaultType = draft.type;
+      state.activeTransactionDraftId = draft.id;
     },
     openEditModal: (state, action: PayloadAction<string>) => {
       state.modalMode = "edit";
       state.editingTransactionId = action.payload;
       state.isModalOpen = true;
       state.modalInitialDate = null;
+      state.activeTransactionDraftId = null;
     },
     closeModal: (state) => {
       state.isModalOpen = false;
       state.editingTransactionId = null;
       state.modalInitialDate = null;
+      state.activeTransactionDraftId = null;
+    },
+
+    upsertTransactionDraft: (
+      state,
+      action: PayloadAction<UpsertTransactionDraftPayload>,
+    ) => {
+      const now = new Date().toISOString();
+      const id =
+        action.payload.id ?? state.activeTransactionDraftId ?? createDraftId();
+      const draft: TransactionDraft = {
+        ...action.payload.data,
+        id,
+        amount: Math.abs(action.payload.data.amount || 0),
+        amountInput: action.payload.amountInput,
+        title: action.payload.data.title,
+        notes: action.payload.data.notes,
+        isDraft: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      state.transactionDrafts ??= [];
+      const index = state.transactionDrafts.findIndex((item) => item.id === id);
+      if (index === -1) {
+        state.transactionDrafts.unshift(draft);
+      } else {
+        state.transactionDrafts[index] = {
+          ...state.transactionDrafts[index],
+          ...draft,
+          createdAt: state.transactionDrafts[index].createdAt,
+          updatedAt: now,
+        };
+      }
+      state.activeTransactionDraftId = id;
+    },
+
+    removeTransactionDraft: (state, action: PayloadAction<string | null>) => {
+      const id = action.payload ?? state.activeTransactionDraftId;
+      if (!id) return;
+      state.transactionDrafts ??= [];
+      state.transactionDrafts = state.transactionDrafts.filter(
+        (item) => item.id !== id,
+      );
+      if (state.activeTransactionDraftId === id) {
+        state.activeTransactionDraftId = null;
+      }
     },
 
     // Category modal actions
@@ -683,8 +758,7 @@ const transactionSlice = createSlice({
 
     // Set transaction type for new transaction (used by quick tools)
     setNewTransactionType: (state, action: PayloadAction<TransactionType>) => {
-      // This is stored temporarily for the modal to know what type to add
-      // In a real app, this might be handled differently
+      state.modalDefaultType = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -927,6 +1001,8 @@ const transactionSlice = createSlice({
       })
       .addCase(clearAllTransactionsAsync.fulfilled, (state) => {
         state.transactions = [];
+        state.transactionDrafts = [];
+        state.activeTransactionDraftId = null;
       });
   },
 });
@@ -934,8 +1010,11 @@ const transactionSlice = createSlice({
 // Export actions
 export const {
   openAddModal,
+  openDraftModal,
   openEditModal,
   closeModal,
+  upsertTransactionDraft,
+  removeTransactionDraft,
   openCategoryModal,
   closeCategoryModal,
   addTransaction,
@@ -974,6 +1053,18 @@ export default transactionSlice.reducer;
 export const selectTransactions = (state: RootState) =>
   state.transactions.transactions;
 
+export const selectTransactionDrafts = (state: RootState) =>
+  state.transactions.transactionDrafts || [];
+
+export const selectActiveTransactionDraftId = (state: RootState) =>
+  state.transactions.activeTransactionDraftId || null;
+
+export const selectActiveTransactionDraft = createSelector(
+  [selectTransactionDrafts, selectActiveTransactionDraftId],
+  (drafts, activeDraftId) =>
+    activeDraftId ? drafts.find((draft) => draft.id === activeDraftId) : null,
+);
+
 export const selectNonDeletedTransactions = createSelector(
   [selectTransactions],
   (transactions) => transactions.filter((t) => !t.deleted),
@@ -1001,6 +1092,10 @@ export const selectModalMode = (state: { transactions: TransactionState }) =>
 export const selectModalInitialDate = (state: {
   transactions: TransactionState;
 }) => state.transactions.modalInitialDate;
+
+export const selectModalDefaultType = (state: {
+  transactions: TransactionState;
+}) => state.transactions.modalDefaultType;
 
 export const selectEditingTransactionId = (state: {
   transactions: TransactionState;

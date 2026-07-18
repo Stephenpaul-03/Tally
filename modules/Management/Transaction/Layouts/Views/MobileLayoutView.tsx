@@ -414,12 +414,12 @@ export function MobileLayout({
       <>
         <HeroCard
           style={mobileLayoutStyles.summaryCardSpacing}
-          summaryLabel={
+          heroLabel={
             isToday
               ? "Today Summary"
               : `${formatShortDay(selectedDate)} Summary`
           }
-          left={{
+          primary={{
             label: "Expense",
             value: formatAmount(dayExpenseTotal, currencyCode, currencySymbol),
             caption: "spent",

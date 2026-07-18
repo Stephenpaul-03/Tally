@@ -1,10 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
+  Animated,
+  Keyboard,
   Pressable,
+  StyleSheet,
   TextInput,
+  useWindowDimensions,
   type StyleProp,
-  View,
   type ViewStyle,
 } from "react-native";
 import { Text, useTheme } from "react-native-paper";
@@ -15,59 +18,177 @@ type UniversalSearchBarProps = {
   placeholder: string;
   pillLabel?: string;
   bg: string;
+  iconColor?: string;
   onPillPress?: () => void;
   autoFocus?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
+  animation?: {
+    expanded: boolean;
+    onExpandedChange: (expanded: boolean) => void;
+    mode?: "center" | "right";
+    collapsedWidth?: number;
+    expandedWidth?: number;
+    externalWidth?: boolean;
+    duration?: number;
+    clearOnCollapse?: boolean;
+  };
 };
 
 export function UniversalSearchBar({
   value,
   bg,
+  iconColor,
   onChangeText,
   placeholder,
   pillLabel,
   onPillPress,
   autoFocus = false,
   containerStyle,
+  animation,
 }: UniversalSearchBarProps) {
   const theme = useTheme();
+  const inputRef = React.useRef<TextInput>(null);
+  const [isFocused, setIsFocused] = React.useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const progress = React.useRef(
+    new Animated.Value(animation?.expanded ? 1 : 0),
+  ).current;
+  const animated = Boolean(animation);
+  const collapsedWidth = animation?.collapsedWidth ?? 56;
+  const expandedWidth =
+    animation?.expandedWidth ?? Math.max(56, windowWidth - 40);
+  const expanded = animation?.expanded ?? true;
+  const mode = animation?.mode ?? "center";
+  const surfaceColor = bg || theme.colors.elevation.level3;
+  const searchIconColor = iconColor ?? theme.colors.onSurfaceVariant;
+  const animatedAlignSelf: ViewStyle["alignSelf"] =
+    mode === "right" ? "flex-end" : "center";
+
+  React.useEffect(() => {
+    Animated.timing(progress, {
+      toValue: expanded ? 1 : 0,
+      duration: animation?.duration ?? 360,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished && expanded && autoFocus) {
+        inputRef.current?.focus();
+      }
+    });
+
+    if (!expanded) {
+      inputRef.current?.blur();
+      Keyboard.dismiss();
+    }
+  }, [animated, animation?.duration, autoFocus, expanded, progress]);
+
+  React.useEffect(() => {
+    if (!autoFocus || !expanded) return;
+
+    const animationFrame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    const focusRetry = setTimeout(() => {
+      inputRef.current?.focus();
+    }, animation?.duration ?? 120);
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      clearTimeout(focusRetry);
+    };
+  }, [animation?.duration, autoFocus, expanded]);
+
+  const inputOpacity = progress.interpolate({
+    inputRange: [0, 0.82, 1],
+    outputRange: [0, 0, 1],
+  });
+  const animatedContainerStyle = animated
+    ? {
+        alignSelf: animatedAlignSelf,
+        marginHorizontal: 0,
+        overflow: "hidden" as const,
+        width: animation?.externalWidth
+          ? ("100%" as const)
+          : progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [collapsedWidth, expandedWidth],
+            }),
+      }
+    : null;
+
+  const collapse = React.useCallback(() => {
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+    if (animation?.clearOnCollapse) {
+      onChangeText("");
+    }
+    animation?.onExpandedChange(false);
+  }, [animation, onChangeText]);
+
+  const showCloseButton = animated && expanded && isFocused;
 
   return (
-    <View
+    <Animated.View
+      onTouchStart={() => {
+        if (!animated || expanded) {
+          inputRef.current?.focus();
+        }
+      }}
       style={[
+        styles.container,
         {
-          marginHorizontal: 20,
-          borderRadius: 20,
-          borderWidth: 0.5,
-          borderColor: theme.colors.outlineVariant,
-          backgroundColor: bg,
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
+          backgroundColor: surfaceColor,
         },
+        animatedContainerStyle,
         containerStyle,
       ]}
     >
-      <MaterialCommunityIcons
-        name="magnify"
-        size={20}
-        color={theme.colors.onSurfaceVariant}
-      />
+      <Animated.View style={styles.searchIconSlot}>
+        <MaterialCommunityIcons
+          name="magnify"
+          size={20}
+          color={searchIconColor}
+        />
+      </Animated.View>
 
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        placeholderTextColor={theme.colors.onSurfaceVariant}
-        style={{
-          flex: 1,
-          color: theme.colors.onSurface,
-          paddingVertical: 0,
-        }}
-      />
+      {animated && !expanded ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Search"
+          onPress={() => animation?.onExpandedChange(true)}
+          style={styles.collapsedButton}
+        />
+      ) : null}
+
+      {animated ? (
+        <Animated.View
+          pointerEvents={expanded ? "auto" : "none"}
+          style={[styles.animatedInputWrap, { opacity: inputOpacity }]}
+        >
+          <TextInput
+            ref={inputRef}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            autoFocus={autoFocus}
+            onBlur={() => setIsFocused(false)}
+            onFocus={() => setIsFocused(true)}
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            style={[styles.input, { color: theme.colors.onSurface }]}
+          />
+        </Animated.View>
+      ) : (
+        <TextInput
+          ref={inputRef}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          onBlur={() => setIsFocused(false)}
+          onFocus={() => setIsFocused(true)}
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          style={[styles.input, { color: theme.colors.onSurface }]}
+        />
+      )}
 
       {pillLabel && onPillPress ? (
         <Pressable
@@ -103,6 +224,62 @@ export function UniversalSearchBar({
           />
         </Pressable>
       ) : null}
-    </View>
+
+      {showCloseButton ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close search"
+          hitSlop={8}
+          onPress={collapse}
+          style={({ pressed }) => [
+            styles.closeButton,
+            pressed && { opacity: 0.62 },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </Pressable>
+      ) : null}
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  animatedInputWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  closeButton: {
+    alignItems: "center",
+    borderRadius: 17,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  collapsedButton: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 3,
+  },
+  container: {
+    alignItems: "center",
+    borderRadius: 15,
+    flexDirection: "row",
+    gap: 10,
+    height: 56,
+    paddingLeft: 18,
+    paddingRight: 10,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+  },
+  searchIconSlot: {
+    zIndex: 2,
+  },
+});

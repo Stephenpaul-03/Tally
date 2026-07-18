@@ -13,6 +13,9 @@ import { useBreakpoint } from "@/hooks/use-breakpoints";
 import {
   addTransactionAsync,
   deleteTransactionAsync,
+  removeTransactionDraft,
+  selectActiveTransactionDraft,
+  selectActiveTransactionDraftId,
   selectAccountColors,
   selectAccountIcons,
   selectActiveAccounts,
@@ -24,6 +27,7 @@ import {
   selectModalMode,
   selectTransactionById,
   selectTransactions,
+  upsertTransactionDraft,
   updateTransactionAsync,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { typography } from "@/theme/typography";
@@ -81,6 +85,8 @@ export function TransactionModal({
 
   const modalMode = useAppSelector(selectModalMode);
   const editingTransactionId = useAppSelector(selectEditingTransactionId);
+  const activeDraftId = useAppSelector(selectActiveTransactionDraftId);
+  const activeDraft = useAppSelector(selectActiveTransactionDraft);
   const transactions = useAppSelector(selectTransactions);
   const editingTransaction = useAppSelector(
     editingTransactionId
@@ -118,6 +124,9 @@ export function TransactionModal({
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
   const titleInputRef = React.useRef<any>(null);
+  const addBaselineRef = React.useRef<TransactionFormData | null>(null);
+  const closeHandledRef = React.useRef(false);
+  const skipDraftOnCloseRef = React.useRef(false);
   const addModeDate = useMemo(
     () => initialDate?.trim() || getTodayDate(),
     [initialDate],
@@ -166,11 +175,16 @@ export function TransactionModal({
 
   useLayoutEffect(() => {
     if (!isOpen) return;
+    closeHandledRef.current = false;
+    skipDraftOnCloseRef.current = false;
 
     const normalizedInitialAmount = initialAmount?.trim() ?? "";
     const parsedInitialAmount = Math.abs(
       Number.parseFloat(normalizedInitialAmount) || 0,
     );
+    const defaultAmountInput = normalizedInitialAmount
+      ? String(parsedInitialAmount)
+      : "";
 
     if (isEditMode && editingTransaction) {
       setFormData({
@@ -190,8 +204,28 @@ export function TransactionModal({
         setCalendarYear(parsed.year);
       }
       setIsNotesExpanded(!!editingTransaction.notes);
+    } else if (activeDraft) {
+      const nextFormData: TransactionFormData = {
+        title: activeDraft.title,
+        date: activeDraft.date,
+        amount: activeDraft.amount,
+        type: activeDraft.type,
+        category: activeDraft.category,
+        account: activeDraft.account,
+        notes: activeDraft.notes || "",
+        tags: activeDraft.tags,
+      };
+      addBaselineRef.current = nextFormData;
+      setFormData(nextFormData);
+      setAmountString(activeDraft.amountInput);
+      const parsed = parseIsoDateOnlyParts(activeDraft.date);
+      if (parsed) {
+        setCalendarMonth(parsed.month);
+        setCalendarYear(parsed.year);
+      }
+      setIsNotesExpanded(!!activeDraft.notes);
     } else {
-      setFormData({
+      const nextFormData = {
         title: "",
         date: addModeDate,
         amount: parsedInitialAmount,
@@ -199,10 +233,13 @@ export function TransactionModal({
         category: resolveDefaultCategory(defaultType),
         account: resolveDefaultAccount(defaultType),
         notes: "",
-      });
-      setAmountString(
-        normalizedInitialAmount ? String(parsedInitialAmount) : "",
-      );
+      };
+      addBaselineRef.current = {
+        ...nextFormData,
+        amount: parsedInitialAmount,
+      };
+      setFormData(nextFormData);
+      setAmountString(defaultAmountInput);
       const parsed = parseIsoDateOnlyParts(addModeDate);
       if (parsed) {
         setCalendarMonth(parsed.month);
@@ -216,6 +253,7 @@ export function TransactionModal({
     setIsDatePickerOpen(false);
   }, [
     defaultType,
+    activeDraft,
     resolveDefaultAccount,
     resolveDefaultCategory,
     editingTransaction,
@@ -229,8 +267,61 @@ export function TransactionModal({
   React.useEffect(() => {
     if (!activeAccounts.length) return;
     if (activeAccounts.includes(formData.account)) return;
-    setFormData((prev) => ({ ...prev, account: activeAccounts[0] }));
-  }, [activeAccounts, formData.account]);
+    setFormData((prev) => {
+      const next = { ...prev, account: activeAccounts[0] };
+      if (!isEditMode && addBaselineRef.current) {
+        addBaselineRef.current = {
+          ...addBaselineRef.current,
+          account: activeAccounts[0],
+        };
+      }
+      return next;
+    });
+  }, [activeAccounts, formData.account, isEditMode]);
+
+  const hasMeaningfulDraft = React.useCallback(() => {
+    const baseline = addBaselineRef.current;
+    if (!baseline) return false;
+
+    return (
+      amountString.trim().length > 0 ||
+      formData.title.trim().length > 0 ||
+      (formData.notes?.trim().length ?? 0) > 0 ||
+      formData.date !== baseline.date ||
+      formData.type !== baseline.type ||
+      formData.category !== baseline.category ||
+      formData.account !== baseline.account
+    );
+  }, [amountString, formData]);
+
+  const saveDraft = React.useCallback(() => {
+    dispatch(
+      upsertTransactionDraft({
+        id: activeDraftId,
+        amountInput: amountString,
+        data: {
+          ...formData,
+          amount: Math.abs(Number.parseFloat(amountString) || 0),
+          notes: formData.notes?.trim() ? formData.notes : undefined,
+          tags: undefined,
+        },
+      }),
+    );
+  }, [activeDraftId, amountString, dispatch, formData]);
+
+  const handleRequestClose = React.useCallback(() => {
+    if (closeHandledRef.current) return;
+    closeHandledRef.current = true;
+    if (skipDraftOnCloseRef.current) {
+      onClose();
+      return;
+    }
+    if (!isEditMode && hasMeaningfulDraft()) {
+      saveDraft();
+      toast.info("Draft saved");
+    }
+    onClose();
+  }, [hasMeaningfulDraft, isEditMode, onClose, saveDraft]);
 
   const handleTypeChange = (type: TransactionType) =>
     setFormData((prev) => ({
@@ -277,6 +368,8 @@ export function TransactionModal({
       dispatch(updateTransactionAsync({ id: editingTransactionId, data }));
       toast.success("Transaction updated");
     } else {
+      skipDraftOnCloseRef.current = true;
+      if (activeDraftId) dispatch(removeTransactionDraft(activeDraftId));
       dispatch(addTransactionAsync(data));
       toast.success("Transaction added");
     }
@@ -317,7 +410,7 @@ export function TransactionModal({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close"
-          onPress={onClose}
+          onPress={handleRequestClose}
           style={[
             mainContent.closeButton,
             { backgroundColor: theme.colors.surface },
@@ -379,6 +472,8 @@ export function TransactionModal({
             amountString={amountString}
             categoryIcons={categoryIcons}
             categoryColors={categoryColors}
+            accountIcons={accountIcons}
+            accountColors={accountColors}
             previewTimestamp={previewTimestamp}
             monthMode={monthMode}
           />
@@ -688,7 +783,7 @@ export function TransactionModal({
       {isMobileLayout ? (
         <AnimatedPaperModal
           visible={isOpen}
-          onDismiss={onClose}
+          onDismiss={handleRequestClose}
           presentation="sheet"
           escapeEnabled={!isDatePickerOpen}
           zIndex={1000}
@@ -699,22 +794,23 @@ export function TransactionModal({
             {
               backgroundColor: theme.colors.background,
               maxHeight: sheetMaxHeight,
-              overflow: "visible",
             },
           ]}
         >
-          <View
-            style={[
-              modal.sheetHandle,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
+          <View style={modal.sheetHandleZone}>
+            <View
+              style={[
+                modal.sheetHandle,
+                { backgroundColor: theme.colors.onSurfaceVariant },
+              ]}
+            />
+          </View>
           {content}
         </AnimatedPaperModal>
       ) : (
         <AnimatedPaperModal
           visible={isOpen}
-          onDismiss={onClose}
+          onDismiss={handleRequestClose}
           presentation="modal"
           escapeEnabled={!isDatePickerOpen}
           zIndex={1000}

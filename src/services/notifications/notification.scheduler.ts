@@ -200,7 +200,6 @@ export async function scheduleNotificationAsync(
   return Notifications.scheduleNotificationAsync({
     content: {
       body: content.body,
-      categoryIdentifier: content.categoryId,
       data: content.data as unknown as Record<string, unknown>,
       sound: false,
       title: content.title,

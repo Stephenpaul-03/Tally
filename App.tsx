@@ -12,17 +12,13 @@ import {
 } from "@/hooks/use-biometric-lock";
 import { ThemeModeProvider, useThemeMode } from "@/hooks/use-theme-mode";
 import { TransactionUiPrefsProvider } from "@/hooks/use-transaction-ui-prefs";
+import { WorkspaceDefaultsProvider } from "@/hooks/use-workspace-defaults";
 import {
   fetchAccounts,
   fetchCategories,
   fetchTransactions,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { store } from "@/modules/Core/Store";
-import { OnboardingScreen } from "@/modules/Onboarding/Index";
-import {
-  OnboardingProvider,
-  useOnboardingState,
-} from "@/modules/Onboarding/States";
 import { AppNavigator } from "@/navigation/AppNavigator";
 import {
   flushPendingNavigationTargets,
@@ -36,7 +32,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { Animated, Platform, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { PaperProvider } from "react-native-paper";
@@ -45,7 +41,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider as ReduxProvider } from "react-redux";
 import { TabBarModePreferenceProvider } from "./components/tabbar/TabBarModePreference";
 import "./global";
-import { BiometricLockScreen } from "./modules/Labs/Biometric/BiometricLockScreen";
+import { BiometricLockScreen } from "./modules/Settings/Screens/BiometricLockScreen";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -63,13 +59,8 @@ function PushedAppContent({ children }: { children: React.ReactNode }) {
 function AppInner() {
   const themeMode = useThemeMode();
   const { mode } = themeMode;
-  const {
-    themeId,
-    trueBlack,
-    isHydrated: isAppThemeHydrated,
-  } = useAppTheme();
+  const { themeId, trueBlack } = useAppTheme();
   const biometricLock = useBiomettricLock();
-  const onboarding = useOnboardingState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -87,12 +78,6 @@ function AppInner() {
 
   const paperTheme = getPaperTheme({ mode, themeId, trueBlack });
   const navigationTheme = getNavigationTheme(paperTheme);
-  const isAppReady =
-    biometricLock.isHydrated &&
-    onboarding.isHydrated &&
-    themeMode.isHydrated &&
-    isAppThemeHydrated;
-
   useEffect(() => {
     if (Platform.OS !== "android") return;
     void NavigationBar.setBackgroundColorAsync("transparent");
@@ -112,22 +97,7 @@ function AppInner() {
               <TabBarProvider>
                 <SafeAreaProvider>
                   <PushedAppContent>
-                    {isAppReady ? (
-                      onboarding.hasCompletedOnboarding ? (
-                        <AppNavigator />
-                      ) : (
-                        <OnboardingScreen
-                          onComplete={onboarding.markOnboardingCompleted}
-                        />
-                      )
-                    ) : (
-                      <View
-                        style={[
-                          styles.hydrationSurface,
-                          { backgroundColor: paperTheme.colors.background },
-                        ]}
-                      />
-                    )}
+                    <AppNavigator />
                     {biometricLock.isLocked ? (
                       <BiometricLockScreen
                         isAuthenticating={biometricLock.isAuthenticating}
@@ -168,11 +138,11 @@ export default function App() {
           <TabBarModePreferenceProvider>
             <TransactionUiPrefsProvider>
               <AddonPrefsProvider>
-                <OnboardingProvider>
+                <WorkspaceDefaultsProvider>
                   <BiometricLockProvider>
                     <AppInner />
                   </BiometricLockProvider>
-                </OnboardingProvider>
+                </WorkspaceDefaultsProvider>
               </AddonPrefsProvider>
             </TransactionUiPrefsProvider>
           </TabBarModePreferenceProvider>

@@ -2,24 +2,27 @@ import {
   CurrencyPickerField,
   type WorkspaceCurrency,
 } from "@/components/CurrencyPickerField";
-import { IconCategoryPicker } from "@/components/IconCategoryPicker";
 import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import {
+  setStatusBarBackgroundColor,
+  setStatusBarStyle,
+  setStatusBarTranslucent,
+} from "expo-status-bar";
 import React from "react";
 import {
+  Platform,
   Pressable,
   TextInput as RNTextInput,
   ScrollView,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, type MD3Theme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SheetCard } from "./SheetCard";
 
 export type IconGrid = {
   columns: number;
@@ -57,6 +60,7 @@ export type EntityEditLayoutProps = {
   iconPickerVariant?: "category" | "account";
   showHeader?: boolean;
   showPreview?: boolean;
+  showPreviewName?: boolean;
 
   // Submit
   canSubmit: boolean;
@@ -87,8 +91,7 @@ export type EntityEditLayoutProps = {
   colorPreviewCount?: number;
 };
 
-// Darkens a #RRGGBB hex color by a given amount (0-1) for the header gradient.
-function darkenHex(hex: string, amount = 0.22) {
+function darkenHex(hex: string, amount = 0.18) {
   const clean = hex.replace("#", "");
   if (clean.length !== 6) return hex;
   const num = parseInt(clean, 16);
@@ -115,9 +118,9 @@ export function EntityEditLayout({
   namePlaceholder = "Enter a name",
   emptyPreviewLabel = "Name",
   headerSubtitle,
-  iconPickerVariant = "account",
   showHeader = true,
   showPreview = true,
+  showPreviewName = true,
   canSubmit,
   isEditing,
   submitLabelCreate = "Add",
@@ -130,82 +133,160 @@ export function EntityEditLayout({
   background,
   nameLimit = MANAGEMENT_NAME_LIMIT,
   ownerNameLimit = MANAGEMENT_NAME_LIMIT,
-  iconPreviewCount = 10,
-  colorPreviewCount = 10,
 }: EntityEditLayoutProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom, top } = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const c = theme.colors;
-
-  const [iconModalVisible, setIconModalVisible] = React.useState(false);
-  const [colorModalVisible, setColorModalVisible] = React.useState(false);
 
   const previewColor = minimalIconsEnabled
     ? c.primary
     : localColor || c.primary;
-  const headerGradient = React.useMemo(
-    () => [previewColor, darkenHex(previewColor)] as const,
-    [previewColor],
+  const visiblePickerRows = 3;
+  const iconItemSize = 44;
+  const iconGap = 10;
+  const colorItemSize = 36;
+  const colorGap = 10;
+  const iconScrollRef = React.useRef<ScrollView>(null);
+  const colorScrollRef = React.useRef<ScrollView>(null);
+  const iconScrollYRef = React.useRef(0);
+  const colorScrollYRef = React.useRef(0);
+  const [outerViewportHeight, setOuterViewportHeight] = React.useState(0);
+  const [outerContentHeight, setOuterContentHeight] = React.useState(0);
+  const colorColumns = Math.max(
+    1,
+    Math.floor((width - 40 + colorGap) / (colorItemSize + colorGap)),
+  );
+  const iconHasMore = allIcons.length > iconGrid.columns * visiblePickerRows;
+  const colorHasMore = allColors.length > colorColumns * visiblePickerRows;
+  const outerScrollEnabled = outerContentHeight > outerViewportHeight + 1;
+  const scrollPickerByRow = React.useCallback(
+    (picker: "icons" | "colors") => {
+      const rowHeight =
+        picker === "icons" ? iconItemSize + iconGap : colorItemSize + colorGap;
+      const scrollRef = picker === "icons" ? iconScrollRef : colorScrollRef;
+      const yRef = picker === "icons" ? iconScrollYRef : colorScrollYRef;
+      const nextY = yRef.current + rowHeight;
+      yRef.current = nextY;
+      scrollRef.current?.scrollTo({ y: nextY, animated: true });
+    },
+    [],
+  );
+  const previewBlock = (
+    <View
+      style={{
+        alignItems: "center",
+        marginTop: 8,
+      }}
+    >
+      <View
+        style={{
+          alignItems: "center",
+          backgroundColor: minimalIconsEnabled
+            ? c.background
+            : darkenHex(previewColor),
+          borderColor: minimalIconsEnabled ? c.elevation.level1 : "transparent",
+          borderRadius: 12,
+          borderWidth: minimalIconsEnabled ? 1 : 0,
+          height: 54,
+          justifyContent: "center",
+          marginBottom: 12,
+          width: 54,
+        }}
+      >
+        <MaterialCommunityIcons
+          name={(localIcon || "tag-outline") as any}
+          size={28}
+          color={minimalIconsEnabled ? previewColor : "#FFFFFF"}
+        />
+      </View>
+      {showPreviewName ? (
+        <Text
+          style={{
+            color: c.onSurface,
+            fontSize: 18,
+            fontWeight: "700",
+            textAlign: "center",
+          }}
+          numberOfLines={1}
+        >
+          {localName.trim() || emptyPreviewLabel}
+        </Text>
+      ) : null}
+      {headerSubtitle ? (
+        <Text
+          style={{
+            color: c.onSurfaceVariant,
+            fontSize: 13,
+            marginTop: 2,
+            textAlign: "center",
+          }}
+          numberOfLines={1}
+        >
+          {headerSubtitle}
+        </Text>
+      ) : null}
+    </View>
   );
 
-  const previewIcons = React.useMemo(() => {
-    return allIcons.slice(0, Math.max(10, iconPreviewCount));
-  }, [allIcons, iconPreviewCount]);
+  React.useEffect(() => {
+    if (!showHeader) return undefined;
 
-  const previewColors = React.useMemo(() => {
-    return allColors.slice(0, Math.max(10, colorPreviewCount));
-  }, [allColors, colorPreviewCount]);
+    setStatusBarStyle("light");
+    if (Platform.OS === "android") {
+      setStatusBarTranslucent(false);
+      setStatusBarBackgroundColor(background, true);
+    }
+
+    return () => {
+      setStatusBarStyle("auto");
+      if (Platform.OS === "android") {
+        setStatusBarBackgroundColor(background, true);
+      }
+    };
+  }, [background, previewColor, showHeader]);
 
   return (
     <>
+      {showHeader ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: -top,
+            left: 0,
+            right: 0,
+            height: top,
+            backgroundColor: background,
+            zIndex: 10,
+          }}
+        />
+      ) : null}
       <KeyboardAwareScrollView
+        bounces={outerScrollEnabled}
         bottomOffset={bottom + 50}
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={(_contentWidth, contentHeight) =>
+          setOuterContentHeight(contentHeight)
+        }
+        onLayout={(event) =>
+          setOuterViewportHeight(event.nativeEvent.layout.height)
+        }
+        overScrollMode={outerScrollEnabled ? "auto" : "never"}
+        scrollEnabled={outerScrollEnabled}
         showsVerticalScrollIndicator={false}
         style={{ flex: 1, backgroundColor: background }}
       >
         <View style={{ flex: 1, justifyContent: "flex-start" }}>
           {showHeader ? (
-            <LinearGradient
-              colors={headerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
               style={{
                 paddingTop: 12,
-                paddingBottom: 28,
+                paddingBottom: 20,
                 paddingHorizontal: 16,
-                borderBottomLeftRadius: 28,
-                borderBottomRightRadius: 28,
-                overflow: "hidden",
               }}
             >
-              {/* Decorative background circles */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: -50,
-                  left: -30,
-                  width: 150,
-                  height: 150,
-                  borderRadius: 75,
-                  backgroundColor: "#ffffff15",
-                }}
-              />
-              <View
-                pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  top: -30,
-                  right: -60,
-                  width: 170,
-                  height: 170,
-                  borderRadius: 85,
-                  backgroundColor: "#ffffff12",
-                }}
-              />
-
               <View
                 style={{
                   flexDirection: "row",
@@ -223,57 +304,22 @@ export function EntityEditLayout({
                     borderRadius: 18,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "#ffffff26",
+                    backgroundColor: c.surfaceVariant,
                     opacity: pressed ? 0.7 : 1,
                   })}
                 >
                   <MaterialCommunityIcons
                     name="chevron-left"
                     size={24}
-                    color="#fff"
+                    color={c.onSurface}
                   />
                 </Pressable>
 
                 {deleteAccessory ?? <View style={{ width: 36, height: 36 }} />}
               </View>
 
-              <View style={{ alignItems: "center", marginTop: 4 }}>
-                <View
-                  style={{
-                    width: 92,
-                    height: 92,
-                    borderRadius: 46,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#ffffff26",
-                    marginBottom: 14,
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name={(localIcon || "tag-outline") as any}
-                    size={42}
-                    color="#fff"
-                  />
-                </View>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "700",
-                    color: "#fff",
-                    textAlign: "center",
-                  }}
-                >
-                  {localName.trim() || emptyPreviewLabel}
-                </Text>
-                {headerSubtitle ? (
-                  <Text
-                    style={{ fontSize: 13, color: "#ffffffcc", marginTop: 2 }}
-                  >
-                    {headerSubtitle}
-                  </Text>
-                ) : null}
-              </View>
-            </LinearGradient>
+              {previewBlock}
+            </View>
           ) : showPreview ? (
             <View
               style={{
@@ -282,44 +328,7 @@ export function EntityEditLayout({
                 paddingHorizontal: 16,
               }}
             >
-              <View
-                style={{
-                  width: 76,
-                  height: 76,
-                  borderRadius: 38,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: previewColor,
-                  marginBottom: 10,
-                }}
-              >
-                <MaterialCommunityIcons
-                  name={(localIcon || "tag-outline") as any}
-                  size={36}
-                  color={c.onPrimary}
-                />
-              </View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  color: c.onSurface,
-                  textAlign: "center",
-                }}
-              >
-                {localName.trim() || emptyPreviewLabel}
-              </Text>
-              {headerSubtitle ? (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: c.onSurfaceVariant,
-                    marginTop: 2,
-                  }}
-                >
-                  {headerSubtitle}
-                </Text>
-              ) : null}
+              {previewBlock}
             </View>
           ) : null}
 
@@ -400,7 +409,6 @@ export function EntityEditLayout({
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "space-between",
                   marginBottom: 10,
                 }}
               >
@@ -414,27 +422,24 @@ export function EntityEditLayout({
                 >
                   Icons
                 </Text>
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => setIconModalVisible(true)}
-                >
-                  <Text
-                    style={{
-                      ...typography.editorial.sectionLabel,
-                      fontSize: 12,
-                      color: c.primary,
-                    }}
-                  >
-                    See all
-                  </Text>
-                </Pressable>
               </View>
               <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+                ref={iconScrollRef}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                onScroll={(event) => {
+                  iconScrollYRef.current = event.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
+                style={{ maxHeight: 152 }}
+                contentContainerStyle={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  paddingBottom: 2,
+                }}
               >
-                {previewIcons.map((icon) => {
+                {allIcons.map((icon) => {
                   const selected = icon === localIcon;
                   return (
                     <Pressable
@@ -461,6 +466,26 @@ export function EntityEditLayout({
                   );
                 })}
               </ScrollView>
+              {iconHasMore ? (
+                <Pressable
+                  accessibilityLabel="Show more icons"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => scrollPickerByRow("icons")}
+                  style={({ pressed }) => ({
+                    alignItems: "center",
+                    opacity: pressed ? 0.55 : 1,
+                    paddingTop: 4,
+                  })}
+                >
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={16}
+                    color={c.onSurfaceVariant}
+                    style={{ opacity: 0.7 }}
+                  />
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={{ marginBottom: 4 }}>
@@ -468,7 +493,6 @@ export function EntityEditLayout({
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "space-between",
                   marginBottom: 10,
                 }}
               >
@@ -482,27 +506,24 @@ export function EntityEditLayout({
                 >
                   Colors
                 </Text>
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => setColorModalVisible(true)}
-                >
-                  <Text
-                    style={{
-                      ...typography.editorial.sectionLabel,
-                      fontSize: 12,
-                      color: c.primary,
-                    }}
-                  >
-                    See all
-                  </Text>
-                </Pressable>
               </View>
               <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+                ref={colorScrollRef}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                onScroll={(event) => {
+                  colorScrollYRef.current = event.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
+                style={{ maxHeight: 128 }}
+                contentContainerStyle={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  paddingBottom: 2,
+                }}
               >
-                {previewColors.map((color) => {
+                {allColors.map((color) => {
                   const selected = color === localColor;
                   return (
                     <Pressable
@@ -531,6 +552,26 @@ export function EntityEditLayout({
                   );
                 })}
               </ScrollView>
+              {colorHasMore ? (
+                <Pressable
+                  accessibilityLabel="Show more colors"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => scrollPickerByRow("colors")}
+                  style={({ pressed }) => ({
+                    alignItems: "center",
+                    opacity: pressed ? 0.55 : 1,
+                    paddingTop: 4,
+                  })}
+                >
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={16}
+                    color={c.onSurfaceVariant}
+                    style={{ opacity: 0.7 }}
+                  />
+                </Pressable>
+              ) : null}
             </View>
 
             {/* Details */}
@@ -657,179 +698,6 @@ export function EntityEditLayout({
           </View>
         </View>
       </KeyboardAwareScrollView>
-
-      {/* "See all" icons modal */}
-      <AnimatedPaperModal
-        visible={iconModalVisible}
-        onDismiss={() => setIconModalVisible(false)}
-        presentation="sheet"
-        contentContainerStyle={{
-          backgroundColor: background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          maxHeight: "80%",
-        }}
-      >
-        <View
-          style={{
-            alignSelf: "center",
-            width: 42,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: c.outlineVariant,
-            marginTop: 10,
-            marginBottom: 2,
-          }}
-        />
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 8,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: "700", color: c.onSurface }}>
-            Choose an icon
-          </Text>
-          <Pressable
-            hitSlop={8}
-            onPress={() => setIconModalVisible(false)}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: c.surfaceVariant,
-            }}
-          >
-            <MaterialCommunityIcons
-              name="close"
-              size={16}
-              color={c.onSurfaceVariant}
-            />
-          </Pressable>
-        </View>
-        <SheetCard theme={theme} style={{ padding: 10, margin: 12 }}>
-          <IconCategoryPicker
-            allIcons={allIcons}
-            background={background}
-            iconGrid={iconGrid}
-            onSelectIcon={(icon) => {
-              onChangeIcon(icon);
-              setIconModalVisible(false);
-            }}
-            selectedIcon={localIcon}
-            selectedColor={previewColor}
-            theme={theme}
-            variant={iconPickerVariant}
-          />
-        </SheetCard>
-      </AnimatedPaperModal>
-
-      {/* "See all" colors modal */}
-      <AnimatedPaperModal
-        visible={colorModalVisible}
-        onDismiss={() => setColorModalVisible(false)}
-        presentation="sheet"
-        contentContainerStyle={{
-          backgroundColor: background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          maxHeight: "80%",
-        }}
-      >
-        <View
-          style={{
-            alignSelf: "center",
-            width: 42,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: c.outlineVariant,
-            marginTop: 10,
-            marginBottom: 2,
-          }}
-        />
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 8,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: "700", color: c.onSurface }}>
-            Choose a color
-          </Text>
-          <Pressable
-            hitSlop={8}
-            onPress={() => setColorModalVisible(false)}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: c.surfaceVariant,
-            }}
-          >
-            <MaterialCommunityIcons
-              name="close"
-              size={16}
-              color={c.onSurfaceVariant}
-            />
-          </Pressable>
-        </View>
-        <View
-          style={{
-            marginHorizontal: 16,
-            marginBottom: 20,
-            borderRadius: 16,
-            padding: 12,
-            backgroundColor: c.surfaceVariant,
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: iconGrid.spacing,
-          }}
-        >
-          {allColors.map((color) => {
-            const selected = localColor === color;
-            return (
-              <Pressable
-                key={color}
-                onPress={() => {
-                  onChangeColor(color);
-                  setColorModalVisible(false);
-                }}
-                style={({ pressed }) => ({
-                  width: iconGrid.itemSize,
-                  height: iconGrid.itemSize,
-                  borderRadius: iconGrid.itemSize / 2,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: color,
-                  borderWidth: selected ? 2.5 : 0,
-                  borderColor: c.onSurface,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                {selected && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={iconGrid.iconSize}
-                    color={c.onPrimary}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </AnimatedPaperModal>
     </>
   );
 }

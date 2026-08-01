@@ -62,6 +62,14 @@ export const updateWorkspaceAsync = createAsyncThunk(
     workspaceRepository.updateWorkspace(id, data),
 );
 
+export const markWorkspaceBackedUpAsync = createAsyncThunk(
+  "workspace/markBackedUp",
+  async ({ id, kind }: { id: string; kind: "full" | "month" | "range" }) => {
+    await workspaceRepository.markWorkspaceBackedUp(id, kind);
+    return workspaceRepository.getWorkspaces();
+  },
+);
+
 export const deleteWorkspaceAsync = createAsyncThunk(
   "workspace/deleteWorkspace",
   async (id: string, { getState, rejectWithValue }) => {
@@ -88,7 +96,13 @@ export const createWorkspaceAndSwitch =
     if (!createWorkspaceAsync.fulfilled.match(result)) {
       throw new Error(result.payload || result.error?.message);
     }
-    await dispatch(switchWorkspaceAndReload(result.payload.id));
+    try {
+      await dispatch(switchWorkspaceAndReload(result.payload.id));
+    } catch {
+      console.log(
+        `Workspace refresh after creating ${result.payload.name} failed`,
+      );
+    }
     return result.payload as Workspace;
   };
 
@@ -166,6 +180,9 @@ const workspaceSlice = createSlice({
         if (index !== -1) {
           state.workspaces[index] = action.payload;
         }
+      })
+      .addCase(markWorkspaceBackedUpAsync.fulfilled, (state, action) => {
+        state.workspaces = action.payload;
       })
       .addCase(deleteWorkspaceAsync.fulfilled, (state, action) => {
         state.workspaces = state.workspaces.filter(

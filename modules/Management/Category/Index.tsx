@@ -2,10 +2,12 @@ import { BackButton } from "@/components/backbutton/BackButton";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TouchableRipple, useTheme } from "react-native-paper";
 import { CustomColorPickerModal } from "./Components/ColorPickerModal";
 import { DeleteScreen } from "./Screens/DeleteScreen";
@@ -314,6 +316,12 @@ export function CategoryManagementModal({
     accentColor,
     iconName,
     rightAccessory,
+    rightAccessoryBeforeSearch,
+    searchOpen,
+    query,
+    onQueryChange,
+    onSearchOpenChange,
+    searchPlaceholder,
   }: {
     title: string;
     subtitle?: string;
@@ -321,70 +329,93 @@ export function CategoryManagementModal({
     accentColor?: string;
     iconName?: string;
     rightAccessory?: React.ReactNode;
+    rightAccessoryBeforeSearch?: React.ReactNode;
+    searchOpen?: boolean;
+    query?: string;
+    onQueryChange?: (value: string) => void;
+    onSearchOpenChange?: (value: boolean) => void;
+    searchPlaceholder?: string;
   }) => (
-    <View
-      style={[CategoryManagementStyles.header, { borderBottomColor: divider }]}
-    >
-      {showBack ? (
-        <BackButton onPress={handleBack} theme={theme} size={34} />
-      ) : (
-        <View
+    pickerMode ? (
+      <SettingsHeader
+        title={title}
+        onBack={handleClose}
+        query={query}
+        onQueryChange={onQueryChange}
+        searchOpen={searchOpen}
+        onSearchOpenChange={onSearchOpenChange}
+        searchPlaceholder={searchPlaceholder}
+        rightAccessoryBeforeSearch={rightAccessoryBeforeSearch}
+        modal
+      />
+    ) : (
+      <View
+        style={[
+          CategoryManagementStyles.header,
+          { borderBottomColor: divider },
+        ]}
+      >
+        {showBack ? (
+          <BackButton onPress={handleBack} theme={theme} size={34} />
+        ) : (
+          <View
+            style={[
+              CategoryManagementStyles.headerIconBadge,
+              {
+                backgroundColor: c.elevation.level1,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={(iconName || "tag-multiple-outline") as any}
+              size={17}
+              color={accentColor || c.primary}
+            />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              CategoryManagementStyles.headerTitle,
+              {
+                ...typography.editorial.sectionLabel,
+                fontSize: 18,
+                color: c.onSurface,
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text
+              style={[
+                CategoryManagementStyles.headerSubtitle,
+                { color: c.onSurfaceVariant },
+              ]}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {rightAccessory ?? null}
+        <TouchableRipple
+          onPress={handleClose}
+          borderless
           style={[
-            CategoryManagementStyles.headerIconBadge,
-            {
-              backgroundColor: c.elevation.level1,
-            },
+            CategoryManagementStyles.headerBtn,
+            CategoryManagementStyles.headerBtnRound,
+            { backgroundColor: c.elevation.level1, borderColor: divider },
           ]}
         >
           <MaterialCommunityIcons
-            name={(iconName || "tag-multiple-outline") as any}
+            name="close"
             size={17}
-            color={accentColor || c.primary}
+            color={c.onSurfaceVariant}
           />
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text
-          style={[
-            CategoryManagementStyles.headerTitle,
-            {
-              ...typography.editorial.sectionLabel,
-              fontSize: 18,
-              color: c.onSurface,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            style={[
-              CategoryManagementStyles.headerSubtitle,
-              { color: c.onSurfaceVariant },
-            ]}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
+        </TouchableRipple>
       </View>
-      {rightAccessory ?? null}
-      <TouchableRipple
-        onPress={handleClose}
-        borderless
-        style={[
-          CategoryManagementStyles.headerBtn,
-          CategoryManagementStyles.headerBtnRound,
-          { backgroundColor: c.elevation.level1, borderColor: divider },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="close"
-          size={17}
-          color={c.onSurfaceVariant}
-        />
-      </TouchableRipple>
-    </View>
+    )
   );
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -403,6 +434,7 @@ export function CategoryManagementModal({
         onDismiss={handleClose}
         presentation={isMobile ? "sheet" : "modal"}
         escapeEnabled={screen === "list"}
+        keyboardAware
         style={isMobile ? { justifyContent: "flex-end", margin: 0 } : undefined}
         contentContainerStyle={[
           isMobile
@@ -437,22 +469,22 @@ export function CategoryManagementModal({
           </View>
         )}
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {screen === "list" && (
-            <ListScreen
-              management={management}
-              fallbackName={fallbackName}
-              listHeight={listHeight}
-              theme={theme}
-              pickerMode={pickerMode}
-              selectedValue={selectedValue}
-              onSelectCategory={handleSelectCategory}
-              renderHeader={renderHeader}
-            />
-          )}
+        {screen === "list" ? (
+          <ListScreen
+            management={management}
+            listHeight={listHeight}
+            theme={theme}
+            pickerMode={pickerMode}
+            useSettingsHeader={pickerMode}
+            selectedValue={selectedValue}
+            onSelectCategory={handleSelectCategory}
+            renderHeader={renderHeader}
+          />
+        ) : (
+          <KeyboardAwareScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           {screen === "edit" && (
             <EditScreen
               management={management}
@@ -486,7 +518,8 @@ export function CategoryManagementModal({
               renderHeader={renderHeader}
             />
           )}
-        </ScrollView>
+          </KeyboardAwareScrollView>
+        )}
       </AnimatedPaperModal>
     </>
   );

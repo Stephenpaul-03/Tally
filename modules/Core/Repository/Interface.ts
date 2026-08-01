@@ -35,6 +35,7 @@ export interface FinanceRepository {
   restoreTransaction(id: string): Promise<void>;
   permanentDeleteTransaction(id: string): Promise<void>;
   clearAllTransactions(): Promise<void>;
+  clearTransactionsForDateRange(startDate: string, endDate: string): Promise<void>;
 
   // Category methods
   getCategories(type: "income" | "expense"): Promise<Category[]>;
@@ -60,6 +61,7 @@ export interface FinanceRepository {
     type: "income" | "expense",
   ): Promise<void>;
   softDeleteCategory(id: number): Promise<void>;
+  deleteUnusedCategories(): Promise<{ income: number; expense: number }>;
 
   // Account methods
   getAccounts(): Promise<Account[]>;
@@ -74,6 +76,7 @@ export interface FinanceRepository {
   reassignAccountTransactions(fromName: string, toName: string): Promise<void>;
   softDeleteAccount(id: number): Promise<void>;
   updateAccountOrder(names: string[]): Promise<void>;
+  deleteUnusedAccounts(): Promise<number>;
 
   // Budget methods
   getBudget(): Promise<BudgetSettings>;
@@ -88,4 +91,12 @@ export interface FinanceRepository {
 
   // Migration
   migrateFromRedux(data: any): Promise<void>;
+  resetWorkspaceData(): Promise<void>;
+  replaceWorkspaceSetup(data: {
+    incomeCategories: { name: string; icon?: string; color?: string }[];
+    expenseCategories: { name: string; icon?: string; color?: string }[];
+    accounts: { name: string; icon?: string; color?: string }[];
+    overallBudget?: number;
+    categoryBudgets?: { categoryName: string; amount: number }[];
+  }): Promise<void>;
 }

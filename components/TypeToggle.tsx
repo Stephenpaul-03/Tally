@@ -16,16 +16,19 @@ export function TypeToggle({
   value,
   onChange,
   mini = false,
+  progressAnim,
 }: {
   value: TransactionType;
   onChange: (v: TransactionType) => void;
   mini?: boolean;
+  progressAnim?: Animated.Value;
 }) {
   const theme = useTheme<MD3Theme>();
   const c = theme.colors;
   const [trackWidth, setTrackWidth] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const dragX = useRef(0);
+  const internalProgressAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = progressAnim ?? internalProgressAnim;
+  const dragProgress = useRef(0);
   const hasInitialized = useRef(false);
 
   const trackPadding = mini ? 3 : 4;
@@ -43,19 +46,21 @@ export function TypeToggle({
   ];
 
   const slideTo = (type: TransactionType) => {
-    Animated.timing(slideAnim, {
-      toValue: type === "expense" ? 0 : tabWidth,
-      useNativeDriver: true,
-      duration: 200,
-      easing: Easing.out(Easing.quad),
-    }).start();
+    slideAnim.stopAnimation(() => {
+      Animated.timing(slideAnim, {
+        toValue: type === "expense" ? 0 : 1,
+        useNativeDriver: true,
+        duration: 200,
+        easing: Easing.out(Easing.quad),
+      }).start();
+    });
   };
 
   useEffect(() => {
     if (trackWidth === 0) return;
 
     if (!hasInitialized.current) {
-      slideAnim.setValue(value === "expense" ? 0 : tabWidth);
+      slideAnim.setValue(value === "expense" ? 0 : 1);
       hasInitialized.current = true;
       return;
     }
@@ -67,18 +72,21 @@ export function TypeToggle({
   const panGesture = Gesture.Pan()
     .runOnJS(true)
     .onBegin(() => {
-      dragX.current = value === "expense" ? 0 : tabWidth;
+      dragProgress.current = value === "expense" ? 0 : 1;
+      slideAnim.stopAnimation();
     })
     .onUpdate((e) => {
+      if (tabWidth <= 0) return;
       const next = Math.max(
         0,
-        Math.min(tabWidth, dragX.current + e.translationX),
+        Math.min(1, dragProgress.current + e.translationX / tabWidth),
       );
       slideAnim.setValue(next);
     })
     .onEnd((e) => {
-      const currentX = dragX.current + e.translationX;
-      const shouldBeIncome = currentX > tabWidth / 2;
+      if (tabWidth <= 0) return;
+      const currentProgress = dragProgress.current + e.translationX / tabWidth;
+      const shouldBeIncome = currentProgress > 0.5;
       const newType: TransactionType = shouldBeIncome ? "income" : "expense";
       slideTo(newType);
       if (newType !== value) onChange(newType);
@@ -130,7 +138,14 @@ export function TypeToggle({
                   left: trackPadding,
                   backgroundColor: activeBg,
                   borderColor: activeBorder,
-                  transform: [{ translateX: slideAnim }],
+                  transform: [
+                    {
+                      translateX: slideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, tabWidth],
+                      }),
+                    },
+                  ],
                 },
               ]}
             />
@@ -202,9 +217,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    minHeight: 46,
+    minHeight: 38,
     zIndex: 1,
   },
   tabMini: {

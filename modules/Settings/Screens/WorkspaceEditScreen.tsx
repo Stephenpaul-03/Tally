@@ -1,22 +1,23 @@
 import { AlertModal } from "@/components/alert/AlertModal";
-import {
-  DEFAULT_WORKSPACE_CURRENCY,
-  type WorkspaceCurrency,
-} from "@/components/CurrencyPickerField";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
-import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
+import {
+  ACCOUNT_EXTRA_ICONS,
+  CATEGORY_EXTRA_ICONS,
+  MANAGEMENT_COLORS,
+  MANAGEMENT_NAME_LIMIT,
+} from "@/components/ManagementOptions";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
+import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
+import { workspaceRepository } from "@/modules/Core/Repository/Index";
 import {
-  createWorkspaceAndSwitch,
+  createWorkspaceAsync,
   deleteWorkspaceAndReload,
+  selectActiveWorkspaceId,
   selectWorkspaces,
+  switchWorkspaceAndReload,
   updateWorkspaceAsync,
 } from "@/modules/Core/Slices/WorkspaceSlice";
-import {
-  getAccountIconOptions,
-  getCategoryColorOptions,
-} from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   NavigationContext,
@@ -25,6 +26,7 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useMemo } from "react";
+import { Alert } from "react-native";
 import { TouchableRipple, useTheme, type MD3Theme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { SettingsStackParamList } from "../Navigation";
@@ -33,13 +35,9 @@ type Props = {
   workspaceName?: string;
   workspaceIcon?: string;
   workspaceColor?: string;
-  workspaceOwnerName?: string;
-  workspaceCurrency?: WorkspaceCurrency;
   onChangeName?: (v: string) => void;
   onChangeIcon?: (v: string) => void;
   onChangeColor?: (v: string) => void;
-  onChangeOwnerName?: (v: string) => void;
-  onChangeCurrency?: (v: WorkspaceCurrency) => void;
 
   allColors?: string[];
   allIcons?: string[];
@@ -91,6 +89,8 @@ export function WorkspaceEditScreen(props: Props) {
   // Redux dispatch and select
   const dispatch = useAppDispatch();
   const workspaces = useAppSelector(selectWorkspaces);
+  const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
+  const { getWorkspaceDefaults, setWorkspaceDefaults } = useWorkspaceDefaults();
 
   // Local state for Navigation Screen mode
   const paramWorkspace = route?.params?.workspace;
@@ -101,14 +101,6 @@ export function WorkspaceEditScreen(props: Props) {
   const [localColor, setLocalColor] = React.useState(
     paramWorkspace?.color ?? "#6366F1",
   );
-  const [localOwnerName, setLocalOwnerName] = React.useState(
-    paramWorkspace?.ownerName ?? "",
-  );
-  const [localCurrency, setLocalCurrency] = React.useState<WorkspaceCurrency>({
-    code: paramWorkspace?.currencyCode ?? DEFAULT_WORKSPACE_CURRENCY.code,
-    name: paramWorkspace?.currencyName ?? DEFAULT_WORKSPACE_CURRENCY.name,
-    symbol: paramWorkspace?.currencySymbol ?? DEFAULT_WORKSPACE_CURRENCY.symbol,
-  });
   const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null);
   const [showDeleteBlockedAlert, setShowDeleteBlockedAlert] =
     React.useState(false);
@@ -119,19 +111,13 @@ export function WorkspaceEditScreen(props: Props) {
       [
         ...new Set([
           "briefcase-outline",
-          "home-outline",
-          "account-outline",
-          "account-group-outline",
-          "heart-outline",
-          "star-outline",
-          "wallet-outline",
-          "piggy-bank-outline",
-          ...getAccountIconOptions(),
+          ...ACCOUNT_EXTRA_ICONS,
+          ...CATEGORY_EXTRA_ICONS,
         ]),
-      ].slice(0, 24),
+      ],
     [],
   );
-  const workspaceColorOptions = useMemo(() => getCategoryColorOptions(), []);
+  const workspaceColorOptions = useMemo(() => MANAGEMENT_COLORS, []);
 
   // Compute values based on mode
   const activeName = isNavScreen ? localName : (props.workspaceName ?? "");
@@ -141,22 +127,9 @@ export function WorkspaceEditScreen(props: Props) {
   const activeColor = isNavScreen
     ? localColor
     : (props.workspaceColor ?? "#6366F1");
-  const activeOwnerName = isNavScreen
-    ? localOwnerName
-    : (props.workspaceOwnerName ?? "");
-  const activeCurrency = isNavScreen
-    ? localCurrency
-    : (props.workspaceCurrency ?? DEFAULT_WORKSPACE_CURRENCY);
-
   const changeName = isNavScreen ? setLocalName : props.onChangeName;
   const changeIcon = isNavScreen ? setLocalIcon : props.onChangeIcon;
   const changeColor = isNavScreen ? setLocalColor : props.onChangeColor;
-  const changeOwnerName = isNavScreen
-    ? setLocalOwnerName
-    : props.onChangeOwnerName;
-  const changeCurrency = isNavScreen
-    ? setLocalCurrency
-    : props.onChangeCurrency;
 
   const resolvedColors = props.allColors ?? workspaceColorOptions;
   const resolvedIcons = props.allIcons ?? workspaceIconOptions;
@@ -179,35 +152,77 @@ export function WorkspaceEditScreen(props: Props) {
               name: localName,
               icon: localIcon,
               color: localColor,
-              ownerName: localOwnerName,
-              currencyCode: localCurrency.code,
-              currencySymbol: localCurrency.symbol,
-              currencyName: localCurrency.name,
             },
           }) as any,
         );
         toast.success(`${localName.trim()} updated`);
       } else {
+        const sourceWorkspaceId = activeWorkspaceId;
         const newWorkspace = await dispatch(
-          createWorkspaceAndSwitch({
+          createWorkspaceAsync({
             name: localName,
             icon: localIcon,
             color: localColor,
-            ownerName: localOwnerName,
-            currencyCode: localCurrency.code,
-            currencySymbol: localCurrency.symbol,
-            currencyName: localCurrency.name,
+            seedDefaults: true,
           }) as any,
+        ).unwrap();
+        toast.success(`${newWorkspace.name} created`);
+        Alert.alert(
+          "Set up workspace",
+          "Start fresh with onboarding, or copy accounts, categories, budgets, and defaults from your current workspace. Transactions are not copied.",
+          [
+            {
+              text: "Onboarding",
+              onPress: () => {
+                void (async () => {
+                  await dispatch(switchWorkspaceAndReload(newWorkspace.id) as any);
+                  (navigation?.getParent() as any)?.navigate("Onboarding", {
+                    mode: "workspace",
+                    workspaceId: newWorkspace.id,
+                  });
+                })();
+              },
+            },
+            {
+              text: "Copy current",
+              onPress: () => {
+                void (async () => {
+                  try {
+                    await workspaceRepository.copyWorkspaceSetup(
+                      sourceWorkspaceId,
+                      newWorkspace.id,
+                    );
+                    setWorkspaceDefaults(
+                      newWorkspace.id,
+                      getWorkspaceDefaults(sourceWorkspaceId),
+                    );
+                    await dispatch(
+                      switchWorkspaceAndReload(newWorkspace.id) as any,
+                    );
+                    toast.success("Workspace setup copied");
+                  } catch {
+                    toast.error("Couldn't copy workspace setup");
+                  }
+                })();
+              },
+            },
+            {
+              text: "Use defaults",
+              style: "cancel",
+              onPress: () => {
+                void dispatch(switchWorkspaceAndReload(newWorkspace.id) as any);
+              },
+            },
+          ],
         );
-        toast.success(`Switched to ${newWorkspace.name}`);
       }
       navigation?.goBack();
     } catch (error) {
+      const fallback = paramWorkspace
+        ? "Couldn't update workspace"
+        : "Couldn't create workspace";
       toast.error(
-        paramWorkspace
-          ? "Couldn't update workspace"
-          : "Couldn't create workspace",
-        error instanceof Error ? error.message : undefined,
+        error instanceof Error ? `${fallback}: ${error.message}` : fallback,
       );
     }
   };
@@ -277,18 +292,14 @@ export function WorkspaceEditScreen(props: Props) {
       iconPickerVariant="account"
       isEditing={editingMode}
       localColor={activeColor}
-      localCurrency={activeCurrency}
       localIcon={activeIcon}
       localName={activeName}
-      localOwnerName={activeOwnerName}
       namePlaceholder="e.g. Business"
       nameLimit={WORKSPACE_NAME_LIMIT}
       onBack={activeOnBack}
       onChangeColor={changeColor!}
-      onChangeCurrency={changeCurrency}
       onChangeIcon={changeIcon!}
       onChangeName={changeName!}
-      onChangeOwnerName={changeOwnerName}
       onSubmit={activeSubmit!}
       showHeader={props.showHeader ?? true}
       submitLabelCreate="Create workspace"

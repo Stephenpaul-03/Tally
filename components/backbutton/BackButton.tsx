@@ -9,9 +9,15 @@ interface BackButtonProps {
   onPress: () => void;
   theme: MD3Theme;
   size?: number;
+  backgroundColor?: string;
 }
 
-export function BackButton({ onPress, theme, size = 34 }: BackButtonProps) {
+export function BackButton({
+  onPress,
+  theme,
+  size = 34,
+  backgroundColor,
+}: BackButtonProps) {
   return (
     <TouchableRipple
       onPress={onPress}
@@ -22,7 +28,7 @@ export function BackButton({ onPress, theme, size = 34 }: BackButtonProps) {
           width: size,
           height: size,
           borderRadius: size,
-          backgroundColor: theme.colors.background,
+          backgroundColor: backgroundColor ?? theme.colors.background,
           borderColor: theme.colors.outlineVariant,
         },
       ]}

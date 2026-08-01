@@ -14,6 +14,13 @@ export enum DailyFinanceReminderFrequency {
   Weekends = "weekends",
 }
 
+export enum DailyFinanceReminderTone {
+  Gentle = "gentle",
+  Direct = "direct",
+  Minimal = "minimal",
+  Fun = "fun",
+}
+
 export enum MonthlyInsightTiming {
   StartOfMonth = "start-of-month",
   EndOfMonth = "end-of-month",
@@ -63,7 +70,10 @@ export type AppNotificationPayload =
 export interface DailyFinanceReminderConfig {
   enabled: boolean;
   reminders: ReminderTime[];
+  weekdays: number[];
   frequency: DailyFinanceReminderFrequency;
+  tone: DailyFinanceReminderTone;
+  quietHours: QuietHoursConfig;
 }
 
 export type ReminderTime = {
@@ -76,6 +86,14 @@ export interface MonthlyInsightPromptConfig {
   hour: number;
   minute: number;
   timing: MonthlyInsightTiming;
+}
+
+export interface QuietHoursConfig {
+  enabled: boolean;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
 }
 
 export interface NotificationScheduleRecord {
@@ -157,7 +175,16 @@ export interface NativePermissionSnapshot {
 export const DEFAULT_DAILY_FINANCE_REMINDER: DailyFinanceReminderConfig = {
   enabled: false,
   reminders: [{ hour: 21, minute: 0 }],
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
   frequency: DailyFinanceReminderFrequency.Daily,
+  tone: DailyFinanceReminderTone.Gentle,
+  quietHours: {
+    enabled: false,
+    startHour: 22,
+    startMinute: 0,
+    endHour: 8,
+    endMinute: 0,
+  },
 };
 
 export const DEFAULT_MONTHLY_INSIGHT_PROMPT: MonthlyInsightPromptConfig = {

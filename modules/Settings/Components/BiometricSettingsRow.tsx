@@ -50,7 +50,7 @@ export function BiometricSettingsRow() {
       }
 
       const copy = getUnavailableCopy(result.availability.unavailableReason);
-      toast.info("Biometric Lock unavailable", copy ?? "Please try again.");
+      toast.info(`Biometric Lock unavailable. ${copy ?? "Please try again."}`);
     },
     [setBiometricLockEnabled],
   );

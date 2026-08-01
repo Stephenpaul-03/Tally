@@ -24,6 +24,7 @@ type Props = {
   theme: MD3Theme;
   label?: string;
   variant?: "default" | "editorial";
+  renderTrigger?: (args: { open: () => void }) => React.ReactNode;
 };
 
 const currencyData =
@@ -67,6 +68,7 @@ export function CurrencyPickerField({
   theme,
   label = "Currency",
   variant = "default",
+  renderTrigger,
 }: Props) {
   const [visible, setVisible] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -96,74 +98,78 @@ export function CurrencyPickerField({
 
   return (
     <>
-      <Pressable
-        onPress={() => setVisible(true)}
-        style={({ pressed }) => ({
-          borderRadius: isEditorial ? 0 : 16,
-          paddingVertical: isEditorial ? 12 : 8,
-          paddingHorizontal: isEditorial ? 14 : 8,
-          backgroundColor: isEditorial ? "transparent" : c.background,
-          borderWidth: isEditorial ? 0 : 1,
-          borderColor: isEditorial ? "transparent" : c.outline,
-          opacity: pressed ? 0.72 : 1,
-        })}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              style={{
-                color: c.onSurface,
-                fontSize: isEditorial ? 14 : 14,
-                fontWeight: "700",
-                letterSpacing: isEditorial ? 0.6 : 0,
-              }}
-            >
-              {label}
-            </Text>
-            {!isEditorial ? (
-              <Text
-                numberOfLines={1}
-                style={{
-                  color: c.onSurfaceVariant,
-                  fontSize: 12,
-                  marginTop: 2,
-                }}
-              >
-                {currency.name}
-              </Text>
-            ) : null}
-          </View>
-          <View style={{ alignItems: "flex-end", marginLeft: 12 }}>
-            <Text
-              style={{
-                color: c.onSurface,
-                fontSize: isEditorial ? 14 : 18,
-                fontWeight: "700",
-              }}
-            >
-              {isEditorial
-                ? `${currency.code} ${currency.symbol}`
-                : currency.symbol}
-            </Text>
-            {!isEditorial ? (
+      {renderTrigger ? (
+        renderTrigger({ open: () => setVisible(true) })
+      ) : (
+        <Pressable
+          onPress={() => setVisible(true)}
+          style={({ pressed }) => ({
+            borderRadius: isEditorial ? 0 : 16,
+            paddingVertical: isEditorial ? 12 : 8,
+            paddingHorizontal: isEditorial ? 14 : 8,
+            backgroundColor: isEditorial ? "transparent" : c.background,
+            borderWidth: isEditorial ? 0 : 1,
+            borderColor: isEditorial ? "transparent" : c.outline,
+            opacity: pressed ? 0.72 : 1,
+          })}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <Text
                 style={{
-                  color: c.onSurfaceVariant,
-                  fontSize: 11,
-                  marginTop: 1,
+                  color: c.onSurface,
+                  fontSize: isEditorial ? 14 : 14,
+                  fontWeight: "700",
+                  letterSpacing: isEditorial ? 0.6 : 0,
                 }}
               >
-                {currency.code}
+                {label}
               </Text>
-            ) : null}
+              {!isEditorial ? (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: c.onSurfaceVariant,
+                    fontSize: 12,
+                    marginTop: 2,
+                  }}
+                >
+                  {currency.name}
+                </Text>
+              ) : null}
+            </View>
+            <View style={{ alignItems: "flex-end", marginLeft: 12 }}>
+              <Text
+                style={{
+                  color: c.onSurface,
+                  fontSize: isEditorial ? 14 : 18,
+                  fontWeight: "700",
+                }}
+              >
+                {isEditorial
+                  ? `${currency.code} ${currency.symbol}`
+                  : currency.symbol}
+              </Text>
+              {!isEditorial ? (
+                <Text
+                  style={{
+                    color: c.onSurfaceVariant,
+                    fontSize: 11,
+                    marginTop: 1,
+                  }}
+                >
+                  {currency.code}
+                </Text>
+              ) : null}
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={18}
+              color={c.onSurfaceVariant}
+            />
           </View>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={18}
-            color={c.onSurfaceVariant}
-          />
-        </View>
-      </Pressable>
+        </Pressable>
+      )}
 
       <AnimatedPaperModal
         visible={visible}

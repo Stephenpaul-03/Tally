@@ -1,0 +1,25 @@
+{
+  "accounts": [
+    { "name": "Cash", "icon": "cash", "color": "#22C55E" },
+    { "name": "Bank", "icon": "bank-outline", "color": "#0EA5E9" },
+    { "name": "Card", "icon": "credit-card-outline", "color": "#6366F1" },
+    { "name": "UPI", "icon": "qrcode-scan", "color": "#06B6D4" }
+  ],
+  "incomeCategories": [
+    { "name": "Salary", "icon": "briefcase-outline", "color": "#16A34A" },
+    { "name": "Freelance", "icon": "laptop", "color": "#0F766E" },
+    { "name": "Investments", "icon": "chart-line", "color": "#2563EB" },
+    { "name": "Gifts", "icon": "gift-outline", "color": "#DB2777" },
+    { "name": "Refunds", "icon": "cash-refund", "color": "#65A30D" }
+  ],
+  "expenseCategories": [
+    { "name": "Food & Dining", "icon": "silverware-fork-knife", "color": "#F97316" },
+    { "name": "Transportation", "icon": "train-car", "color": "#0EA5E9" },
+    { "name": "Shopping", "icon": "shopping-outline", "color": "#DB2777" },
+    { "name": "Bills & Utilities", "icon": "receipt-text-outline", "color": "#6366F1" },
+    { "name": "Entertainment", "icon": "movie-open-outline", "color": "#A855F7" },
+    { "name": "Healthcare", "icon": "medical-bag", "color": "#EF4444" },
+    { "name": "Education", "icon": "school-outline", "color": "#14B8A6" },
+    { "name": "Travel", "icon": "airplane", "color": "#0284C7" }
+  ]
+}

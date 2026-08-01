@@ -142,7 +142,7 @@ export function AccountDeleteScreen({
       {/* Reassign destinations */}
       {deleteDestinations.length > 0 && (
         <>
-          <SectionLabel label="Move transactions to" theme={theme} />
+          <SectionLabel label="Move transactions to" />
           <View style={{ flex: 1, marginHorizontal: 12 }}>
             <ScrollView
               showsVerticalScrollIndicator={false}

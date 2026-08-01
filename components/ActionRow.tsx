@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, type StyleProp, type ViewStyle, View } from "react-native";
 import { Text, type MD3Theme } from "react-native-paper";
 
 interface ActionRowProps {
@@ -12,6 +12,15 @@ interface ActionRowProps {
   destructive?: boolean;
   rightElement?: React.ReactNode;
   showChevron?: boolean;
+  iconBackgroundColor?: string;
+  iconColor?: string;
+  labelColor?: string;
+  descriptionColor?: string;
+  style?: StyleProp<ViewStyle>;
+  iconContainerSize?: number;
+  iconRadius?: number;
+  iconSize?: number;
+  disabled?: boolean;
 }
 
 export function ActionRow({
@@ -23,44 +32,64 @@ export function ActionRow({
   destructive,
   rightElement,
   showChevron = true,
+  iconBackgroundColor,
+  iconColor,
+  labelColor,
+  descriptionColor,
+  style,
+  iconContainerSize = 36,
+  iconRadius = 10,
+  iconSize = 20,
+  disabled = false,
 }: ActionRowProps) {
-  const color = destructive ? theme.colors.error : theme.colors.primary;
+  const color =
+    iconColor ?? (destructive ? theme.colors.error : theme.colors.primary);
 
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        paddingVertical: 13,
-        paddingHorizontal: 16,
-        opacity: pressed ? 0.65 : 1,
-      })}
+      style={({ pressed }) => [
+        {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 14,
+          paddingVertical: 13,
+          paddingHorizontal: 16,
+          opacity: disabled ? 0.8 : pressed ? 0.65 : 1,
+        },
+        style,
+      ]}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
+          width: iconContainerSize,
+          height: iconContainerSize,
+          borderRadius: iconRadius,
           alignItems: "center",
           justifyContent: "center",
+          backgroundColor: iconBackgroundColor,
         }}
       >
-        <MaterialCommunityIcons name={icon as any} size={20} color={color} />
+        <MaterialCommunityIcons name={icon as any} size={iconSize} color={color} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <Text
           style={{
             fontSize: 14,
             fontWeight: "700",
-            color: theme.colors.onSurface,
+            color: labelColor ?? theme.colors.onSurface,
           }}
         >
           {label}
         </Text>
-        <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>
+        <Text
+          style={{
+            fontSize: 12,
+            color: descriptionColor ?? theme.colors.onSurfaceVariant,
+          }}
+        >
           {description}
         </Text>
       </View>

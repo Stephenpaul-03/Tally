@@ -1,22 +1,58 @@
 import { ActionRow } from "@/components/ActionRow";
-import { PermissionRequestModal } from "@/components/alert/PermissionRequestModal";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
-import { UniversalSearchBar } from "@/components/UniversalSearchBar";
+import { toast } from "@/components/toast/ToastProvider";
+import { useAppSelector } from "@/hooks/Redux";
 import { useAbstractSearch } from "@/hooks/use-abstract-search";
+import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import Constants from "expo-constants";
 import React from "react";
-import { ScrollView, View } from "react-native";
-import { useTheme } from "react-native-paper";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Button, Text, TextInput, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BiometricSettingsRow } from "../Components/BiometricSettingsRow";
-import { DailyReminderRows } from "../Components/DailyReminderCard";
 import { SectionLabel } from "../Components/SectionLabel";
+import {
+  BetaContactModal,
+  type BetaContactScenario,
+} from "../Components/BetaContactModal";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import { useDeveloperToolsUnlockedForSession } from "../DeveloperToolsSession";
-import { useSettings } from "../hooks";
+import { SettingsSearchHeader } from "../Components/SettingsSearchHeader";
+import {
+  DEV_TOOLS_PASSCODE,
+  isDeveloperToolsUnlockedForSession,
+  unlockDeveloperToolsForSession,
+  useDeveloperToolsUnlockedForSession,
+} from "../DeveloperToolsSession";
 import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
+import { NotificationsModal } from "./NotificationsScreen";
+import { AppearanceModal, InterfaceModal } from "./AppearanceScreen";
+import { SecurityModal } from "./SecurityScreen";
+import { WorkspacesModal } from "./WorkspacesScreen";
+
+function formatLastBackupDescription(workspace: Workspace | null) {
+  if (!workspace?.lastBackupAt) return "Last backup: No backup yet";
+
+  const kindLabel =
+    workspace.lastBackupKind === "month"
+      ? "Month"
+      : workspace.lastBackupKind === "range"
+        ? "Range"
+        : "Full";
+  const dateLabel = new Date(workspace.lastBackupAt).toLocaleDateString(
+    undefined,
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    },
+  );
+
+  return `Last backup: ${dateLabel} • ${kindLabel}`;
+}
 
 type SettingsSearchItem = {
   id: string;
@@ -36,22 +72,22 @@ export function MainSettingsScreen() {
   const theme = useTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
-  const scrollRef = React.useRef<ScrollView | null>(null);
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
-  const [securitySectionY, setSecuritySectionY] = React.useState(0);
-  const [notificationsSectionY, setNotificationsSectionY] = React.useState(0);
-  const {
-    dailyReminderEnabled,
-    dailyReminderTimes,
-    handleAddDailyReminderTime,
-    handleRemoveDailyReminderTime,
-    handleDailyReminderToggle,
-    handleDailyReminderTimeChange,
-    notificationAccessPromptOpen,
-    setNotificationAccessPromptOpen,
-    handleRequestNotificationAccessAgain,
-  } = useSettings();
+  const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [appearanceOpen, setAppearanceOpen] = React.useState(false);
+  const [interfaceOpen, setInterfaceOpen] = React.useState(false);
+  const [workspacesOpen, setWorkspacesOpen] = React.useState(false);
+  const [notificationsOpen, setNotificationsOpen] = React.useState(false);
+  const [securityOpen, setSecurityOpen] = React.useState(false);
+  const [betaContactScenario, setBetaContactScenario] =
+    React.useState<BetaContactScenario | null>(null);
+  const [passcodeOpen, setPasscodeOpen] = React.useState(false);
+  const [passcode, setPasscode] = React.useState("");
+  const devTapCountRef = React.useRef(0);
+  const reopenWorkspacesOnFocusRef = React.useRef(false);
+  const appVersion = Constants.expoConfig?.version ?? "0.1.0";
   const developerToolsUnlocked = useDeveloperToolsUnlockedForSession();
   const closeSearch = React.useCallback(() => {
     setQuery("");
@@ -64,6 +100,91 @@ export function MainSettingsScreen() {
     },
     [closeSearch, navigation],
   );
+  const openBetaContactModal = React.useCallback(
+    (scenario: BetaContactScenario) => {
+      closeSearch();
+      setBetaContactScenario(scenario);
+    },
+    [closeSearch],
+  );
+  const closeBetaContactModal = React.useCallback(() => {
+    setBetaContactScenario(null);
+  }, []);
+  const openAboutBetaContactModal = React.useCallback(() => {
+    setAboutOpen(false);
+    setBetaContactScenario("about");
+  }, []);
+  const openAboutModal = React.useCallback(() => {
+    closeSearch();
+    setAboutOpen(true);
+  }, [closeSearch]);
+  const openAppearanceModal = React.useCallback(() => {
+    closeSearch();
+    setAppearanceOpen(true);
+  }, [closeSearch]);
+  const openInterfaceModal = React.useCallback(() => {
+    closeSearch();
+    setInterfaceOpen(true);
+  }, [closeSearch]);
+  const openWorkspacesModal = React.useCallback(() => {
+    closeSearch();
+    setWorkspacesOpen(true);
+  }, [closeSearch]);
+  const openNotificationsModal = React.useCallback(() => {
+    closeSearch();
+    setNotificationsOpen(true);
+  }, [closeSearch]);
+  const openSecurityModal = React.useCallback(() => {
+    closeSearch();
+    setSecurityOpen(true);
+  }, [closeSearch]);
+  const openWorkspaceEditFromModal = React.useCallback(
+    (workspace?: Workspace) => {
+      reopenWorkspacesOnFocusRef.current = true;
+      setWorkspacesOpen(false);
+      navigation.navigate({ name: "WorkspaceEdit", params: { workspace } });
+    },
+    [navigation],
+  );
+  const closeAboutModal = React.useCallback(() => {
+    setAboutOpen(false);
+  }, []);
+
+  React.useEffect(
+    () =>
+      navigation.addListener("focus", () => {
+        if (!reopenWorkspacesOnFocusRef.current) return;
+
+        reopenWorkspacesOnFocusRef.current = false;
+        setWorkspacesOpen(true);
+      }),
+    [navigation],
+  );
+  const handleDeveloperTap = React.useCallback(() => {
+    const next = devTapCountRef.current + 1;
+    devTapCountRef.current = next;
+
+    if (next >= 7) {
+      devTapCountRef.current = 0;
+      if (isDeveloperToolsUnlockedForSession()) {
+        toast.info("Developer tools are already on for this app session");
+        return;
+      }
+      setPasscodeOpen(true);
+    }
+  }, []);
+  const handleUnlockDeveloperTools = React.useCallback(() => {
+    if (passcode !== DEV_TOOLS_PASSCODE) {
+      toast.error("Incorrect developer code");
+      setPasscode("");
+      return;
+    }
+
+    unlockDeveloperToolsForSession();
+    setPasscode("");
+    setPasscodeOpen(false);
+    toast.success("Developer tools are on for this app session");
+  }, [passcode]);
 
   const settingsItems = React.useMemo<SettingsSearchItem[]>(
     () => [
@@ -73,7 +194,7 @@ export function MainSettingsScreen() {
         label: "Workspaces",
         description: "Track personal, family, or project budgets",
         keywords: ["management", "workspace", "personal", "family", "project"],
-        onPress: () => navigateToScreen("Workspaces"),
+        onPress: openWorkspacesModal,
       },
       {
         id: "add-workspace",
@@ -82,7 +203,7 @@ export function MainSettingsScreen() {
         description:
           "Create a separate finance context from the Workspaces screen",
         keywords: ["workspace", "new", "create", "add", "management"],
-        onPress: () => navigateToScreen("Workspaces"),
+        onPress: openWorkspacesModal,
       },
       {
         id: "categories",
@@ -115,6 +236,30 @@ export function MainSettingsScreen() {
         description: "Create or restore transaction backups",
         keywords: ["management", "backup", "restore", "export", "import"],
         onPress: () => navigateToScreen("Data"),
+      },
+      {
+        id: "defaults",
+        icon: "tune-variant",
+        label: "Defaults",
+        description: "Set currency and transaction defaults by workspace",
+        keywords: ["preferences", "currency", "default", "account", "category"],
+        onPress: () => navigateToScreen("Defaults"),
+      },
+      {
+        id: "notifications",
+        icon: "bell-outline",
+        label: "Notifications",
+        description: "Manage reminders and monthly insight prompts",
+        keywords: ["preferences", "reminders", "daily", "alerts"],
+        onPress: openNotificationsModal,
+      },
+      {
+        id: "security",
+        icon: "shield-lock-outline",
+        label: "Security",
+        description: "Protect Tally with biometric lock",
+        keywords: ["preferences", "biometric", "face id", "fingerprint", "lock"],
+        onPress: openSecurityModal,
       },
       {
         id: "backup-export",
@@ -160,10 +305,10 @@ export function MainSettingsScreen() {
       {
         id: "appearances",
         icon: "palette-outline",
-        label: "Appearances",
+        label: "Appearance",
         description: "Personalize the look and feel of Tally",
-        keywords: ["preferences", "theme", "appearance", "colors"],
-        onPress: () => navigateToScreen("Appearances"),
+        keywords: ["preferences", "theme", "appearance", "colors", "accent"],
+        onPress: openAppearanceModal,
       },
       {
         id: "theme-mode",
@@ -171,7 +316,23 @@ export function MainSettingsScreen() {
         label: "Theme Mode",
         description: "Switch between system, light, and dark appearance modes",
         keywords: ["appearance", "theme", "mode", "light", "dark", "system"],
-        onPress: () => navigateToScreen("Appearances"),
+        onPress: openAppearanceModal,
+      },
+      {
+        id: "amoled-mode",
+        icon: "theme-light-dark",
+        label: "AMOLED Mode",
+        description: "Use true black surfaces in dark mode",
+        keywords: ["appearance", "theme", "dark", "black", "amoled"],
+        onPress: openAppearanceModal,
+      },
+      {
+        id: "interface",
+        icon: "view-dashboard-outline",
+        label: "Interface",
+        description: "Adjust navigation and visual interface options",
+        keywords: ["preferences", "interface", "icons", "bottom", "bar"],
+        onPress: openInterfaceModal,
       },
       {
         id: "minimal-icons",
@@ -179,7 +340,7 @@ export function MainSettingsScreen() {
         label: "Minimal Icons",
         description: "Use the primary color for category icons",
         keywords: ["appearance", "icons", "minimal", "interface"],
-        onPress: () => navigateToScreen("Appearances"),
+        onPress: openInterfaceModal,
       },
       {
         id: "bottom-bar",
@@ -187,7 +348,7 @@ export function MainSettingsScreen() {
         label: "Bottom Bar",
         description: "Show or hide the bottom navigation bar",
         keywords: ["appearance", "interface", "bottom", "bar", "navigation"],
-        onPress: () => navigateToScreen("Appearances"),
+        onPress: openInterfaceModal,
       },
       {
         id: "date-picker",
@@ -195,7 +356,7 @@ export function MainSettingsScreen() {
         label: "Date Picker",
         description: "Choose the calendar picker layout",
         keywords: ["appearance", "calendar", "date", "picker", "strip"],
-        onPress: () => navigateToScreen("Appearances"),
+        onPress: openInterfaceModal,
       },
       {
         id: "daily-reminders",
@@ -203,15 +364,7 @@ export function MainSettingsScreen() {
         label: "Daily Reminders",
         description: "Manage notification reminders and alert times",
         keywords: ["notifications", "reminders", "daily", "alerts", "bell"],
-        onPress: () => {
-          closeSearch();
-          requestAnimationFrame(() => {
-            scrollRef.current?.scrollTo({
-              y: Math.max(notificationsSectionY - 12, 0),
-              animated: true,
-            });
-          });
-        },
+        onPress: openNotificationsModal,
       },
       {
         id: "biometric-lock",
@@ -220,48 +373,7 @@ export function MainSettingsScreen() {
         description:
           "Protect Tally using Face ID or fingerprint authentication",
         keywords: ["security", "lock", "face id", "fingerprint", "privacy"],
-        onPress: () => {
-          closeSearch();
-          requestAnimationFrame(() => {
-            scrollRef.current?.scrollTo({
-              y: Math.max(securitySectionY - 12, 0),
-              animated: true,
-            });
-          });
-        },
-      },
-      {
-        id: "labs",
-        icon: "flask-outline",
-        label: "Labs",
-        description: "Try upcoming features and experiments",
-        keywords: ["others", "experiments", "beta", "features"],
-        onPress: () => navigateToScreen("Labs"),
-      },
-      {
-        id: "ask-tally",
-        icon: "message-text-outline",
-        label: "Ask Tally",
-        description: "Adds a guided assistant to the Transactions screen",
-        keywords: ["labs", "guided", "assistant", "chat", "transactions"],
-        onPress: () => navigateToScreen("Labs"),
-      },
-      {
-        id: "better-analytics",
-        icon: "chart-line",
-        label: "Better Analytics",
-        description:
-          "Expands Insights with richer analytics cards and layout controls",
-        keywords: ["labs", "insights", "analytics", "charts", "layout"],
-        onPress: () => navigateToScreen("Labs"),
-      },
-      {
-        id: "analytics-card-order",
-        icon: "view-carousel-outline",
-        label: "Analytics Card Order",
-        description: "Reorder the analytics cards shown on the Insights screen",
-        keywords: ["labs", "insights", "reorder", "drag", "accordion"],
-        onPress: () => navigateToScreen("Labs"),
+        onPress: openSecurityModal,
       },
       {
         id: "about",
@@ -269,15 +381,31 @@ export function MainSettingsScreen() {
         label: "About",
         description: "Version information, credits, and policies",
         keywords: ["others", "version", "credits", "policies"],
-        onPress: () => navigateToScreen("About"),
+        onPress: openAboutModal,
+      },
+      {
+        id: "about-app",
+        icon: "cellphone-information",
+        label: "About App",
+        description: "More details about Tally",
+        keywords: ["about", "app", "tally"],
+        onPress: () => openBetaContactModal("about"),
+      },
+      {
+        id: "about-dev",
+        icon: "account-hard-hat-outline",
+        label: "About Dev",
+        description: "More details about the developer",
+        keywords: ["about", "developer", "dev"],
+        onPress: () => openBetaContactModal("about"),
       },
       {
         id: "support-development",
         icon: "heart-outline",
         label: "Support Development",
-        description: "Help fund future updates from the About screen",
+        description: "Help fund future updates",
         keywords: ["about", "support", "donate", "development"],
-        onPress: () => navigateToScreen("About"),
+        onPress: () => openBetaContactModal("support"),
       },
       {
         id: "report-issue",
@@ -285,7 +413,7 @@ export function MainSettingsScreen() {
         label: "Report an Issue",
         description: "Open support to report bugs or broken behavior",
         keywords: ["about", "support", "issue", "bug", "report"],
-        onPress: () => navigateToScreen("About"),
+        onPress: () => openBetaContactModal("report"),
       },
       {
         id: "suggest-feature",
@@ -293,7 +421,7 @@ export function MainSettingsScreen() {
         label: "Suggest a Feature",
         description: "Share an idea for a future Tally improvement",
         keywords: ["about", "feature", "idea", "request", "feedback"],
-        onPress: () => navigateToScreen("About"),
+        onPress: () => openBetaContactModal("about"),
       },
       {
         id: "privacy-policy",
@@ -301,7 +429,7 @@ export function MainSettingsScreen() {
         label: "Privacy Policy",
         description: "See how your data is handled",
         keywords: ["about", "legal", "privacy", "policy"],
-        onPress: () => navigateToScreen("About"),
+        onPress: () => openBetaContactModal("about"),
       },
       {
         id: "open-source-licenses",
@@ -309,7 +437,7 @@ export function MainSettingsScreen() {
         label: "Open Source Licenses",
         description: "Review third-party acknowledgements",
         keywords: ["about", "legal", "licenses", "open source"],
-        onPress: () => navigateToScreen("About"),
+        onPress: () => openBetaContactModal("request"),
       },
       {
         id: "version",
@@ -317,7 +445,7 @@ export function MainSettingsScreen() {
         label: "Version",
         description: "View the installed app build",
         keywords: ["about", "build", "version", "app"],
-        onPress: () => navigateToScreen("About"),
+        onPress: openAboutModal,
       },
       ...(developerToolsUnlocked
         ? [
@@ -380,11 +508,15 @@ export function MainSettingsScreen() {
         : []),
     ],
     [
-      closeSearch,
       developerToolsUnlocked,
       navigateToScreen,
-      notificationsSectionY,
-      securitySectionY,
+      openBetaContactModal,
+      openAboutModal,
+      openAppearanceModal,
+      openInterfaceModal,
+      openNotificationsModal,
+      openSecurityModal,
+      openWorkspacesModal,
     ],
   );
 
@@ -405,14 +537,6 @@ export function MainSettingsScreen() {
     settingsSearchOptions,
   );
   const isSearching = query.trim().length > 0;
-  const handleToggleSearch = React.useCallback(() => {
-    if (searchOpen) {
-      closeSearch();
-      return;
-    }
-    setSearchOpen(true);
-  }, [closeSearch, searchOpen]);
-
   return (
     <SafeAreaView
       style={[
@@ -420,28 +544,16 @@ export function MainSettingsScreen() {
         { backgroundColor: theme.colors.background },
       ]}
     >
-      <SettingsHeader
+      <SettingsSearchHeader
+        title="Settings"
         onBack={() => navigation.goBack()}
-        centerContent={
-          searchOpen ? (
-            <UniversalSearchBar
-              bg={theme.colors.elevation.level1}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search settings"
-              autoFocus
-              containerStyle={{ marginHorizontal: 0 }}
-            />
-          ) : undefined
-        }
-        rightIcon={searchOpen ? "close" : "magnify"}
-        onRightPress={handleToggleSearch}
-        rightAccessibilityLabel={
-          searchOpen ? "Close settings search" : "Open settings search"
-        }
+        query={query}
+        onQueryChange={setQuery}
+        searchOpen={searchOpen}
+        onSearchOpenChange={setSearchOpen}
+        placeholder="Search settings"
       />
       <ScrollView
-        ref={scrollRef}
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -478,15 +590,25 @@ export function MainSettingsScreen() {
           </>
         ) : (
           <>
-            <SectionLabel label="Management" />
+            <SectionLabel label="Current workspace" />
             <SheetCard theme={theme}>
               <ActionRow
-                icon="briefcase-outline"
-                label="Workspaces"
-                description="Track personal, family, or project budgets"
-                onPress={() => navigation.navigate("Workspaces")}
+                icon={activeWorkspace?.icon ?? "briefcase-outline"}
+                label={activeWorkspace?.name ?? "Workspace"}
+                description={formatLastBackupDescription(activeWorkspace)}
+                onPress={openWorkspacesModal}
                 theme={theme}
+                iconColor={activeWorkspace?.color ?? theme.colors.primary}
+                iconBackgroundColor={
+                  activeWorkspace?.color
+                    ? `${activeWorkspace.color}22`
+                    : theme.colors.primaryContainer
+                }
               />
+            </SheetCard>
+
+            <SectionLabel label="Management" />
+            <SheetCard theme={theme}>
               <ActionRow
                 icon="tag-multiple-outline"
                 label="Categories"
@@ -515,45 +637,72 @@ export function MainSettingsScreen() {
                 onPress={() => navigation.navigate("Data")}
                 theme={theme}
               />
+              <ActionRow
+                icon="tune-variant"
+                label="Defaults"
+                description="Currency, account, and category defaults"
+                onPress={() => navigation.navigate("Defaults")}
+                theme={theme}
+              />
             </SheetCard>
 
             <SectionLabel label="Preferences" />
             <SheetCard theme={theme}>
               <ActionRow
                 icon="palette-outline"
-                label="Appearances"
+                label="Appearance"
                 description="Personalize the look and feel of Tally"
-                onPress={() => navigation.navigate("Appearances")}
+                onPress={openAppearanceModal}
+                theme={theme}
+              />
+              <ActionRow
+                icon="view-dashboard-outline"
+                label="Interface"
+                description="Navigation and visual interface options"
+                onPress={openInterfaceModal}
+                theme={theme}
+              />
+              <ActionRow
+                icon="bell-outline"
+                label="Notifications"
+                description="Reminders and insight prompts"
+                onPress={openNotificationsModal}
+                theme={theme}
+              />
+              <ActionRow
+                icon="shield-lock-outline"
+                label="Security"
+                description="Biometric lock options"
+                onPress={openSecurityModal}
                 theme={theme}
               />
             </SheetCard>
 
-            <View
-              onLayout={(event) =>
-                setSecuritySectionY(event.nativeEvent.layout.y)
-              }
-            >
-              <SectionLabel label="Security" />
-            </View>
+            <SectionLabel label="Support" />
             <SheetCard theme={theme}>
-              <BiometricSettingsRow />
-            </SheetCard>
-
-            <View
-              onLayout={(event) =>
-                setNotificationsSectionY(event.nativeEvent.layout.y)
-              }
-            >
-              <SectionLabel label="Notifications" />
-            </View>
-            <SheetCard theme={theme}>
-              <DailyReminderRows
-                enabled={dailyReminderEnabled}
-                reminders={dailyReminderTimes}
-                onAddReminder={handleAddDailyReminderTime}
-                onRemoveReminder={handleRemoveDailyReminderTime}
-                onToggle={handleDailyReminderToggle}
-                onTimeChange={handleDailyReminderTimeChange}
+              <ActionRow
+                icon="heart-outline"
+                label="Support Development"
+                description="Help fund future updates"
+                onPress={() => openBetaContactModal("support")}
+                theme={theme}
+                showChevron
+              />
+              <ActionRow
+                icon="message-alert-outline"
+                label="Report an Issue"
+                description="Help improve Tally"
+                onPress={() => openBetaContactModal("report")}
+                theme={theme}
+                showChevron
+              />
+              <ActionRow
+                icon="lightbulb-outline"
+                label="Suggest a Feature"
+                description="Share your ideas with us"
+                onPress={() => openBetaContactModal("request")}
+                theme={theme}
+                showChevron
               />
             </SheetCard>
 
@@ -569,17 +718,10 @@ export function MainSettingsScreen() {
                 />
               ) : null}
               <ActionRow
-                icon="flask-outline"
-                label="Labs"
-                description="Try upcoming features and experiments"
-                onPress={() => navigation.navigate("Labs")}
-                theme={theme}
-              />
-              <ActionRow
                 icon="information-outline"
                 label="About"
                 description="Version information, credits, and policies"
-                onPress={() => navigation.navigate("About")}
+                onPress={openAboutModal}
                 theme={theme}
               />
             </SheetCard>
@@ -587,15 +729,217 @@ export function MainSettingsScreen() {
         )}
       </ScrollView>
 
-      <PermissionRequestModal
-        isOpen={notificationAccessPromptOpen}
-        title="Notification access needed"
-        message="Notification access is needed to get daily notifications."
-        primaryLabel="Allow again"
-        secondaryLabel="Not now"
-        onPrimary={handleRequestNotificationAccessAgain}
-        onSecondary={() => setNotificationAccessPromptOpen(false)}
+      <WorkspacesModal
+        visible={workspacesOpen}
+        onDismiss={() => setWorkspacesOpen(false)}
+        onOpenWorkspaceEdit={openWorkspaceEditFromModal}
       />
+
+      <AppearanceModal
+        visible={appearanceOpen}
+        onDismiss={() => setAppearanceOpen(false)}
+      />
+
+      <InterfaceModal
+        visible={interfaceOpen}
+        onDismiss={() => setInterfaceOpen(false)}
+      />
+
+      <NotificationsModal
+        visible={notificationsOpen}
+        onDismiss={() => setNotificationsOpen(false)}
+      />
+
+      <SecurityModal
+        visible={securityOpen}
+        onDismiss={() => setSecurityOpen(false)}
+      />
+
+      <BetaContactModal
+        visible={betaContactScenario !== null}
+        scenario={betaContactScenario ?? "support"}
+        onDismiss={closeBetaContactModal}
+      />
+
+      <AnimatedPaperModal
+        visible={aboutOpen}
+        onDismiss={closeAboutModal}
+        presentation="sheet"
+        contentContainerStyle={{
+          backgroundColor: theme.colors.background,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          maxHeight: "92%",
+        }}
+      >
+        <View style={styles.handleWrap}>
+          <View
+            style={[
+              styles.handle,
+              { backgroundColor: theme.colors.outlineVariant },
+            ]}
+          />
+        </View>
+        <SettingsHeader title="About" onBack={closeAboutModal} />
+        <ScrollView
+          contentContainerStyle={SettingsStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionLabel label="Info" />
+          <SheetCard theme={theme}>
+            <ActionRow
+              icon="cellphone-information"
+              label="About App"
+              description="More details about Tally"
+              onPress={openAboutBetaContactModal}
+              theme={theme}
+              showChevron
+            />
+            <ActionRow
+              icon="account-hard-hat-outline"
+              label="About Dev"
+              description="More details about the developer"
+              onPress={openAboutBetaContactModal}
+              theme={theme}
+              showChevron
+            />
+          </SheetCard>
+
+          <SectionLabel label="Legal" />
+          <SheetCard theme={theme}>
+            <ActionRow
+              icon="shield-check-outline"
+              label="Privacy Policy"
+              description="How your data is handled"
+              onPress={openAboutBetaContactModal}
+              theme={theme}
+              showChevron
+            />
+            <ActionRow
+              icon="file-document-outline"
+              label="Open Source Licenses"
+              description="Third-party acknowledgements"
+              onPress={openAboutBetaContactModal}
+              theme={theme}
+              showChevron
+            />
+          </SheetCard>
+
+          <SectionLabel label="Version" />
+          <SheetCard theme={theme}>
+            <ActionRow
+              icon="information-outline"
+              label="Version"
+              description="Installed app build"
+              onPress={handleDeveloperTap}
+              theme={theme}
+              showChevron={false}
+              rightElement={
+                <Text
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: "600",
+                  }}
+                >
+                  {appVersion}
+                </Text>
+              }
+            />
+          </SheetCard>
+        </ScrollView>
+      </AnimatedPaperModal>
+
+      <AnimatedPaperModal
+        visible={passcodeOpen}
+        onDismiss={() => {
+          setPasscodeOpen(false);
+          setPasscode("");
+        }}
+        presentation="sheet"
+        keyboardAware
+        contentContainerStyle={{
+          justifyContent: "flex-end",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.background,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 12,
+            paddingHorizontal: 20,
+            paddingBottom: 24,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 42,
+              height: 4,
+              borderRadius: 999,
+              backgroundColor: theme.colors.outlineVariant,
+              marginBottom: 14,
+            }}
+          />
+
+          <View style={{ paddingHorizontal: 4, gap: 14 }}>
+            <View style={{ gap: 4 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.colors.onSurface,
+                }}
+              >
+                Enter Developer Code
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  lineHeight: 18,
+                  color: theme.colors.onSurfaceVariant,
+                }}
+              >
+                Unlock developer tools for this app session.
+              </Text>
+            </View>
+
+            <TextInput
+              mode="outlined"
+              label="Passcode"
+              value={passcode}
+              onChangeText={(value) =>
+                setPasscode(value.replace(/[^0-9]/g, "").slice(0, 4))
+              }
+              keyboardType="number-pad"
+              secureTextEntry={false}
+              maxLength={4}
+              autoFocus
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleUnlockDeveloperTools}
+              disabled={passcode.length !== 4}
+            >
+              Unlock
+            </Button>
+          </View>
+        </View>
+      </AnimatedPaperModal>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  handle: {
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 10,
+  },
+});

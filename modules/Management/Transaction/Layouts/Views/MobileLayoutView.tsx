@@ -1,4 +1,3 @@
-import { useStagger } from "@/components/animations/UseStagger";
 import { EmptyState } from "@/components/EmptyStates";
 import { SectionLabel } from "@/components/SectionLabel";
 import {
@@ -20,7 +19,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
-  Animated,
   FlatList,
   LayoutAnimation,
   Platform,
@@ -50,7 +48,6 @@ type TransactionListRowItem = {
   transaction: Transaction;
   groupPosition: TransactionGroupPosition;
   showDivider: boolean;
-  animIndex: number;
 };
 
 type TransactionListSpacerItem = {
@@ -247,8 +244,6 @@ export function MobileLayout({
   const hasVisibleTransactions =
     visibleExpenseTransactions.length > 0 ||
     visibleIncomeTransactions.length > 0;
-  const totalVisibleTransactionCount =
-    visibleExpenseTransactions.length + visibleIncomeTransactions.length;
   const averageSpendPerDay = useMemo(() => {
     if (visibleExpenseTransactions.length === 0) {
       return 0;
@@ -271,8 +266,6 @@ export function MobileLayout({
 
     return totalVisibleExpense / activeExpenseDates.size;
   }, [visibleExpenseTransactions]);
-  const shouldAnimateRows =
-    totalVisibleTransactionCount > 0 && totalVisibleTransactionCount <= 24;
   const scopeLabel =
     transactionSearchScope === "all"
       ? "ALL"
@@ -301,7 +294,6 @@ export function MobileLayout({
       visibleIncomeTransactions,
     ].filter((group) => group.length > 0);
     const rows: TransactionListItem[] = [];
-    let animIndex = 0;
 
     groups.forEach((group, groupIndex) => {
       group.forEach((transaction, index) => {
@@ -322,9 +314,7 @@ export function MobileLayout({
           transaction,
           groupPosition,
           showDivider: !isLast,
-          animIndex,
         });
-        animIndex += 1;
       });
 
       if (groupIndex < groups.length - 1) {
@@ -337,24 +327,6 @@ export function MobileLayout({
 
     return rows;
   }, [visibleExpenseTransactions, visibleIncomeTransactions]);
-
-  const { getAnimStyle } = useStagger({
-    count: shouldAnimateRows ? totalVisibleTransactionCount : 0,
-    dataKey: shouldAnimateRows
-      ? `${selectedDate}-${transactionSearchScope}-${flatListItems
-          .filter(
-            (item): item is TransactionListRowItem =>
-              item.type === "transaction",
-          )
-          .map((item) => item.transaction.id)
-          .join(",")}`
-      : `${selectedDate}-${transactionSearchScope}-static`,
-    stagger: 45,
-    distance: 12,
-    duration: 260,
-    baseDelay: 80,
-    autoPlay: shouldAnimateRows,
-  });
 
   const handleAddTransaction = useCallback(() => {
     onAddPress(activeTab, selectedDate);
@@ -383,19 +355,8 @@ export function MobileLayout({
         return <View style={{ height: 14 }} />;
       }
 
-      const wrapperStyle = shouldAnimateRows
-        ? getAnimStyle(item.animIndex)
-        : undefined;
-
       return (
-        <Animated.View
-          style={[
-            wrapperStyle,
-            {
-              marginHorizontal: 20,
-            },
-          ]}
-        >
+        <View style={{ marginHorizontal: 20 }}>
           <TransactionRow
             transaction={item.transaction}
             onPressTransaction={onEdit}
@@ -403,10 +364,10 @@ export function MobileLayout({
             groupPosition={item.groupPosition}
             showDivider={item.showDivider}
           />
-        </Animated.View>
+        </View>
       );
     },
-    [getAnimStyle, onEdit, shouldAnimateRows],
+    [onEdit],
   );
 
   const listHeader = useMemo(
@@ -443,7 +404,7 @@ export function MobileLayout({
           textColor={theme.colors.onSurface}
           muted={theme.colors.onSurfaceVariant}
         />
-        <SectionLabel label={sectionLabel} theme={theme} />
+        <SectionLabel label={sectionLabel} />
       </>
     ),
     [

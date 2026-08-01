@@ -1,104 +1,94 @@
 import { AlertModal } from "@/components/alert/AlertModal";
-import { SheetCard } from "@/components/SheetCard";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import {
   deleteWorkspaceAndReload,
+  fetchWorkspaces,
   selectActiveWorkspaceId,
   selectWorkspaces,
   switchWorkspaceAndReload,
 } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import {
-  Alert,
-  Animated,
-  Easing,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import { Text, useTheme } from "react-native-paper";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import { SectionLabel } from "../Components/SectionLabel";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { ActivityIndicator, Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
 
-export function WorkspacesScreen() {
+type WorkspacesModalProps = {
+  visible: boolean;
+  onDismiss: () => void;
+  onOpenWorkspaceEdit: (workspace?: Workspace) => void;
+};
+
+export function WorkspacesModal({
+  visible,
+  onDismiss,
+  onOpenWorkspaceEdit,
+}: WorkspacesModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const dispatch = useAppDispatch();
   const workspaces = useAppSelector(selectWorkspaces);
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
-
-  const [workspaceDeleteTarget, setWorkspaceDeleteTarget] =
-    useState<Workspace | null>(null);
-  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
-  const [chargingWorkspaceId, setChargingWorkspaceId] = useState<string | null>(
-    null,
+  const workspacesLoading = useAppSelector(
+    (state) => state.workspace.isLoading,
   );
+  const workspacesError = useAppSelector((state) => state.workspace.error);
+
   const [switchingWorkspaceId, setSwitchingWorkspaceId] = useState<
     string | null
   >(null);
-  const chargeProgress = React.useRef(new Animated.Value(0)).current;
-  const splashScale = React.useRef(new Animated.Value(0)).current;
-  const splashOpacity = React.useRef(new Animated.Value(0)).current;
-  const switchCompletedRef = React.useRef(false);
-
-  const splashSize = Math.max(width, height) * 2.4;
-  const splashPosition = {
-    left: width / 2 - splashSize / 2,
-    top: height / 2 - splashSize / 2,
-  };
-
-  React.useEffect(() => {
-    return () => {
-      chargeProgress.stopAnimation();
-      splashScale.stopAnimation();
-      splashOpacity.stopAnimation();
-    };
-  }, [chargeProgress, splashOpacity, splashScale]);
+  const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+  const [showDeleteBlockedAlert, setShowDeleteBlockedAlert] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleWorkspaces = normalizedQuery
+    ? workspaces.filter((workspace) =>
+        [
+          workspace.name,
+          workspace.ownerName,
+          workspace.icon,
+          activeWorkspaceId === workspace.id ? "active" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      )
+    : workspaces;
 
   const openWorkspaceModal = () => {
-    navigation.navigate({ name: "WorkspaceEdit", params: {} });
+    onOpenWorkspaceEdit();
   };
 
   const openEditWorkspaceModal = (workspace: Workspace) => {
-    navigation.navigate("WorkspaceEdit", { workspace });
+    onOpenWorkspaceEdit(workspace);
   };
 
   const handleDeleteWorkspace = (workspace: Workspace) => {
     if (workspaces.length <= 1) {
-      Alert.alert(
-        "Can't delete workspace",
-        "Tally needs at least one workspace.",
-      );
+      setShowDeleteBlockedAlert(true);
       return;
     }
-    setWorkspaceDeleteTarget(workspace);
+    setDeleteTarget(workspace);
   };
 
   const handleConfirmWorkspaceDelete = async () => {
-    if (!workspaceDeleteTarget || isDeletingWorkspace) return false;
+    if (!deleteTarget || isDeletingWorkspace) return false;
 
     try {
       setIsDeletingWorkspace(true);
-      await dispatch(deleteWorkspaceAndReload(workspaceDeleteTarget.id) as any);
-      toast.success(`${workspaceDeleteTarget.name} Workspace deleted`);
-      setWorkspaceDeleteTarget(null);
+      await dispatch(deleteWorkspaceAndReload(deleteTarget.id) as any);
+      toast.success(`${deleteTarget.name} workspace deleted`);
+      setDeleteTarget(null);
       return true;
     } catch {
       toast.error("Couldn't delete workspace");
@@ -108,309 +98,335 @@ export function WorkspacesScreen() {
     }
   };
 
+  React.useEffect(() => {
+    if (visible) return;
+    setQuery("");
+    setSearchOpen(false);
+  }, [visible]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+
+    void dispatch(fetchWorkspaces() as any);
+  }, [dispatch, visible]);
+
   const finishWorkspaceSwitch = React.useCallback(
     async (workspace: Workspace) => {
+      if (workspace.id === activeWorkspaceId || switchingWorkspaceId) return;
       setSwitchingWorkspaceId(workspace.id);
-      splashScale.setValue(0);
-      splashOpacity.setValue(1);
-
-      Animated.timing(splashScale, {
-        toValue: 1,
-        duration: 760,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-
-      await new Promise<void>((resolve) => setTimeout(resolve, 520));
 
       try {
         await dispatch(switchWorkspaceAndReload(workspace.id) as any);
       } catch {
-        toast.error(`Couldn't switch to ${workspace.name}`);
+        // The active workspace is switched optimistically before reload work.
+        // Avoid showing a false failure when follow-up refresh work rejects.
+        console.log(
+          `Workspace refresh after switching to ${workspace.name} failed`,
+        );
       } finally {
-        Animated.sequence([
-          Animated.delay(260),
-          Animated.timing(splashOpacity, {
-            toValue: 0,
-            duration: 420,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setSwitchingWorkspaceId(null);
-          switchCompletedRef.current = false;
-          splashScale.setValue(0);
-        });
+        toast.success(`${workspace.name} workspace changed`);
+        setSwitchingWorkspaceId(null);
       }
     },
-    [dispatch, splashOpacity, splashScale],
+    [activeWorkspaceId, dispatch, switchingWorkspaceId],
   );
 
-  const startWorkspaceSwitchCharge = React.useCallback(
-    (workspace: Workspace, active: boolean) => {
-      if (active || chargingWorkspaceId || switchingWorkspaceId) return;
-
-      switchCompletedRef.current = false;
-      setChargingWorkspaceId(workspace.id);
-      chargeProgress.setValue(0);
-
-      Animated.timing(chargeProgress, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }).start(({ finished }) => {
-        if (!finished) return;
-        switchCompletedRef.current = true;
-        setChargingWorkspaceId(null);
-        void finishWorkspaceSwitch(workspace);
-      });
-    },
-    [
-      chargeProgress,
-      chargingWorkspaceId,
-      finishWorkspaceSwitch,
-      switchingWorkspaceId,
-    ],
-  );
-
-  const cancelWorkspaceSwitchCharge = React.useCallback(() => {
-    if (switchCompletedRef.current) return;
-
-    chargeProgress.stopAnimation(() => {
-      Animated.timing(chargeProgress, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: false,
-      }).start(() => setChargingWorkspaceId(null));
-    });
-  }, [chargeProgress]);
-
-  return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
+  const renderEditAction = (workspace: Workspace) => (
+    <Pressable
+      accessibilityLabel={`Edit ${workspace.name}`}
+      accessibilityRole="button"
+      onPress={() => openEditWorkspaceModal(workspace)}
+      style={({ pressed }) => [
+        styles.swipeAction,
+        styles.swipeActionRight,
+        {
+          backgroundColor: theme.colors.primaryContainer,
+          opacity: pressed ? 0.72 : 1,
+        },
       ]}
     >
-      <SettingsHeader title="Workspaces" onBack={() => navigation.goBack()} />
-      <ScrollView
-        contentContainerStyle={[
-          SettingsStyles.scrollContent,
-          { paddingBottom: 116 + insets.bottom },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <SectionLabel label="Workspaces" />
-        {workspaces.map((workspace) => {
-          const active = activeWorkspaceId === workspace.id;
-          const canDelete = workspaces.length > 1 && !active;
-          const charging = chargingWorkspaceId === workspace.id;
-          return (
-            <SheetCard
-              key={workspace.id}
-              theme={theme}
-              style={{ marginBottom: 12 }}
-            >
-              {charging ? (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.chargeFill,
-                    {
-                      backgroundColor: workspace.color,
-                      opacity: chargeProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.12, 0.3],
-                      }),
-                      width: chargeProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["0%", "100%"],
-                      }),
-                    },
-                  ]}
-                />
-              ) : null}
-              <Pressable
-                accessibilityHint={
-                  active
-                    ? `${workspace.name} is the active workspace`
-                    : `Hold until the card fills to switch to ${workspace.name}`
-                }
-                accessibilityLabel={
-                  active
-                    ? `${workspace.name} workspace, active`
-                    : `Hold to switch to ${workspace.name}`
-                }
-                onPressIn={() => startWorkspaceSwitchCharge(workspace, active)}
-                onPressOut={cancelWorkspaceSwitchCharge}
-                style={({ pressed }) => ({
-                  opacity: pressed && !active ? 0.78 : 1,
-                })}
-              >
-                <View style={styles.workspaceRow}>
-                  <View
-                    style={[
-                      styles.workspaceIcon,
-                      { backgroundColor: theme.colors.background },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={workspace.icon as any}
-                      size={18}
-                      color={workspace.color}
-                    />
-                  </View>
+      <MaterialCommunityIcons
+        name="pencil-outline"
+        size={22}
+        color={theme.colors.primary}
+      />
+    </Pressable>
+  );
 
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text
-                      style={[
-                        SettingsStyles.rowTitle,
-                        {
-                          color: theme.colors.onSurface,
-                          fontWeight: active ? "600" : "500",
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {workspace.name}
-                    </Text>
-                    <Text
-                      style={[
-                        SettingsStyles.rowSub,
-                        { color: theme.colors.onSurfaceVariant, marginTop: 2 },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {workspace.ownerName || workspace.name}
-                    </Text>
-                  </View>
+  const renderDeleteAction = (workspace: Workspace) => (
+    <Pressable
+      accessibilityLabel={`Delete ${workspace.name}`}
+      accessibilityRole="button"
+      onPress={() => handleDeleteWorkspace(workspace)}
+      style={({ pressed }) => [
+        styles.swipeAction,
+        styles.swipeActionLeft,
+        {
+          backgroundColor: theme.colors.errorContainer,
+          opacity: pressed ? 0.72 : 1,
+        },
+      ]}
+    >
+      <MaterialCommunityIcons
+        name="delete-outline"
+        size={22}
+        color={theme.colors.error}
+      />
+    </Pressable>
+  );
 
-                  <View
-                    style={[
-                      styles.workspaceDivider,
-                      { backgroundColor: theme.colors.outlineVariant },
-                    ]}
-                  />
-
-                  <View style={styles.workspaceStatus}>
-                    <Text
-                      style={{
-                        color: theme.colors.onSurface,
-                        fontSize: 13,
-                        fontWeight: "700",
-                      }}
-                    >
-                      {workspace.currencyCode}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        marginTop: 3,
-                        color: active
-                          ? theme.colors.primary
-                          : theme.colors.onSurfaceVariant,
-                        opacity: active ? 1 : 0.7,
-                      }}
-                    >
-                      {active ? "Active" : "Hold to switch"}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.workspaceDivider,
-                      { backgroundColor: theme.colors.outlineVariant },
-                    ]}
-                  />
-
-                  <Pressable
-                    accessibilityLabel={`Edit ${workspace.name}`}
-                    hitSlop={8}
-                    onPress={() => openEditWorkspaceModal(workspace)}
-                    style={({ pressed }) => [
-                      styles.workspaceActionButton,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="pencil-outline"
-                      size={15}
-                      color={theme.colors.primary}
-                    />
-                  </Pressable>
-
-                  <View
-                    style={[
-                      styles.workspaceDivider,
-                      { backgroundColor: theme.colors.outlineVariant },
-                    ]}
-                  />
-
-                  <Pressable
-                    accessibilityLabel={`Delete ${workspace.name}`}
-                    disabled={!canDelete}
-                    hitSlop={8}
-                    onPress={() => handleDeleteWorkspace(workspace)}
-                    style={({ pressed }) => [
-                      styles.workspaceActionButton,
-                      { opacity: !canDelete ? 0.35 : pressed ? 0.6 : 1 },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="trash-can-outline"
-                      size={15}
-                      color={theme.colors.error}
-                    />
-                  </Pressable>
-                </View>
-              </Pressable>
-            </SheetCard>
-          );
-        })}
-      </ScrollView>
-
-      <View
-        style={[
-          styles.stickyAddWrap,
-          {
-            paddingBottom: Math.max(insets.bottom, 12),
-            backgroundColor: theme.colors.background,
-          },
-        ]}
-      >
-        <Pressable
-          onPress={openWorkspaceModal}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            borderRadius: 18,
-            paddingVertical: 15,
-            backgroundColor: theme.colors.primary,
-            opacity: pressed ? 0.78 : 1,
-          })}
-        >
-          <MaterialCommunityIcons
-            name="plus"
-            size={18}
-            color={theme.colors.onPrimary}
-          />
-          <Text
-            style={{
-              color: theme.colors.onPrimary,
-              fontSize: 14,
-              fontWeight: "700",
-            }}
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onDismiss}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+      keyboardAware
+      includeBottomInset={false}
+    >
+      <View style={styles.handleWrap}>
+        <View
+          style={[
+            styles.handle,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+      </View>
+      <SettingsHeader
+        title="Workspaces"
+        onBack={onDismiss}
+        query={query}
+        onQueryChange={setQuery}
+        searchOpen={searchOpen}
+        onSearchOpenChange={setSearchOpen}
+        searchPlaceholder="Search workspaces"
+        rightAccessoryBeforeSearch={
+          <Pressable
+            accessibilityLabel="Add workspace"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={openWorkspaceModal}
+            style={({ pressed }) => ({
+              alignItems: "center",
+              backgroundColor: theme.colors.primary,
+              borderRadius: 16,
+              height: 32,
+              justifyContent: "center",
+              opacity: pressed ? 0.72 : 1,
+              width: 32,
+            })}
           >
-            Add Workspace
-          </Text>
-        </Pressable>
+            <MaterialCommunityIcons
+              name="plus"
+              size={18}
+              color={theme.colors.onPrimary}
+            />
+          </Pressable>
+        }
+        modal
+      />
+      <View style={styles.workspaceBody}>
+        <KeyboardAwareScrollView
+          bottomOffset={96 + insets.bottom}
+          contentContainerStyle={[
+            SettingsStyles.scrollContent,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.workspaceScroll}
+        >
+          {workspacesLoading && workspaces.length === 0 ? (
+            <View
+              style={[
+                styles.emptySearch,
+                {
+                  backgroundColor: theme.colors.elevation.level1,
+                  borderColor: theme.colors.outlineVariant,
+                },
+              ]}
+            >
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+              <Text
+                style={[
+                  styles.emptySearchTitle,
+                  { color: theme.colors.onSurface },
+                ]}
+              >
+                Loading workspaces
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.workspaceList}>
+              {visibleWorkspaces.map((workspace) => {
+                const active = activeWorkspaceId === workspace.id;
+                return (
+                  <View key={workspace.id} style={styles.swipeRowClip}>
+                    <Swipeable
+                      overshootLeft={false}
+                      overshootRight={false}
+                      renderLeftActions={() => renderDeleteAction(workspace)}
+                      renderRightActions={() => renderEditAction(workspace)}
+                    >
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={
+                          active
+                            ? `${workspace.name} is selected`
+                            : `Switch to ${workspace.name}`
+                        }
+                        disabled={active || Boolean(switchingWorkspaceId)}
+                        onPress={() => void finishWorkspaceSwitch(workspace)}
+                        style={({ pressed }) => [
+                          styles.workspaceRow,
+                          {
+                            backgroundColor: theme.colors.elevation.level1,
+                            opacity: pressed ? 0.72 : 1,
+                          },
+                        ]}
+                      >
+                        <View style={styles.workspaceRowInner}>
+                          <View
+                            accessibilityLabel={`${workspace.name} workspace`}
+                            style={styles.workspaceMainPressable}
+                          >
+                            <View style={styles.workspaceRowMain}>
+                              <View
+                                style={[
+                                  styles.workspaceIcon,
+                                  { backgroundColor: workspace.color },
+                                ]}
+                              >
+                                <MaterialCommunityIcons
+                                  name={workspace.icon as any}
+                                  size={22}
+                                  color="#fff"
+                                />
+                              </View>
+
+                              <View style={styles.workspaceTextWrap}>
+                                <Text
+                                  style={[
+                                    styles.workspaceTitle,
+                                    { color: theme.colors.onSurface },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {workspace.name}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                          <View style={styles.workspaceSelectIcon}>
+                            <MaterialCommunityIcons
+                              name={active ? "check-circle" : "circle-outline"}
+                              size={20}
+                              color={
+                                active
+                                  ? workspace.color
+                                  : `${workspace.color}99`
+                              }
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
+                    </Swipeable>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {!workspacesLoading && workspaces.length === 0 ? (
+            <View
+              style={[
+                styles.emptySearch,
+                {
+                  backgroundColor: theme.colors.elevation.level1,
+                  borderColor: theme.colors.outlineVariant,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="briefcase-plus-outline"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+              <Text
+                style={[
+                  styles.emptySearchTitle,
+                  { color: theme.colors.onSurface },
+                ]}
+              >
+                No workspaces yet
+              </Text>
+              <Text
+                style={[
+                  styles.emptySearchText,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
+                {workspacesError ??
+                  "Create a workspace to start tracking here."}
+              </Text>
+            </View>
+          ) : null}
+          {normalizedQuery &&
+          workspaces.length > 0 &&
+          visibleWorkspaces.length === 0 ? (
+            <View
+              style={[
+                styles.emptySearch,
+                {
+                  backgroundColor: theme.colors.elevation.level1,
+                  borderColor: theme.colors.outlineVariant,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="magnify-close"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+              <Text
+                style={[
+                  styles.emptySearchTitle,
+                  { color: theme.colors.onSurface },
+                ]}
+              >
+                No workspaces found
+              </Text>
+              <Text
+                style={[
+                  styles.emptySearchText,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
+                Try another workspace name or owner.
+              </Text>
+            </View>
+          ) : null}
+        </KeyboardAwareScrollView>
       </View>
 
-      {workspaceDeleteTarget ? (
+      <AlertModal
+        confirmLabel="OK"
+        icon="alert-circle-outline"
+        isOpen={showDeleteBlockedAlert}
+        message="Tally needs at least one workspace."
+        onCancel={() => setShowDeleteBlockedAlert(false)}
+        onConfirm={() => {
+          setShowDeleteBlockedAlert(false);
+        }}
+        title="Can't delete workspace"
+      />
+      {deleteTarget ? (
         <AlertModal
           cancelLabel="Cancel"
           confirmDisabled={isDeletingWorkspace}
@@ -418,95 +434,114 @@ export function WorkspacesScreen() {
           confirmMode="slide"
           destructive
           icon="delete-alert-outline"
-          isOpen={Boolean(workspaceDeleteTarget)}
+          isOpen={Boolean(deleteTarget)}
           message="This will permanently delete the workspace."
-          onCancel={() => setWorkspaceDeleteTarget(null)}
+          onCancel={() => setDeleteTarget(null)}
           onConfirm={handleConfirmWorkspaceDelete}
-          onTertiary={() => {
-            setWorkspaceDeleteTarget(null);
-            navigation.navigate("Data");
-          }}
-          tertiaryLabel="Export"
-          title={`Delete ${workspaceDeleteTarget.name}?`}
+          title={`Delete ${deleteTarget.name}?`}
         />
       ) : null}
-
-      <Modal
-        animationType="none"
-        onRequestClose={() => {}}
-        statusBarTranslucent
-        transparent
-        visible={Boolean(switchingWorkspaceId)}
-      >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.splash,
-            {
-              width: splashSize,
-              height: splashSize,
-              borderRadius: splashSize / 2,
-              backgroundColor: theme.colors.primary,
-              opacity: splashOpacity,
-              transform: [{ scale: splashScale }],
-              left: splashPosition.left,
-              top: splashPosition.top,
-            },
-          ]}
-        />
-      </Modal>
-    </SafeAreaView>
+    </AnimatedPaperModal>
   );
 }
 
 const styles = StyleSheet.create({
-  chargeFill: {
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    top: 0,
+  handle: {
+    borderRadius: 999,
+    height: 4,
+    width: 42,
   },
-  splash: {
-    position: "absolute",
-  },
-  stickyAddWrap: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 0,
-    paddingTop: 8,
-  },
-  workspaceActionButton: {
+  handleWrap: {
     alignItems: "center",
-    borderRadius: 9,
-    height: 28,
-    justifyContent: "center",
-    width: 28,
+    paddingTop: 10,
   },
-  workspaceDivider: {
-    alignSelf: "stretch",
-    flexShrink: 0,
-    marginHorizontal: 4,
-    width: StyleSheet.hairlineWidth,
+  emptySearch: {
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 0.5,
+    gap: 6,
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 22,
+  },
+  emptySearchText: {
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: "center",
+  },
+  emptySearchTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+  workspaceList: {
+    gap: 10,
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  workspaceBody: {
+    flexShrink: 1,
+    minHeight: 120,
+  },
+  workspaceScroll: {
+    flexShrink: 1,
+  },
+  swipeAction: {
+    alignItems: "center",
+    height: "100%",
+    justifyContent: "center",
+    width: 80,
+  },
+  swipeActionLeft: {
+    paddingRight: 16,
+  },
+  swipeActionRight: {
+    paddingLeft: 16,
+  },
+  swipeRowClip: {
+    borderRadius: 16,
+    overflow: "hidden",
   },
   workspaceIcon: {
     alignItems: "center",
-    borderRadius: 11,
-    height: 40,
+    borderRadius: 22,
+    height: 44,
     justifyContent: "center",
-    width: 40,
+    width: 44,
   },
   workspaceRow: {
+    minHeight: 72,
+  },
+  workspaceRowInner: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flex: 1,
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  workspaceStatus: {
+  workspaceSelectIcon: {
     alignItems: "center",
-    flexShrink: 0,
+    height: 36,
     justifyContent: "center",
-    width: 72,
+    width: 36,
+  },
+  workspaceRowMain: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 14,
+  },
+  workspaceTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  workspaceMainPressable: {
+    flex: 1,
+  },
+  workspaceTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
   },
 });

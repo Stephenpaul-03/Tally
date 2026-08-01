@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useAppShell, type ShellTab } from "@/components/AppShellContext";
+import { useTabBarHeight } from "@/components/tabbar/TabBarContext";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
-import { UniversalSearchBar } from "@/components/UniversalSearchBar";
+import { navigationRef } from "@/navigation/RootNavigation";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, {
@@ -15,6 +16,7 @@ import {
   Keyboard,
   Pressable,
   StyleSheet,
+  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -31,6 +33,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ActiveTab = "default" | "left" | "right";
 type ControlButtonIcon = React.ComponentProps<
@@ -66,17 +69,19 @@ type GestureControlButtons = {
 type GestureDualCardLayoutViewProps = {
   controlButtons?: GestureControlButtons;
   children: React.ReactNode;
+  topContent?: React.ReactNode;
 };
 
 const CONTROL_BAR_HEIGHT = 64;
 const CARD_RADIUS = 40;
 const HANDLE_HEIGHT = 34;
 const CONTROL_BAR_SIDE_PADDING = 20;
-
-const LEFT_TAB_TOP_RATIO = 0.1;
-const MAIN_TAB_TOP_RATIO = 0.3;
-const DEFAULT_INSIGHTS_TAB_TOP_RATIO = 0.77;
-const NO_TAB_BAR_INSIGHTS_TAB_TOP_RATIO = 0.85;
+const APP_HEADER_FALLBACK_HEIGHT = 68;
+const TRANSACTION_OPEN_TOP_STOP = 0;
+const MIN_SYSTEM_BOTTOM_CLEARANCE = 28;
+const COLLAPSED_BOTTOM_HANDLE_GAP = 10;
+const COLLAPSED_BOTTOM_HANDLE_GAP_NO_TAB_BAR = 0;
+const CUSTOM_TAB_BAR_BOTTOM_GAP = 0;
 
 // Once the control bar's buttons have fully faded out (see
 // controlBarDragOpacity below), the space between the two cards should
@@ -104,11 +109,19 @@ const BOTTOM_CARD_Z_INDEX = 1;
 
 // Used any time the split needs to settle to a resting position (drag
 // released without crossing the commit threshold, or a tab-bar tap
-// triggering the switch programmatically). Ease-out, no overshoot —
-// deliberately not a spring, so there's no bounce.
+// triggering the switch programmatically). Ease-in-out, no overshoot —
+// deliberately not a spring, so there's no bounce. A pure ease-out here
+// made the motion feel lopsided: it jumps to near-full-speed the instant
+// the animation starts, then spends the back half of the duration
+// crawling the last few percent toward the target. That made shrinking
+// the bottom card (transaction -> home) read as sluggish at the tail
+// end, and made the header's opacity — which rides this same value —
+// flash out almost immediately and then linger barely-visible for the
+// rest of the transition (home -> transaction). Easing both ends removes
+// the abrupt start, which is what reads as "jarring" / "not smooth".
 const SETTLE_CONFIG = {
   duration: 300,
-  easing: Easing.out(Easing.cubic),
+  easing: Easing.inOut(Easing.cubic),
 };
 const MOUNT_CARD_CONFIG = {
   duration: 1250,
@@ -306,9 +319,12 @@ function ControlButton({
 export function GestureDualCardLayoutView({
   controlButtons,
   children,
+  topContent,
 }: GestureDualCardLayoutViewProps) {
   const theme = useTheme();
   const { tabBarEnabled } = useTabBarModePreference();
+  const tabBarHeight = useTabBarHeight();
+  const { bottom: safeBottom } = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const {
     registerDriver,
@@ -317,19 +333,33 @@ export function GestureDualCardLayoutView({
     reportTabProgress,
     activeTab,
   } = useAppShell();
-  const [topAreaContent, bottomCard] = React.Children.toArray(children);
+  const bottomCard = children;
   const initialActiveTab = toActiveTab(activeTab);
   const mountAnimationStartedRef = useRef(false);
   const keyboardVisibleRef = useRef(false);
+  const searchInputRef = useRef<TextInput>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const insightsTabTopRatio = tabBarEnabled
-    ? DEFAULT_INSIGHTS_TAB_TOP_RATIO
-    : NO_TAB_BAR_INSIGHTS_TAB_TOP_RATIO;
+  const resolvedBottomNavigationClearance = tabBarEnabled
+    ? tabBarHeight + safeBottom + CUSTOM_TAB_BAR_BOTTOM_GAP
+    : Math.max(safeBottom, MIN_SYSTEM_BOTTOM_CLEARANCE);
+  const resolvedBottomClearance =
+    resolvedBottomNavigationClearance +
+    HANDLE_HEIGHT +
+    (tabBarEnabled
+      ? COLLAPSED_BOTTOM_HANDLE_GAP
+      : COLLAPSED_BOTTOM_HANDLE_GAP_NO_TAB_BAR);
   const initialScreenHeight = Math.max(1, windowHeight);
+  const initialBottomOpenStop = TRANSACTION_OPEN_TOP_STOP;
+  const initialTopOpenStop = Math.max(
+    APP_HEADER_FALLBACK_HEIGHT + MIN_CARD_GAP,
+    initialScreenHeight - CONTROL_BAR_HEIGHT - resolvedBottomClearance,
+  );
   const initialDefaultStop =
-    Math.max(1, initialScreenHeight - CONTROL_BAR_HEIGHT) * MAIN_TAB_TOP_RATIO;
+    initialBottomOpenStop + (initialTopOpenStop - initialBottomOpenStop) / 2;
   const screenHeight = useSharedValue(initialScreenHeight);
+  const topChromeHeight = useSharedValue(APP_HEADER_FALLBACK_HEIGHT);
+  const bottomEdgeClearance = useSharedValue(resolvedBottomClearance);
   const searchProgress = useSharedValue(0);
 
   // Whether each card is currently the "open" tab. Used to decide whether
@@ -377,11 +407,13 @@ export function GestureDualCardLayoutView({
     }),
     [controlButtons],
   );
+  const hasSearchControl = Boolean(resolvedControlButtons.rightMiddle.search);
 
   const palette = useMemo(
     () => ({
       screen: theme.colors.background,
       card: theme.colors.surface,
+      dock: theme.colors.surface,
     }),
     [theme],
   );
@@ -389,6 +421,18 @@ export function GestureDualCardLayoutView({
   useEffect(() => {
     searchProgress.value = withTiming(searchOpen ? 1 : 0, SEARCH_MORPH_CONFIG);
   }, [searchOpen, searchProgress]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    const animationFrame = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [searchOpen]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
@@ -414,25 +458,60 @@ export function GestureDualCardLayoutView({
     [resolvedControlButtons.rightMiddle.search],
   );
 
+  const handleOpenSettings = useCallback(() => {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate("Settings");
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === "insights") {
       closeSearch(true);
     }
   }, [activeTab, closeSearch]);
 
-  // The three stops topHeightValue can rest at. They intentionally map
-  // to the requested top/bottom split ratios:
-  // left tab 20/80, main tab 40/60, insights tab 88/12.
+  // The three stops topHeightValue can rest at. The extremes are component
+  // based: the lower tab starts where the control bar touches the top edge,
+  // and Insights leaves only the bottom navigation/system-bar clearance.
+  // The home/default tab lives halfway between those real component bounds.
   const getStops = useCallback(() => {
     "worklet";
-    const expandedCardsSpace = screenHeight.value - MIN_CARD_GAP;
-    const defaultCardsSpace = screenHeight.value - CONTROL_BAR_HEIGHT;
+    const topChromeStop = Math.max(1, topChromeHeight.value);
+    const bottomOpenStop = TRANSACTION_OPEN_TOP_STOP;
+    const topOpenStop = Math.max(
+      topChromeStop + MIN_CARD_GAP,
+      screenHeight.value - CONTROL_BAR_HEIGHT - bottomEdgeClearance.value,
+    );
+    const defaultStop = topChromeStop + (topOpenStop - topChromeStop) / 2;
+
     return {
-      bottomOpenStop: expandedCardsSpace * LEFT_TAB_TOP_RATIO,
-      defaultStop: defaultCardsSpace * MAIN_TAB_TOP_RATIO,
-      topOpenStop: expandedCardsSpace * insightsTabTopRatio,
+      bottomOpenStop,
+      defaultStop,
+      topOpenStop,
     };
-  }, [insightsTabTopRatio, screenHeight]);
+  }, [bottomEdgeClearance, screenHeight, topChromeHeight]);
+
+  useEffect(() => {
+    bottomEdgeClearance.value = resolvedBottomClearance;
+    if (!hasLaidOutRef.current) return;
+
+    const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
+    const target =
+      activeTabValue.value === 1
+        ? bottomOpenStop
+        : activeTabValue.value === 2
+          ? topOpenStop
+          : defaultStop;
+
+    cancelAnimation(topHeightValue);
+    topHeightValue.value = withTiming(target, SETTLE_CONFIG);
+  }, [
+    activeTabValue,
+    bottomEdgeClearance,
+    getStops,
+    resolvedBottomClearance,
+    topHeightValue,
+  ]);
 
   const resetShell = useCallback(() => {
     const initialTab = toActiveTab(activeTab);
@@ -466,6 +545,30 @@ export function GestureDualCardLayoutView({
 
   const hasLaidOutRef = useRef(false);
 
+  const handleTopChromeLayout = useCallback(
+    (height: number) => {
+      if (height <= 0) return;
+
+      const nextHeight = Math.max(1, height);
+      if (Math.abs(topChromeHeight.value - nextHeight) <= 0.5) return;
+
+      topChromeHeight.value = nextHeight;
+      if (!hasLaidOutRef.current) return;
+
+      const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
+      const target =
+        activeTabValue.value === 1
+          ? bottomOpenStop
+          : activeTabValue.value === 2
+            ? topOpenStop
+            : defaultStop;
+
+      cancelAnimation(topHeightValue);
+      topHeightValue.value = withTiming(target, SETTLE_CONFIG);
+    },
+    [activeTabValue, getStops, topChromeHeight, topHeightValue],
+  );
+
   const handleRootLayout = useCallback(
     (height: number) => {
       if (height <= 0) return; // ignore spurious/zero measurements entirely
@@ -490,7 +593,7 @@ export function GestureDualCardLayoutView({
               ? topOpenStop
               : defaultStop;
         cancelAnimation(topHeightValue);
-        topHeightValue.value = target;
+        topHeightValue.value = withTiming(target, SETTLE_CONFIG);
       }
 
       if (!mountAnimationStartedRef.current) {
@@ -529,6 +632,9 @@ export function GestureDualCardLayoutView({
 
       activeTabValue.value = nextTabValue;
       reportTab(toShellTab(nextTab));
+      if (nextTab !== "default") {
+        closeSearch(false);
+      }
 
       cancelAnimation(topHeightValue);
       const target =
@@ -539,7 +645,7 @@ export function GestureDualCardLayoutView({
             : defaultStop;
       topHeightValue.value = withTiming(target, SETTLE_CONFIG);
     },
-    [activeTabValue, getStops, reportTab, topHeightValue],
+    [activeTabValue, closeSearch, getStops, reportTab, topHeightValue],
   );
 
   useEffect(() => {
@@ -583,7 +689,6 @@ export function GestureDualCardLayoutView({
       .activeOffsetY([-10, 10])
       .failOffsetX([-18, 18])
       .onBegin(() => {
-        runOnJS(closeSearch)(true);
         cancelAnimation(topHeightValue);
         dragStartHeight.value = topHeightValue.value;
         topDragging.value = 1;
@@ -648,6 +753,9 @@ export function GestureDualCardLayoutView({
           runOnJS(reportTab)(nextShellTab);
         }
         runOnJS(reportTabProgress)(nextTabProgress);
+        if (nextTab !== "default") {
+          runOnJS(closeSearch)(false);
+        }
 
         topHeightValue.value = withTiming(target, SETTLE_CONFIG);
         topDragging.value = 0;
@@ -659,14 +767,28 @@ export function GestureDualCardLayoutView({
       .activeOffsetY([-10, 10])
       .failOffsetX([-18, 18])
       .onBegin(() => {
-        runOnJS(closeSearch)(true);
         cancelAnimation(topHeightValue);
         dragStartHeight.value = topHeightValue.value;
         bottomDragging.value = 1;
       })
       .onUpdate((event) => {
         const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
-        const maxStop = fullRange ? topOpenStop : defaultStop;
+
+        // Mirrors the Math.min guard in createTopGesture above. If this
+        // drag begins while a previous settle animation is still easing
+        // down from above defaultStop (e.g. the top handle was dragged
+        // toward Insights and released without crossing the commit
+        // threshold), dragStartHeight.value can be > defaultStop on the
+        // very first frame of this gesture. Clamping to a hardcoded
+        // `defaultStop` ceiling in that case would snap the split down to
+        // defaultStop instantly — a visible jump the moment the drag
+        // starts, before the finger has even moved. Using
+        // Math.max(defaultStop, dragStartHeight.value) keeps the ceiling
+        // wherever the split actually was, so the drag continues smoothly
+        // from there instead of teleporting.
+        const maxStop = fullRange
+          ? topOpenStop
+          : Math.max(defaultStop, dragStartHeight.value);
 
         // bottomHeight = screenHeight - topHeightValue - controlBarSpace,
         // so growing the bottom card means topHeightValue must DECREASE.
@@ -726,6 +848,9 @@ export function GestureDualCardLayoutView({
           runOnJS(reportTab)(nextShellTab);
         }
         runOnJS(reportTabProgress)(nextTabProgress);
+        if (nextTab !== "default") {
+          runOnJS(closeSearch)(false);
+        }
 
         topHeightValue.value = withTiming(target, SETTLE_CONFIG);
         bottomDragging.value = 0;
@@ -739,9 +864,10 @@ export function GestureDualCardLayoutView({
     () => createTopGesture().enabled(!topCardOpen),
     [topCardOpen],
   );
+  const bottomCardOnMainTab = activeTab === "transactions";
   const bottomContentGesture = useMemo(
-    () => createBottomGesture().enabled(false),
-    [],
+    () => createBottomGesture().enabled(bottomCardOnMainTab),
+    [bottomCardOnMainTab],
   );
   const bottomHandleGesture = useMemo(
     () =>
@@ -751,9 +877,7 @@ export function GestureDualCardLayoutView({
 
   const topAreaAnimatedStyle = useAnimatedStyle(() => {
     const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
-    const fallbackHeight =
-      (screenHeight.value - CONTROL_BAR_HEIGHT) * MAIN_TAB_TOP_RATIO;
-    const topHeight = topHeightValue.value || fallbackHeight;
+    const topHeight = topHeightValue.value;
     const controlBarSpace = getControlBarSpace(
       topHeight,
       bottomOpenStop,
@@ -767,9 +891,7 @@ export function GestureDualCardLayoutView({
   });
 
   const topContentFrameStyle = useAnimatedStyle(() => {
-    const fallbackHeight =
-      (screenHeight.value - CONTROL_BAR_HEIGHT) * MAIN_TAB_TOP_RATIO;
-    const topHeight = topHeightValue.value || fallbackHeight;
+    const topHeight = topHeightValue.value;
 
     return {
       height: topHeight,
@@ -781,7 +903,7 @@ export function GestureDualCardLayoutView({
   // longer gets a special horizontal inset.
   const bottomCardAnimatedStyle = useAnimatedStyle(() => {
     const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
-    const topHeight = topHeightValue.value || defaultStop;
+    const topHeight = topHeightValue.value;
     const controlBarSpace = getControlBarSpace(
       topHeight,
       bottomOpenStop,
@@ -790,6 +912,7 @@ export function GestureDualCardLayoutView({
     );
     const h = Math.max(0, screenHeight.value - topHeight - controlBarSpace);
     return {
+      bottom: 0,
       height: h,
       transform: [
         {
@@ -808,14 +931,24 @@ export function GestureDualCardLayoutView({
   // lower card opens, the insights child keeps its summary visible while
   // fading/collapsing only its greeting.
   const topContentStyle = useAnimatedStyle(() => {
-    return {};
+    const { bottomOpenStop, defaultStop } = getStops();
+    const topHeight = topHeightValue.value;
+
+    return {
+      opacity: interpolate(
+        topHeight,
+        [bottomOpenStop, defaultStop],
+        [0, 1],
+        "clamp",
+      ),
+    };
   });
 
   // The bottom card still fades out as the top card opens, rather than
   // squashing its list rows into an illegible strip.
   const bottomContentStyle = useAnimatedStyle(() => {
     const { defaultStop, topOpenStop } = getStops();
-    const topHeight = topHeightValue.value || defaultStop;
+    const topHeight = topHeightValue.value;
     return {
       opacity: interpolate(
         topHeight,
@@ -833,7 +966,7 @@ export function GestureDualCardLayoutView({
   // default, rather than popping in/out abruptly at release.
   const controlBarDragOpacity = useDerivedValue(() => {
     const { defaultStop, topOpenStop } = getStops();
-    const topHeight = topHeightValue.value || defaultStop;
+    const topHeight = topHeightValue.value;
     if (topHeight >= defaultStop) {
       return interpolate(
         topHeight,
@@ -845,9 +978,10 @@ export function GestureDualCardLayoutView({
     return 1;
   });
 
-  const effectiveSearchProgress = useDerivedValue(() => searchProgress.value);
-
-  const searchContentExpanded = searchOpen;
+  const effectiveSearchProgress = useDerivedValue(() => {
+    return searchProgress.value;
+  });
+  const showSearchInput = hasSearchControl && searchOpen;
 
   const dockMountStyle = useAnimatedStyle(() => ({
     opacity:
@@ -894,6 +1028,38 @@ export function GestureDualCardLayoutView({
     ),
   }));
 
+  const searchIconSlotAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          effectiveSearchProgress.value,
+          [0, 1],
+          [(collapsedDockItemWidth - 34) / 2 - 14, 0],
+          "clamp",
+        ),
+      },
+    ],
+  }));
+
+  const searchInputAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      effectiveSearchProgress.value,
+      [0, 0.62, 1],
+      [0, 0, 1],
+      "clamp",
+    ),
+    transform: [
+      {
+        translateX: interpolate(
+          effectiveSearchProgress.value,
+          [0, 1],
+          [-8, 0],
+          "clamp",
+        ),
+      },
+    ],
+  }));
+
   const dockDividerStyle = useAnimatedStyle(() => ({
     opacity: 1 - effectiveSearchProgress.value,
   }));
@@ -904,7 +1070,7 @@ export function GestureDualCardLayoutView({
   // "visible vs not" state to fall out of sync with the drag.
   const controlBarAnimatedStyle = useAnimatedStyle(() => {
     const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
-    const topHeight = topHeightValue.value || defaultStop;
+    const topHeight = topHeightValue.value;
     return {
       height: getControlBarSpace(
         topHeight,
@@ -946,7 +1112,39 @@ export function GestureDualCardLayoutView({
                 topContentStyle,
               ]}
             >
-              {topAreaContent}
+              <View
+                style={styles.appHeader}
+                onLayout={(event) => {
+                  handleTopChromeLayout(event.nativeEvent.layout.height);
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[styles.appName, { color: theme.colors.onSurface }]}
+                >
+                  Tally
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open settings"
+                  onPress={handleOpenSettings}
+                  hitSlop={10}
+                  style={({ pressed }) => [
+                    styles.settingsButton,
+                    {
+                      backgroundColor: theme.colors.elevation.level2,
+                      opacity: pressed ? 0.68 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="cog-outline"
+                    size={22}
+                    color={theme.colors.onSurface}
+                  />
+                </Pressable>
+              </View>
+              {topContent}
             </Animated.View>
           </GestureDetector>
           <Animated.View
@@ -957,10 +1155,20 @@ export function GestureDualCardLayoutView({
               controlBarAnimatedStyle,
             ]}
           >
-            <Animated.View style={[styles.controlDock, dockMountStyle]}>
+            <Animated.View
+              style={[
+                styles.controlDock,
+                {
+                  backgroundColor: palette.dock,
+                  borderColor: theme.colors.outlineVariant,
+                },
+                dockMountStyle,
+              ]}
+            >
               <Animated.View
                 style={[
                   styles.controlDockDivider,
+                  { backgroundColor: theme.colors.outlineVariant },
                   { left: "20%" },
                   dockDividerStyle,
                 ]}
@@ -968,6 +1176,7 @@ export function GestureDualCardLayoutView({
               <Animated.View
                 style={[
                   styles.controlDockDivider,
+                  { backgroundColor: theme.colors.outlineVariant },
                   { left: "40%" },
                   dockDividerStyle,
                 ]}
@@ -975,6 +1184,7 @@ export function GestureDualCardLayoutView({
               <Animated.View
                 style={[
                   styles.controlDockDivider,
+                  { backgroundColor: theme.colors.outlineVariant },
                   { left: "60%" },
                   dockDividerStyle,
                 ]}
@@ -982,61 +1192,91 @@ export function GestureDualCardLayoutView({
               <Animated.View
                 style={[
                   styles.controlDockDivider,
+                  { backgroundColor: theme.colors.outlineVariant },
                   { left: "80%" },
                   dockDividerStyle,
                 ]}
               />
               <Animated.View
-                pointerEvents={searchContentExpanded ? "none" : "auto"}
+                pointerEvents={searchOpen ? "none" : "auto"}
                 style={[styles.dockItem, collapsingDockItemStyle]}
               >
                 <ControlButton {...resolvedControlButtons.left} />
               </Animated.View>
               <Animated.View
-                pointerEvents={searchContentExpanded ? "none" : "auto"}
+                pointerEvents={searchOpen ? "none" : "auto"}
                 style={[styles.dockItem, collapsingDockItemStyle]}
               >
                 <ControlButton {...resolvedControlButtons.leftMiddle} />
               </Animated.View>
               <Animated.View
-                pointerEvents={searchContentExpanded ? "none" : "auto"}
+                pointerEvents={searchOpen ? "none" : "auto"}
                 style={[styles.dockItem, collapsingDockItemStyle]}
               >
                 <ControlButton {...resolvedControlButtons.middle} />
               </Animated.View>
               <Animated.View style={[styles.dockItem, searchDockItemStyle]}>
                 {resolvedControlButtons.rightMiddle.search &&
-                searchContentExpanded ? (
-                  <UniversalSearchBar
-                    value={resolvedControlButtons.rightMiddle.search.value}
-                    onChangeText={
-                      resolvedControlButtons.rightMiddle.search.onChangeText
-                    }
-                    placeholder={
-                      resolvedControlButtons.rightMiddle.search.placeholder ??
+                showSearchInput ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      resolvedControlButtons.rightMiddle.accessibilityLabel ??
                       "Search transactions"
                     }
-                    bg={theme.colors.surface}
-                    iconColor={resolvedControlButtons.rightMiddle.iconColor}
-                    autoFocus={searchOpen}
-                    containerStyle={styles.searchControl}
-                    animation={{
-                      expanded: true,
-                      onExpandedChange: (expanded) => {
-                        if (expanded) {
-                          setSearchOpen(true);
-                          return;
-                        }
-                        closeSearch(true);
-                      },
-                      mode: "center",
-                      collapsedWidth: 56,
-                      expandedWidth: expandedSearchWidth,
-                      externalWidth: true,
-                      duration: 80,
-                      clearOnCollapse: true,
+                    onPress={() => {
+                      resolvedControlButtons.rightMiddle.onPress?.();
+                      setSearchOpen(true);
                     }}
-                  />
+                    style={({ pressed }) => [
+                      styles.searchControl,
+                      { backgroundColor: theme.colors.surface },
+                      pressed && { opacity: 0.72 },
+                    ]}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.searchIconSlot,
+                        {
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.outlineVariant,
+                        },
+                        searchIconSlotAnimatedStyle,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={resolvedControlButtons.rightMiddle.icon}
+                        size={22}
+                        color={
+                          resolvedControlButtons.rightMiddle.iconColor ??
+                          theme.colors.onSurfaceVariant
+                        }
+                      />
+                    </Animated.View>
+                    <Animated.View
+                      pointerEvents={searchOpen ? "auto" : "none"}
+                      style={[styles.searchInputWrap, searchInputAnimatedStyle]}
+                    >
+                      <TextInput
+                        ref={searchInputRef}
+                        value={resolvedControlButtons.rightMiddle.search.value}
+                        onChangeText={
+                          resolvedControlButtons.rightMiddle.search.onChangeText
+                        }
+                        placeholder={
+                          resolvedControlButtons.rightMiddle.search
+                            .placeholder ?? "Search transactions"
+                        }
+                        placeholderTextColor={theme.colors.onSurfaceVariant}
+                        underlineColorAndroid="transparent"
+                        onBlur={() => setSearchOpen(false)}
+                        style={[
+                          styles.searchInput,
+                          { color: theme.colors.onSurface },
+                        ]}
+                      />
+                    </Animated.View>
+                  </Pressable>
                 ) : (
                   <ControlButton
                     {...resolvedControlButtons.rightMiddle}
@@ -1048,7 +1288,7 @@ export function GestureDualCardLayoutView({
                 )}
               </Animated.View>
               <Animated.View
-                pointerEvents={searchContentExpanded ? "none" : "auto"}
+                pointerEvents={searchOpen ? "none" : "auto"}
                 style={[styles.dockItem, collapsingDockItemStyle]}
               >
                 <ControlButton {...resolvedControlButtons.right} />
@@ -1115,8 +1355,6 @@ const styles = StyleSheet.create({
   },
   controlDock: {
     alignItems: "center",
-    backgroundColor: "rgba(28, 29, 31, 0.96)",
-    borderColor: "rgba(255, 255, 255, 0.06)",
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
@@ -1126,7 +1364,6 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   controlDockDivider: {
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
     height: 30,
     position: "absolute",
     top: 11,
@@ -1181,14 +1418,53 @@ const styles = StyleSheet.create({
     width: 56,
   },
   searchControl: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
     height: 44,
     borderRadius: 100,
     paddingLeft: 14,
     paddingRight: 8,
     width: "100%",
   },
+  searchIconSlot: {
+    alignItems: "center",
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+  },
+  searchInputWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   topContentFrame: {
     minHeight: 0,
+  },
+  appHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 18,
+  },
+  appName: {
+    ...typography.editorial.hero,
+    fontSize: 34,
+    lineHeight: 42,
+  },
+  settingsButton: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   bottomCard: {
     position: "absolute",
@@ -1209,8 +1485,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   handle: {
-    width: 46,
-    height: 5,
+    width: 42,
+    height: 4,
     borderRadius: 999,
     opacity: 0.45,
   },

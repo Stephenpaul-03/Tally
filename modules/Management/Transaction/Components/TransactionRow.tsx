@@ -15,6 +15,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import {
   deleteTransactionAsync,
+  removeTransactionDraft,
   selectCategoryColors,
   selectCategoryIcons,
 } from "@/modules/Core/Slices/TransactionSlice";
@@ -128,16 +129,21 @@ function TransactionRowComponent({
   }, [onPressTransaction, transaction.id]);
 
   const handleConfirmDelete = useCallback(async () => {
-    await dispatch(deleteTransactionAsync(transaction.id));
-    toast.success("Transaction deleted");
+    if (isDraft) {
+      dispatch(removeTransactionDraft(transaction.id));
+      toast.success("Draft deleted");
+    } else {
+      await dispatch(deleteTransactionAsync(transaction.id));
+      toast.success("Transaction deleted");
+    }
     setDeleteConfirmOpen(false);
-  }, [dispatch, transaction.id]);
+  }, [dispatch, isDraft, transaction.id]);
 
   return (
     <>
       <TouchableRipple
         onPress={handlePress}
-        onLongPress={disableLongPress || isDraft ? undefined : handleLongPress}
+        onLongPress={disableLongPress ? undefined : handleLongPress}
         delayLongPress={350}
         rippleColor={theme.colors.surfaceVariant}
         style={styles.touchable}
@@ -209,8 +215,12 @@ function TransactionRowComponent({
 
       <AlertModal
         isOpen={deleteConfirmOpen}
-        title="Delete Transaction"
-        message="This will remove the transaction from your list."
+        title={isDraft ? "Delete Draft" : "Delete Transaction"}
+        message={
+          isDraft
+            ? "This will remove the unsaved draft."
+            : "This will remove the transaction from your list."
+        }
         confirmLabel="Delete"
         cancelLabel="Cancel"
         onConfirm={handleConfirmDelete}

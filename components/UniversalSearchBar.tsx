@@ -60,7 +60,6 @@ export function UniversalSearchBar({
   const expanded = animation?.expanded ?? true;
   const mode = animation?.mode ?? "center";
   const surfaceColor = bg || theme.colors.elevation.level3;
-  const searchIconColor = iconColor ?? theme.colors.onSurfaceVariant;
   const animatedAlignSelf: ViewStyle["alignSelf"] =
     mode === "right" ? "flex-end" : "center";
 
@@ -142,11 +141,19 @@ export function UniversalSearchBar({
         containerStyle,
       ]}
     >
-      <Animated.View style={styles.searchIconSlot}>
+      <Animated.View
+        style={[
+          styles.searchIconSlot,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outlineVariant,
+          },
+        ]}
+      >
         <MaterialCommunityIcons
           name="magnify"
-          size={20}
-          color={searchIconColor}
+          size={18}
+          color={theme.colors.onSurfaceVariant}
         />
       </Animated.View>
 
@@ -196,7 +203,7 @@ export function UniversalSearchBar({
           onPress={onPillPress}
           style={({ pressed }) => ({
             borderRadius: 999,
-            borderWidth: 0.5,
+            borderWidth: 1,
             borderColor: theme.colors.outline,
             backgroundColor: theme.colors.surface,
             paddingHorizontal: 10,
@@ -271,8 +278,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     height: 56,
-    paddingLeft: 18,
-    paddingRight: 10,
   },
   input: {
     flex: 1,
@@ -280,6 +285,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   searchIconSlot: {
+    alignItems: "center",
+    borderRadius: 17,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
     zIndex: 2,
   },
 });

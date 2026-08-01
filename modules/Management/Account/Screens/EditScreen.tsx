@@ -1,5 +1,6 @@
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
+import { formatActivityLabel } from "@/modules/Management/Category/Components/CategoryTile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { View } from "react-native";
@@ -51,6 +52,9 @@ export function AccountEditScreen({
   const isEditing = Boolean(management.editingAccount);
   const isProtected =
     isEditing && PROTECTED_ACCOUNTS.has(management.editingAccount!.name);
+  const activityCount = isEditing
+    ? (management.accountStats[management.editingAccount!.name]?.count ?? 0)
+    : 0;
 
   const deleteAccessory =
     isEditing && !isProtected ? (
@@ -88,10 +92,10 @@ export function AccountEditScreen({
         borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#ffffff26",
+        backgroundColor: c.surfaceVariant,
       }}
     >
-      <MaterialCommunityIcons name="close" size={18} color="#fff" />
+      <MaterialCommunityIcons name="close" size={18} color={c.onSurface} />
     </TouchableRipple>
   ) : null;
 
@@ -112,7 +116,7 @@ export function AccountEditScreen({
       deleteAccessory={headerAccessory}
       emptyPreviewLabel="Account name"
       footer={footer}
-      headerSubtitle={management.editingAccount?.name}
+      headerSubtitle={formatActivityLabel(activityCount)}
       iconGrid={iconGrid}
       iconPickerVariant="account"
       isEditing={isEditing}

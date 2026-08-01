@@ -1,7 +1,8 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTheme } from "react-native-paper";
 import { useAccountModalState } from "./Hooks";
 import { AccountDeleteScreen } from "./Screens/DeleteScreen";
@@ -27,8 +28,6 @@ export function AccountManagementModal({
     iconGrid,
     listHeight,
     screen,
-    reorderMode,
-    setReorderMode,
     localName,
     localIcon,
     localColor,
@@ -55,6 +54,7 @@ export function AccountManagementModal({
       onDismiss={handleClose}
       presentation={isMobile ? "sheet" : "modal"}
       escapeEnabled={screen === "list"}
+      keyboardAware
       style={isMobile ? { justifyContent: "flex-end", margin: 0 } : undefined}
       contentContainerStyle={[
         isMobile
@@ -89,61 +89,59 @@ export function AccountManagementModal({
         </View>
       )}
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        scrollEnabled={!reorderMode}
-      >
-        {screen === "list" && (
-          <AccountListScreen
-            management={management}
-            selectedAccount={selectedAccount}
-            onSelectAccount={onSelectAccount}
-            listHeight={listHeight}
-            reorderMode={reorderMode}
-            onToggleReorderMode={() => setReorderMode((v) => !v)}
-            onBack={handleBack}
-            onClose={handleClose}
-            theme={theme}
-          />
-        )}
+      {screen === "list" ? (
+        <AccountListScreen
+          management={management}
+          selectedAccount={selectedAccount}
+          onSelectAccount={onSelectAccount}
+          listHeight={listHeight}
+          onBack={onSelectAccount ? handleClose : handleBack}
+          onClose={handleClose}
+          theme={theme}
+          useSettingsHeader={Boolean(onSelectAccount)}
+        />
+      ) : (
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {screen === "edit" && (
+            <AccountEditScreen
+              management={management}
+              localName={localName}
+              localIcon={localIcon}
+              localColor={localColor}
+              allColors={allColors}
+              allIcons={allIcons}
+              iconGrid={iconGrid}
+              canSubmitEdit={canSubmitEdit}
+              onChangeName={setLocalName}
+              onChangeIcon={setLocalIcon}
+              onChangeColor={setLocalColor}
+              onSubmit={handleSubmit}
+              onBack={handleBack}
+              onClose={handleClose}
+              theme={theme}
+              background={c.background}
+            />
+          )}
 
-        {screen === "edit" && (
-          <AccountEditScreen
-            management={management}
-            localName={localName}
-            localIcon={localIcon}
-            localColor={localColor}
-            allColors={allColors}
-            allIcons={allIcons}
-            iconGrid={iconGrid}
-            canSubmitEdit={canSubmitEdit}
-            onChangeName={setLocalName}
-            onChangeIcon={setLocalIcon}
-            onChangeColor={setLocalColor}
-            onSubmit={handleSubmit}
-            onBack={handleBack}
-            onClose={handleClose}
-            theme={theme}
-            background={c.background}
-          />
-        )}
-
-        {screen === "delete" && (
-          <AccountDeleteScreen
-            management={management}
-            deletingName={deletingName}
-            deleteDestinations={deleteDestinations}
-            localDest={localDest}
-            canConfirmDelete={canConfirmDelete}
-            onSelectDest={setLocalDest}
-            onConfirmDelete={handleConfirmDelete}
-            onBack={handleBack}
-            onClose={handleClose}
-            theme={theme}
-          />
-        )}
-      </ScrollView>
+          {screen === "delete" && (
+            <AccountDeleteScreen
+              management={management}
+              deletingName={deletingName}
+              deleteDestinations={deleteDestinations}
+              localDest={localDest}
+              canConfirmDelete={canConfirmDelete}
+              onSelectDest={setLocalDest}
+              onConfirmDelete={handleConfirmDelete}
+              onBack={handleBack}
+              onClose={handleClose}
+              theme={theme}
+            />
+          )}
+        </KeyboardAwareScrollView>
+      )}
     </AnimatedPaperModal>
   );
 }

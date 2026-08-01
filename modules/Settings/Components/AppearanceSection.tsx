@@ -1,11 +1,12 @@
+import { SheetCard } from "@/components/SheetCard";
 import type { THEME_PRESETS, ThemeId } from "@/theme/presets";
-import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Switch, Text, useTheme } from "react-native-paper";
 import { MODE_OPTIONS, type ModeOption } from "../Constants";
 import { SettingsStyles } from "../Styles";
+import { SectionLabel } from "./SectionLabel";
 
 type ThemeOption = [ThemeId, (typeof THEME_PRESETS)[ThemeId]];
 const ACCENT_GAP = 8;
@@ -17,6 +18,8 @@ type Props = {
   themeId: ThemeId;
   onThemeSelect: (id: ThemeId) => void;
   themeOptions: ThemeOption[];
+  trueBlack: boolean;
+  onTrueBlackChange: (enabled: boolean) => void;
 };
 
 export function AppearanceSection({
@@ -25,6 +28,8 @@ export function AppearanceSection({
   themeId,
   onThemeSelect,
   themeOptions,
+  trueBlack,
+  onTrueBlackChange,
 }: Props) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = React.useState(0);
@@ -36,30 +41,8 @@ export function AppearanceSection({
 
   return (
     <>
-      <Text
-        style={[
-          SettingsStyles.sectionLabel,
-          {
-            ...typography.editorial.sectionLabel,
-            fontSize: 14,
-            color: theme.colors.onSurfaceVariant,
-          },
-        ]}
-      >
-        Appearance
-      </Text>
-
-      {/* Mode segments */}
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.elevation.level1,
-          padding: 12,
-          borderRadius: 12,
-          marginHorizontal: 20,
-          gap: 12,
-        }}
-      >
+      <SectionLabel label="Main theme" />
+      <SheetCard theme={theme} style={local.cardContent}>
         <View style={SettingsStyles.segRow}>
           {MODE_OPTIONS.map((opt) => {
             const active = activeModeId === opt.id;
@@ -103,31 +86,56 @@ export function AppearanceSection({
             );
           })}
         </View>
+        <View
+          style={[
+            local.cardDivider,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+        <Pressable
+          onPress={() => onTrueBlackChange(!trueBlack)}
+          style={({ pressed }) => [
+            SettingsStyles.row,
+            local.amoledRow,
+            { opacity: pressed ? 0.65 : 1 },
+          ]}
+        >
+          <View style={SettingsStyles.rowLeft}>
+            <View style={SettingsStyles.rowIcon}>
+              <MaterialCommunityIcons
+                name="theme-light-dark"
+                size={18}
+                color={theme.colors.primary}
+              />
+            </View>
+            <View>
+              <Text
+                style={[
+                  SettingsStyles.rowTitle,
+                  {
+                    color: theme.colors.onSurface,
+                    fontWeight: "700",
+                  },
+                ]}
+              >
+                AMOLED dark mode
+              </Text>
+              <Text
+                style={[
+                  SettingsStyles.rowSub,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
+                Use true black surfaces in dark mode
+              </Text>
+            </View>
+          </View>
+          <Switch value={trueBlack} onValueChange={onTrueBlackChange} />
+        </Pressable>
+      </SheetCard>
 
-        <View style={local.accentDivider}>
-          <View
-            style={[
-              local.accentDividerLine,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-          <Text
-            style={[
-              local.accentDividerText,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Accent colors
-          </Text>
-          <View
-            style={[
-              local.accentDividerLine,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-        </View>
-
-        {/* Accent grid */}
+      <SectionLabel label="Accent colors" />
+      <SheetCard theme={theme} style={local.cardContent}>
         <View
           style={local.accentGrid}
           onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
@@ -181,27 +189,12 @@ export function AppearanceSection({
             );
           })}
         </View>
-      </View>
+      </SheetCard>
     </>
   );
 }
 
 const local = StyleSheet.create({
-  accentDivider: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  accentDividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  accentDividerText: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
   accentGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -226,5 +219,16 @@ const local = StyleSheet.create({
   accentLabel: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  amoledRow: {
+    paddingHorizontal: 0,
+    paddingBottom: 2,
+  },
+  cardContent: {
+    padding: 10,
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 10,
   },
 });

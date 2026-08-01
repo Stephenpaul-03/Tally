@@ -1,45 +1,24 @@
+import { typography } from "@/theme/typography";
 import React from "react";
-import { Text, type MD3Theme } from "react-native-paper";
+import { Text, useTheme } from "react-native-paper";
 
-export type CardPadding = {
-  horizontal?: number;
-  top?: number;
-  bottom?: number;
-};
-
-const DEFAULT_PADDING: Required<CardPadding> = {
-  horizontal: 22,
-  top: 22,
-  bottom: 6,
-};
-
-export function SectionLabel({
-  label,
-  theme,
-  padding = DEFAULT_PADDING,
-}: {
+type Props = {
   label: string;
-  theme: MD3Theme;
-  padding?: CardPadding;
-}) {
-  const resolvedPadding: Required<CardPadding> = {
-    horizontal: padding?.horizontal ?? DEFAULT_PADDING.horizontal,
-    top: padding?.top ?? DEFAULT_PADDING.top,
-    bottom: padding?.bottom ?? DEFAULT_PADDING.bottom,
-  };
+};
+
+export function SectionLabel({ label }: Props) {
+  const theme = useTheme();
+
   return (
     <Text
-      style={{
-        fontSize: 12,
-        fontWeight: "700",
-        letterSpacing: 1.5,
-        textTransform: "uppercase",
-        color: theme.colors.onSurfaceVariant,
-        paddingHorizontal: resolvedPadding.horizontal,
-        paddingTop: resolvedPadding.top,
-        paddingBottom: resolvedPadding.bottom,
-        opacity: 0.6,
-      }}
+      style={[
+        {
+          paddingHorizontal: 40,
+          ...typography.editorial.sectionLabel,
+          fontSize: 14,
+          color: theme.colors.onSurfaceVariant,
+        },
+      ]}
     >
       {label}
     </Text>

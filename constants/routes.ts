@@ -2,8 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 
 import type { ShellTab } from "@/components/AppShellContext";
+import { TransactionsScreen } from "@/modules/Management/Transaction/Screens/TransactionsScreen";
 import type { RootParamList } from "@/navigation/types";
-import { TransactionsScreen } from "@/screens/TransactionsScreen";
 
 export type AppRouteName = keyof RootParamList;
 

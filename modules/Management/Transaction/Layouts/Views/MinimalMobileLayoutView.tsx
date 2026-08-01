@@ -62,7 +62,6 @@ type TransactionListRowItem = {
   transaction: Transaction;
   groupPosition: TransactionGroupPosition;
   showDivider: boolean;
-  animIndex: number;
 };
 
 type TransactionListSpacerItem = {
@@ -577,7 +576,6 @@ export function MobileLayout({
                     ? "last"
                     : "middle",
             showDivider: !isLast,
-            animIndex: index,
           });
         },
       );

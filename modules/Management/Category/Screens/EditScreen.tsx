@@ -1,5 +1,6 @@
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { formatActivityLabel } from "@/modules/Management/Category/Components/CategoryTile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { TouchableRipple, type MD3Theme } from "react-native-paper";
@@ -46,6 +47,11 @@ export function CategoryEditScreen({
   const editType = management.editingCategory?.type ?? management.selectedType;
   const editFallbackName =
     editType === "income" ? "Other Income" : "Other Expense";
+  const activityCount = isEditing
+    ? (management.categoryStatsByType[editType][
+        management.editingCategory!.name
+      ]?.count ?? 0)
+    : 0;
   const canDelete =
     isEditing && management.editingCategory!.name !== editFallbackName;
 
@@ -79,7 +85,7 @@ export function CategoryEditScreen({
       deleteAccessory={deleteAccessory}
       emptyPreviewLabel="Category name"
       footer={footer}
-      headerSubtitle={isEditing ? management.editingCategory!.name : undefined}
+      headerSubtitle={formatActivityLabel(activityCount)}
       iconGrid={iconGrid}
       iconPickerVariant="category"
       isEditing={isEditing}

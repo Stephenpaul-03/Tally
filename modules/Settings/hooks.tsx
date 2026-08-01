@@ -6,14 +6,14 @@ import { useThemeMode } from "@/hooks/use-theme-mode";
 import {
     clearAllTransactionsAsync,
 } from "@/modules/Core/Slices/TransactionSlice";
-import type { RootParamList } from "@/navigation/types";
 import {
+    DailyFinanceReminderFrequency,
+    DailyFinanceReminderTone,
+    MonthlyInsightTiming,
     NotificationPermissionStatus,
     useNotifications,
 } from "@/src/services/notifications";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
-import type { NavigationProp } from "@react-navigation/native";
-import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import type { ModeOption } from "./Constants";
@@ -29,12 +29,11 @@ export function useDevTools() {
       const notificationId = await action();
       if (!notificationId) {
         toast.info(
-          "Notifications are off",
-          "Tally can open system settings if you'd like to enable them.",
+          "Notifications are off. Tally can open system settings if you'd like to enable them.",
         );
         return;
       }
-      toast.success(label, "A test notification should appear in a moment.");
+      toast.success(`${label}. A test notification should appear in a moment.`);
     } catch {
       toast.error("Couldn't send test notification");
     }
@@ -56,7 +55,7 @@ export function useDevTools() {
           : permission.status === NotificationPermissionStatus.Denied
             ? "denied"
             : "not asked yet";
-      toast.info("Notification permission", statusLabel);
+      toast.info(`Notification permission is ${statusLabel}`);
     } catch {
       toast.error("Couldn't refresh notification permission");
     }
@@ -93,7 +92,6 @@ export function useDevTools() {
 
 export function useSettings() {
   const dispatch = useAppDispatch();
-  const navigation = useNavigation<NavigationProp<RootParamList>>();
   const notifications = useNotifications();
   const { reconcileSchedules } = notifications;
 
@@ -116,6 +114,7 @@ export function useSettings() {
 
   const activeModeId: ModeOption = isFollowingSystem ? "system" : mode;
   const dailyReminderConfig = notifications.dailyFinanceReminder.config;
+  const monthlyInsightConfig = notifications.monthlyInsightPrompt.config;
   const dailyReminderTimes = dailyReminderConfig.reminders.map((reminder) => {
     const date = new Date();
     date.setHours(reminder.hour, reminder.minute, 0, 0);
@@ -128,6 +127,17 @@ export function useSettings() {
       selectedTime: date,
     };
   });
+  const monthlyInsightTime = (() => {
+    const date = new Date();
+    date.setHours(monthlyInsightConfig.hour, monthlyInsightConfig.minute, 0, 0);
+    return {
+      formattedTime: date.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      selectedTime: date,
+    };
+  })();
 
   useEffect(() => {
     void reconcileSchedules();
@@ -139,11 +149,8 @@ export function useSettings() {
   };
 
   const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.navigate("Transactions");
+    // Screens using this hook own their navigation. Keep this legacy return
+    // value inert so modal portals can use settings state safely.
   };
 
   const handleClearAllTransactions = () => {
@@ -184,6 +191,26 @@ export function useSettings() {
     }
   };
 
+  const handleMonthlyInsightToggle = async (enabled: boolean) => {
+    try {
+      const result = await notifications.updateMonthlyInsightPrompt({
+        ...monthlyInsightConfig,
+        enabled,
+      });
+      if (enabled && !result.config.enabled) {
+        toast.info("Notifications are off");
+        return result.config.enabled;
+      }
+      toast.success(
+        enabled ? "Monthly insights turned on" : "Monthly insights turned off",
+      );
+      return result.config.enabled;
+    } catch {
+      toast.error("Couldn't update monthly insights");
+      return monthlyInsightConfig.enabled;
+    }
+  };
+
   const handleDailyReminderTimeChange = async (time: {
     hour: number;
     minute: number;
@@ -193,6 +220,103 @@ export function useSettings() {
       toast.success("Reminder time updated");
     } catch {
       toast.error("Couldn't update reminder time");
+    }
+  };
+
+  const getFrequencyForWeekdays = (weekdays: number[]) => {
+    const normalized = [...weekdays].sort((a, b) => a - b).join(",");
+
+    if (normalized === "1,2,3,4,5,6,7") {
+      return DailyFinanceReminderFrequency.Daily;
+    }
+
+    if (normalized === "2,3,4,5,6") {
+      return DailyFinanceReminderFrequency.Weekdays;
+    }
+
+    if (normalized === "1,7") {
+      return DailyFinanceReminderFrequency.Weekends;
+    }
+
+    return dailyReminderConfig.frequency;
+  };
+
+  const handleDailyReminderWeekdaysChange = async (weekdays: number[]) => {
+    try {
+      await notifications.updateDailyFinanceReminder({
+        ...dailyReminderConfig,
+        weekdays,
+        frequency: getFrequencyForWeekdays(weekdays),
+      });
+      toast.success("Reminder days updated");
+    } catch {
+      toast.error("Couldn't update reminder days");
+    }
+  };
+
+  const handleDailyReminderToneChange = async (
+    tone: DailyFinanceReminderTone,
+  ) => {
+    try {
+      await notifications.updateDailyFinanceReminder({
+        ...dailyReminderConfig,
+        tone,
+      });
+      toast.success("Reminder tone updated");
+    } catch {
+      toast.error("Couldn't update reminder tone");
+    }
+  };
+
+  const handleQuietHoursChange = async (
+    quietHours: typeof dailyReminderConfig.quietHours,
+  ) => {
+    try {
+      await notifications.updateDailyFinanceReminder({
+        ...dailyReminderConfig,
+        quietHours,
+      });
+      toast.success("Quiet hours updated");
+    } catch {
+      toast.error("Couldn't update quiet hours");
+    }
+  };
+
+  const handleMonthlyInsightTimeChange = async (time: {
+    hour: number;
+    minute: number;
+  }) => {
+    try {
+      const result = await notifications.updateMonthlyInsightPrompt({
+        ...monthlyInsightConfig,
+        hour: time.hour,
+        minute: time.minute,
+      });
+      if (monthlyInsightConfig.enabled && !result.config.enabled) {
+        toast.info("Notifications are off");
+        return;
+      }
+      toast.success("Monthly insight time updated");
+    } catch {
+      toast.error("Couldn't update monthly insight time");
+    }
+  };
+
+  const handleMonthlyInsightTimingChange = async (
+    timing: MonthlyInsightTiming,
+  ) => {
+    try {
+      const result = await notifications.updateMonthlyInsightPrompt({
+        ...monthlyInsightConfig,
+        timing,
+      });
+      if (monthlyInsightConfig.enabled && !result.config.enabled) {
+        toast.info("Notifications are off");
+        return;
+      }
+      toast.success("Monthly insight timing updated");
+    } catch {
+      toast.error("Couldn't update monthly insight timing");
     }
   };
 
@@ -214,6 +338,43 @@ export function useSettings() {
     }
   };
 
+  const handleTestDailyReminder = async () => {
+    try {
+      const notificationId = await notifications.sendTestDailyFinanceReminder();
+      if (!notificationId) {
+        setNotificationAccessPromptOpen(true);
+        return;
+      }
+      toast.success("Test notification sent");
+    } catch {
+      toast.error("Couldn't send test notification");
+    }
+  };
+
+  const handleNotificationPermissionPress = async () => {
+    try {
+      if (notifications.permission.status === NotificationPermissionStatus.Granted) {
+        await notifications.refreshPermissionStatus();
+        toast.info("Notifications are allowed");
+        return;
+      }
+
+      const permission = await notifications.ensurePermissions({
+        openSettingsOnDeny:
+          notifications.permission.status === NotificationPermissionStatus.Denied,
+        promptIfNeeded: true,
+      });
+
+      if (permission.status === NotificationPermissionStatus.Granted) {
+        toast.success("Notifications allowed");
+      } else if (permission.status === NotificationPermissionStatus.Denied) {
+        toast.info("Enable notifications from system settings");
+      }
+    } catch {
+      toast.error("Couldn't update notification permission");
+    }
+  };
+
   const handleRequestNotificationAccessAgain = async () => {
     try {
       const permission = await notifications.ensurePermissions({
@@ -224,8 +385,7 @@ export function useSettings() {
       if (permission.status !== NotificationPermissionStatus.Granted) {
         setNotificationAccessPromptOpen(false); // close modal even on deny
         toast.info(
-          "Permission not granted",
-          "You can enable notifications from system settings.",
+          "Permission not granted. You can enable notifications from system settings.",
         );
         return;
       }
@@ -268,11 +428,26 @@ export function useSettings() {
     handleClearAllTransactions,
     dailyReminderEnabled: dailyReminderConfig.enabled,
     dailyReminderTimes,
+    dailyReminderWeekdays: dailyReminderConfig.weekdays,
+    dailyReminderTone: dailyReminderConfig.tone,
+    dailyReminderQuietHours: dailyReminderConfig.quietHours,
+    monthlyInsightEnabled: monthlyInsightConfig.enabled,
+    monthlyInsightTiming: monthlyInsightConfig.timing,
+    monthlyInsightTime,
     handleDailyReminderToggle,
+    handleMonthlyInsightToggle,
     handleDailyReminderTimeChange,
+    handleDailyReminderWeekdaysChange,
+    handleDailyReminderToneChange,
+    handleQuietHoursChange,
+    handleTestDailyReminder,
+    handleNotificationPermissionPress,
+    handleMonthlyInsightTimeChange,
+    handleMonthlyInsightTimingChange,
     handleAddDailyReminderTime,
     handleRemoveDailyReminderTime,
     notificationAccessPromptOpen,
+    notificationPermission: notifications.permission,
     setNotificationAccessPromptOpen,
     handleRequestNotificationAccessAgain,
     guidedChatEnabled,

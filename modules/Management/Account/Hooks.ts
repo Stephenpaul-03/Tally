@@ -21,7 +21,6 @@ export function useAccountModalState(
     management.colorOptions[0] || "#6366F1",
   );
   const [localDest, setLocalDest] = useState("");
-  const [reorderMode, setReorderMode] = useState(false);
 
   const allColors = useMemo(() => {
     const merged = [...(management.colorOptions ?? [])];
@@ -125,7 +124,6 @@ export function useAccountModalState(
   const handleClose = () => {
     management.handleCloseEdit();
     management.handleCancelDeleteAccount();
-    setReorderMode(false);
     setScreen("list");
     onClose();
   };
@@ -133,7 +131,6 @@ export function useAccountModalState(
   const handleBack = () => {
     if (screen === "edit") management.handleCloseEdit();
     if (screen === "delete") management.handleCancelDeleteAccount();
-    setReorderMode(false);
     setScreen("list");
   };
 
@@ -160,8 +157,6 @@ export function useAccountModalState(
     listHeight,
     // screen
     screen,
-    reorderMode,
-    setReorderMode,
     // edit fields
     localName,
     localIcon,

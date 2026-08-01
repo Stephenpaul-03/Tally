@@ -1,4 +1,5 @@
 import { AlertModal } from "@/components/alert/AlertModal";
+import type { WorkspaceCurrency } from "@/components/CurrencyPickerField";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { DateChip } from "@/components/pageheader/DateChip";
@@ -10,6 +11,11 @@ import { toast } from "@/components/toast/ToastProvider";
 import { TypeToggle } from "@/components/TypeToggle";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
+import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
+import {
+  selectActiveWorkspace,
+  selectActiveWorkspaceId,
+} from "@/modules/Core/Slices/WorkspaceSlice";
 import {
   addTransactionAsync,
   deleteTransactionAsync,
@@ -56,7 +62,6 @@ import { AccountPicker } from "./Molecules/AccountPicker";
 import { AmountHero } from "./Molecules/AmountHero";
 import { CategoryPicker } from "./Molecules/CategoryPicker";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
-import { FieldRow } from "./Molecules/FieldRow";
 import { SelectionCard } from "./Molecules/SelectionCard";
 import { TransactionRowPreview } from "./Molecules/TransactionRowPreview";
 import { mainContent, modal } from "./Styles";
@@ -65,7 +70,6 @@ interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultType?: TransactionType;
-  monthMode?: boolean;
   initialAmount?: string | null;
   initialDate?: string | null;
 }
@@ -74,7 +78,6 @@ export function TransactionModal({
   isOpen,
   onClose,
   defaultType = "expense",
-  monthMode = false,
   initialAmount = null,
   initialDate = null,
 }: TransactionModalProps) {
@@ -98,13 +101,29 @@ export function TransactionModal({
   const activeIncomeCategories = useAppSelector(selectActiveIncomeCategories);
   const activeExpenseCategories = useAppSelector(selectActiveExpenseCategories);
   const activeAccounts = useAppSelector(selectActiveAccounts);
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const accountIcons = useAppSelector(selectAccountIcons);
   const accountColors = useAppSelector(selectAccountColors);
+  const { getWorkspaceDefaults } = useWorkspaceDefaults();
+  const workspaceDefaults = getWorkspaceDefaults(activeWorkspaceId);
+  const defaultTransactionCurrency: WorkspaceCurrency = useMemo(
+    () => ({
+      code: activeWorkspace?.currencyCode ?? "INR",
+      name: activeWorkspace?.currencyName ?? "Indian Rupee",
+      symbol: activeWorkspace?.currencySymbol ?? "₹",
+    }),
+    [
+      activeWorkspace?.currencyCode,
+      activeWorkspace?.currencyName,
+      activeWorkspace?.currencySymbol,
+    ],
+  );
 
   const isEditMode = modalMode === "edit";
 
-  const sheetMaxHeight = Math.max(Math.min(height * 0.92, 880), 560);
-  const webMaxHeight = Math.min(height * 0.9, 820);
+  const sheetMaxHeight = Math.max(Math.min(height * 0.97, 940), 620);
+  const webMaxHeight = Math.min(height * 0.94, 900);
 
   const [formData, setFormData] = useState<TransactionFormData>({
     title: "",
@@ -114,6 +133,9 @@ export function TransactionModal({
     category: "",
     account: "Card",
     notes: "",
+    currencyCode: defaultTransactionCurrency.code,
+    currencyName: defaultTransactionCurrency.name,
+    currencySymbol: defaultTransactionCurrency.symbol,
   });
 
   const [amountString, setAmountString] = useState("");
@@ -122,7 +144,7 @@ export function TransactionModal({
   >({});
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const titleInputRef = React.useRef<any>(null);
   const addBaselineRef = React.useRef<TransactionFormData | null>(null);
   const closeHandledRef = React.useRef(false);
@@ -143,23 +165,42 @@ export function TransactionModal({
     (type: TransactionType) => {
       const categories =
         type === "income" ? activeIncomeCategories : activeExpenseCategories;
+      const explicitDefault =
+        type === "income"
+          ? workspaceDefaults.defaultIncomeCategory
+          : workspaceDefaults.defaultExpenseCategory;
+      if (explicitDefault && categories.includes(explicitDefault)) {
+        return explicitDefault;
+      }
       const recent = getLastTransaction(transactions, type);
       if (recent?.category && categories.includes(recent.category)) {
         return recent.category;
       }
       return categories[0] || "";
     },
-    [activeExpenseCategories, activeIncomeCategories, transactions],
+    [
+      activeExpenseCategories,
+      activeIncomeCategories,
+      transactions,
+      workspaceDefaults.defaultExpenseCategory,
+      workspaceDefaults.defaultIncomeCategory,
+    ],
   );
   const resolveDefaultAccount = React.useCallback(
     (type: TransactionType) => {
+      if (
+        workspaceDefaults.defaultAccount &&
+        activeAccounts.includes(workspaceDefaults.defaultAccount)
+      ) {
+        return workspaceDefaults.defaultAccount;
+      }
       const recent = getLastTransaction(transactions, type);
       if (recent?.account && activeAccounts.includes(recent.account)) {
         return recent.account;
       }
       return activeAccounts[0] || "Card";
     },
-    [activeAccounts, transactions],
+    [activeAccounts, transactions, workspaceDefaults.defaultAccount],
   );
   const defaultAccountForType = useMemo(
     () => resolveDefaultAccount(formData.type),
@@ -187,6 +228,7 @@ export function TransactionModal({
       : "";
 
     if (isEditMode && editingTransaction) {
+      const hasNotes = Boolean(editingTransaction.notes?.trim());
       setFormData({
         title: editingTransaction.title || editingTransaction.category,
         date: editingTransaction.date,
@@ -196,6 +238,13 @@ export function TransactionModal({
         account: formatAccountLabel(editingTransaction.account),
         notes: editingTransaction.notes || "",
         tags: editingTransaction.tags,
+        currencyCode:
+          editingTransaction.currencyCode ?? defaultTransactionCurrency.code,
+        currencyName:
+          editingTransaction.currencyName ?? defaultTransactionCurrency.name,
+        currencySymbol:
+          editingTransaction.currencySymbol ??
+          defaultTransactionCurrency.symbol,
       });
       setAmountString(String(Math.abs(editingTransaction.amount)));
       const parsed = parseIsoDateOnlyParts(editingTransaction.date);
@@ -203,8 +252,9 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setIsNotesExpanded(!!editingTransaction.notes);
+      setNotesExpanded(hasNotes);
     } else if (activeDraft) {
+      const hasNotes = Boolean(activeDraft.notes?.trim());
       const nextFormData: TransactionFormData = {
         title: activeDraft.title,
         date: activeDraft.date,
@@ -214,6 +264,10 @@ export function TransactionModal({
         account: activeDraft.account,
         notes: activeDraft.notes || "",
         tags: activeDraft.tags,
+        currencyCode: activeDraft.currencyCode ?? defaultTransactionCurrency.code,
+        currencyName: activeDraft.currencyName ?? defaultTransactionCurrency.name,
+        currencySymbol:
+          activeDraft.currencySymbol ?? defaultTransactionCurrency.symbol,
       };
       addBaselineRef.current = nextFormData;
       setFormData(nextFormData);
@@ -223,7 +277,7 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setIsNotesExpanded(!!activeDraft.notes);
+      setNotesExpanded(hasNotes);
     } else {
       const nextFormData = {
         title: "",
@@ -233,6 +287,9 @@ export function TransactionModal({
         category: resolveDefaultCategory(defaultType),
         account: resolveDefaultAccount(defaultType),
         notes: "",
+        currencyCode: defaultTransactionCurrency.code,
+        currencyName: defaultTransactionCurrency.name,
+        currencySymbol: defaultTransactionCurrency.symbol,
       };
       addBaselineRef.current = {
         ...nextFormData,
@@ -245,7 +302,7 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setIsNotesExpanded(false);
+      setNotesExpanded(false);
     }
 
     setErrors({});
@@ -262,6 +319,9 @@ export function TransactionModal({
     addModeDate,
     isEditMode,
     isOpen,
+    defaultTransactionCurrency.code,
+    defaultTransactionCurrency.name,
+    defaultTransactionCurrency.symbol,
   ]);
 
   React.useEffect(() => {
@@ -401,7 +461,11 @@ export function TransactionModal({
   const selectedCategory =
     formData.category || resolveDefaultCategory(formData.type);
   const selectedAccountValue = formData.account || defaultAccountForType;
-
+  const selectedCurrency: WorkspaceCurrency = {
+    code: formData.currencyCode ?? defaultTransactionCurrency.code,
+    name: formData.currencyName ?? defaultTransactionCurrency.name,
+    symbol: formData.currencySymbol ?? defaultTransactionCurrency.symbol,
+  };
   const content = (
     <View style={[mainContent.keyboardView, { overflow: "visible" }]}>
       {/* ── Modal Header ── */}
@@ -470,12 +534,7 @@ export function TransactionModal({
           <TransactionRowPreview
             formData={formData}
             amountString={amountString}
-            categoryIcons={categoryIcons}
-            categoryColors={categoryColors}
-            accountIcons={accountIcons}
-            accountColors={accountColors}
             previewTimestamp={previewTimestamp}
-            monthMode={monthMode}
           />
         )}
 
@@ -483,13 +542,29 @@ export function TransactionModal({
         <AmountHero
           value={amountString}
           onChange={handleAmountChange}
-          transactionType={formData.type}
+          currency={selectedCurrency}
+          onCurrencyChange={(currency) =>
+            setFormData((prev) => ({
+              ...prev,
+              currencyCode: currency.code,
+              currencyName: currency.name,
+              currencySymbol: currency.symbol,
+            }))
+          }
           error={errors.amount}
         />
 
-        {/* 3. Category + Account — two-column card */}
-        <View style={[mainContent.twoColRow]}>
-          <SelectionCard label="CATEGORY" error={errors.category}>
+        <View style={mainContent.twoColRow}>
+          <SelectionCard
+            label="CATEGORY"
+            error={errors.category}
+            style={{
+              backgroundColor: theme.colors.elevation.level1,
+              borderColor: errors.category
+                ? theme.colors.error
+                : theme.colors.outlineVariant,
+            }}
+          >
             <CategoryPicker
               value={selectedCategory}
               onChange={(v) => {
@@ -505,7 +580,13 @@ export function TransactionModal({
             />
           </SelectionCard>
 
-          <SelectionCard label="ACCOUNT" style={{ gap: 10 }}>
+          <SelectionCard
+            label="ACCOUNT"
+            style={{
+              backgroundColor: theme.colors.elevation.level1,
+              borderColor: theme.colors.outlineVariant,
+            }}
+          >
             <AccountPicker
               value={selectedAccountValue}
               onChange={(account) =>
@@ -519,192 +600,129 @@ export function TransactionModal({
           </SelectionCard>
         </View>
 
-        {/* 4a. Title — individual card */}
-        {isEditMode ? (
-          /* Edit mode: grouped details card */
-          <View style={mainContent.detailsCard}>
-            <Surface
-              elevation={0}
+        <Surface
+          elevation={0}
+          style={[
+            mainContent.inlineFieldCard,
+            {
+              backgroundColor: "transparent",
+            },
+          ]}
+        >
+          <Pressable onPress={() => titleInputRef.current?.focus?.()}>
+            <Text
+              variant="labelSmall"
               style={[
-                mainContent.surface,
+                mainContent.inlineFieldLabel,
                 {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
+                  color: errors.title
+                    ? theme.colors.error
+                    : theme.colors.primary,
                 },
               ]}
             >
-              <FieldRow
-                icon="pencil-outline"
-                label="Title"
-                error={errors.title}
-                onPress={() => titleInputRef.current?.focus?.()}
+              Title
+            </Text>
+          </Pressable>
+          <View style={mainContent.inlineFieldBody}>
+            <DebouncedTextInput
+              mode="flat"
+              dense
+              ref={titleInputRef}
+              initialValue={formData.title}
+              onChangeText={(v) =>
+                setFormData((prev) => ({ ...prev, title: v }))
+              }
+              onBlur={(v) => {
+                setFormData((prev) => ({ ...prev, title: v }));
+                if (errors.title)
+                  setErrors((prev) => ({ ...prev, title: undefined }));
+              }}
+              placeholder={
+                isEditMode ? "e.g. Groceries, Salary…" : "e.g. Milk, Tea…"
+              }
+              style={mainContent.inlineFieldValue}
+              underlineColor="transparent"
+              activeUnderlineColor="transparent"
+              cursorColor={theme.colors.primary}
+              placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
+              contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
+            />
+          </View>
+          {errors.title ? (
+            <Text variant="labelSmall" style={{ color: theme.colors.error }}>
+              {errors.title}
+            </Text>
+          ) : null}
+        </Surface>
+
+        <Surface
+          elevation={0}
+          style={[
+            mainContent.inlineFieldCard,
+            {
+              backgroundColor: "transparent",
+            },
+          ]}
+        >
+          {notesExpanded ? (
+            <>
+              <Text
+                variant="labelSmall"
+                style={[
+                  mainContent.inlineFieldLabel,
+                  { color: theme.colors.primary },
+                ]}
               >
+                Notes
+              </Text>
+              <View style={mainContent.inlineFieldBody}>
                 <DebouncedTextInput
                   mode="flat"
                   dense
-                  ref={titleInputRef}
-                  initialValue={formData.title}
+                  initialValue={formData.notes || ""}
                   onChangeText={(v) =>
-                    setFormData((prev) => ({ ...prev, title: v }))
+                    setFormData((prev) => ({ ...prev, notes: v }))
                   }
-                  onBlur={(v) => {
-                    setFormData((prev) => ({ ...prev, title: v }));
-                    if (errors.title)
-                      setErrors((prev) => ({ ...prev, title: undefined }));
-                  }}
-                  placeholder="e.g. Groceries, Salary…"
-                  style={mainContent.titleInput}
+                  onBlur={(v) =>
+                    setFormData((prev) => ({ ...prev, notes: v }))
+                  }
+                  placeholder="Add a note..."
+                  style={mainContent.inlineFieldValue}
                   underlineColor="transparent"
                   activeUnderlineColor="transparent"
                   cursorColor={theme.colors.primary}
                   placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
                   contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
                 />
-              </FieldRow>
-
-              {isNotesExpanded ? (
-                <FieldRow icon="note-text-outline" label="Notes" isLast>
-                  <DebouncedTextInput
-                    mode="flat"
-                    dense
-                    initialValue={formData.notes || ""}
-                    onChangeText={(v) =>
-                      setFormData((prev) => ({ ...prev, notes: v }))
-                    }
-                    onBlur={(v) =>
-                      setFormData((prev) => ({ ...prev, notes: v }))
-                    }
-                    placeholder="Add a note…"
-                    style={mainContent.titleInput}
-                    underlineColor="transparent"
-                    activeUnderlineColor="transparent"
-                    cursorColor={theme.colors.primary}
-                    placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                    contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                    autoFocus
-                  />
-                </FieldRow>
-              ) : (
-                <Pressable
-                  onPress={() => setIsNotesExpanded(true)}
-                  style={[
-                    mainContent.notesCollapsed,
-                    { borderTopColor: theme.colors.outlineVariant },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="note-text-outline"
-                    size={15}
-                    color={theme.colors.onSurfaceVariant}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
-                    variant="bodySmall"
-                    style={{
-                      color: formData.notes
-                        ? theme.colors.onSurface
-                        : theme.colors.onSurfaceVariant + "88",
-                    }}
-                  >
-                    {formData.notes || "Add a note…"}
-                  </Text>
-                </Pressable>
-              )}
-            </Surface>
-          </View>
-        ) : (
-          /* Add mode: same grouped details card as edit mode */
-          <View style={mainContent.detailsCard}>
-            <Surface
-              elevation={0}
-              style={[
-                mainContent.surface,
-                {
-                  borderColor: theme.colors.outlineVariant,
-                  backgroundColor: theme.colors.elevation.level1,
-                },
+              </View>
+            </>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add notes"
+              onPress={() => setNotesExpanded(true)}
+              style={({ pressed }) => [
+                mainContent.notesCollapsed,
+                { opacity: pressed ? 0.64 : 1 },
               ]}
             >
-              <FieldRow
-                icon="pencil-outline"
-                label="Title"
-                error={errors.title}
-                onPress={() => titleInputRef.current?.focus?.()}
+              <MaterialCommunityIcons
+                name="note-plus-outline"
+                size={18}
+                color={theme.colors.onSurfaceVariant}
+              />
+              <Text
+                style={[
+                  mainContent.inlineFieldLabel,
+                  { color: theme.colors.onSurfaceVariant, opacity: 0.72 },
+                ]}
               >
-                <DebouncedTextInput
-                  mode="flat"
-                  dense
-                  ref={titleInputRef}
-                  initialValue={formData.title}
-                  onChangeText={(v) =>
-                    setFormData((prev) => ({ ...prev, title: v }))
-                  }
-                  onBlur={(v) => {
-                    setFormData((prev) => ({ ...prev, title: v }));
-                    if (errors.title)
-                      setErrors((prev) => ({ ...prev, title: undefined }));
-                  }}
-                  placeholder="e.g. Milk, Tea…"
-                  style={mainContent.titleInput}
-                  underlineColor="transparent"
-                  activeUnderlineColor="transparent"
-                  cursorColor={theme.colors.primary}
-                  placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                  contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                />
-              </FieldRow>
-
-              {isNotesExpanded ? (
-                <FieldRow icon="note-text-outline" label="Notes" isLast>
-                  <DebouncedTextInput
-                    mode="flat"
-                    dense
-                    initialValue={formData.notes || ""}
-                    onChangeText={(v) =>
-                      setFormData((prev) => ({ ...prev, notes: v }))
-                    }
-                    onBlur={(v) =>
-                      setFormData((prev) => ({ ...prev, notes: v }))
-                    }
-                    placeholder="Add a note…"
-                    style={mainContent.titleInput}
-                    underlineColor="transparent"
-                    activeUnderlineColor="transparent"
-                    cursorColor={theme.colors.primary}
-                    placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                    contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                    autoFocus
-                  />
-                </FieldRow>
-              ) : (
-                <Pressable
-                  onPress={() => setIsNotesExpanded(true)}
-                  style={[
-                    mainContent.notesCollapsed,
-                    { borderTopColor: theme.colors.outlineVariant },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="note-text-outline"
-                    size={15}
-                    color={theme.colors.onSurfaceVariant}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
-                    variant="bodySmall"
-                    style={{
-                      color: formData.notes
-                        ? theme.colors.onSurface
-                        : theme.colors.onSurfaceVariant + "88",
-                    }}
-                  >
-                    {formData.notes || "Add a note…"}
-                  </Text>
-                </Pressable>
-              )}
-            </Surface>
-          </View>
-        )}
+                Add notes
+              </Text>
+            </Pressable>
+          )}
+        </Surface>
 
         {/* 5. Save button */}
         <View style={mainContent.footer}>

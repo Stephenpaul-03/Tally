@@ -1,4 +1,6 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import { useAppSelector } from "@/hooks/Redux";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
@@ -35,7 +37,9 @@ export function BudgetDetailsSheet({
   muted,
 }: Props) {
   const theme = useTheme();
-  const background = bg ?? theme.colors.elevation.level2;
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const currencySymbol = activeWorkspace?.currencySymbol ?? "₹";
+  const background = bg ?? theme.colors.background;
   const border = outline ?? theme.colors.outlineVariant;
   const text = textColor ?? theme.colors.onSurface;
   const subdued = muted ?? theme.colors.onSurfaceVariant;
@@ -77,6 +81,7 @@ export function BudgetDetailsSheet({
       onDismiss={onDismiss}
       presentation="sheet"
       keyboardAware
+      includeBottomInset
       contentContainerStyle={{
         backgroundColor: background,
         borderTopLeftRadius: 24,
@@ -92,7 +97,14 @@ export function BudgetDetailsSheet({
 
       <View style={budgetStyles.sheetHeader}>
         <View style={budgetStyles.sheetTitleRow}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              flex: 1,
+            }}
+          >
             <View
               style={{
                 width: 44,
@@ -103,10 +115,17 @@ export function BudgetDetailsSheet({
                 backgroundColor: `${color}22`,
               }}
             >
-              <MaterialCommunityIcons name={icon as any} size={22} color={color} />
+              <MaterialCommunityIcons
+                name={icon as any}
+                size={22}
+                color={color}
+              />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[budgetStyles.sheetTitle, { color: text }]} numberOfLines={1}>
+              <Text
+                style={[budgetStyles.sheetTitle, { color: text }]}
+                numberOfLines={1}
+              >
                 {name}
               </Text>
               <Text style={{ color: subdued, fontSize: 12 }}>
@@ -114,9 +133,48 @@ export function BudgetDetailsSheet({
               </Text>
             </View>
           </View>
-          <Pressable onPress={onDismiss} hitSlop={12}>
-            <MaterialCommunityIcons name="close" size={22} color={subdued} />
-          </Pressable>
+          <View style={budgetStyles.sheetHeaderActions}>
+            {budget > 0 ? (
+              <Pressable
+                onPress={handleRemove}
+                disabled={isSaving || isRemoving}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear budget"
+                style={({ pressed }) => [
+                  budgetStyles.sheetIconButton,
+                  {
+                    backgroundColor: theme.colors.elevation.level1,
+                    borderColor: border,
+                    opacity: pressed || isRemoving ? 0.65 : 1,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="close-circle-outline"
+                  size={18}
+                  color={theme.colors.error}
+                />
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close budget details"
+              style={({ pressed }) => [
+                budgetStyles.sheetIconButton,
+                budgetStyles.sheetCloseButton,
+                {
+                  backgroundColor: theme.colors.elevation.level1,
+                  borderColor: border,
+                  opacity: pressed ? 0.65 : 1,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons name="close" size={18} color={subdued} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -139,7 +197,18 @@ export function BudgetDetailsSheet({
           onChangeText={setDraft}
           keyboardType="numeric"
           placeholder="0"
-          left={<TextInput.Affix text="₹" />}
+          left={
+            <TextInput.Icon
+              icon={() => (
+                <Text
+                  style={{ color: subdued, fontSize: 16, fontWeight: "700" }}
+                >
+                  {currencySymbol}
+                </Text>
+              )}
+              forceTextInputFocus={false}
+            />
+          }
           style={budgetStyles.editField}
           contentStyle={{ paddingVertical: 14 }}
         />
@@ -151,15 +220,6 @@ export function BudgetDetailsSheet({
           buttonColor={theme.colors.primary}
         >
           Save
-        </Button>
-        <Button
-          mode="text"
-          onPress={handleRemove}
-          loading={isRemoving}
-          disabled={isSaving || isRemoving}
-          textColor={theme.colors.error}
-        >
-          Clear budget
         </Button>
       </View>
     </AnimatedPaperModal>

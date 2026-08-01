@@ -4,7 +4,14 @@ import React from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 const STORAGE_KEY = "biometricLockEnabled";
-const BACKGROUND_LOCK_THRESHOLD_MS = 30_000;
+const TIMEOUT_STORAGE_KEY = "biometricLockTimeoutMs";
+export const BIOMETRIC_LOCK_TIMEOUT_OPTIONS = [
+  { label: "Immediately", value: 0 },
+  { label: "After 30 seconds", value: 30_000 },
+  { label: "After 1 minute", value: 60_000 },
+  { label: "After 5 minutes", value: 300_000 },
+] as const;
+const DEFAULT_BACKGROUND_LOCK_THRESHOLD_MS = 30_000;
 
 type BiometricAvailability = {
   checked: boolean;
@@ -26,9 +33,11 @@ type BiometricLockContextValue = {
   isAuthenticating: boolean;
   availability: BiometricAvailability;
   lastError: LocalAuthentication.LocalAuthenticationError | null;
+  lockTimeoutMs: number;
   setBiometricLockEnabled: (
     next: boolean,
   ) => Promise<SetBiometricLockEnabledResult>;
+  setLockTimeoutMs: (next: number) => void;
   refreshAvailability: () => Promise<BiometricAvailability>;
   unlock: () => Promise<boolean>;
 };
@@ -50,6 +59,14 @@ function parseStoredBoolean(value: string | null): boolean | null {
   if (normalized === "true" || normalized === "1") return true;
   if (normalized === "false" || normalized === "0") return false;
   return null;
+}
+
+function parseStoredTimeout(value: string | null): number {
+  const parsed = Number(value);
+  const option = BIOMETRIC_LOCK_TIMEOUT_OPTIONS.find(
+    (item) => item.value === parsed,
+  );
+  return option?.value ?? DEFAULT_BACKGROUND_LOCK_THRESHOLD_MS;
 }
 
 async function checkBiometricAvailability(): Promise<BiometricAvailability> {
@@ -91,12 +108,16 @@ export function BiometricLockProvider({
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [isLocked, setIsLocked] = React.useState(false);
   const [isAuthenticating, setIsAuthenticating] = React.useState(false);
+  const [lockTimeoutMs, setLockTimeoutMsState] = React.useState(
+    DEFAULT_BACKGROUND_LOCK_THRESHOLD_MS,
+  );
   const [availability, setAvailability] =
     React.useState<BiometricAvailability>(DEFAULT_AVAILABILITY);
   const [lastError, setLastError] =
     React.useState<LocalAuthentication.LocalAuthenticationError | null>(null);
 
   const enabledRef = React.useRef(enabled);
+  const lockTimeoutMsRef = React.useRef(lockTimeoutMs);
   const isHydratedRef = React.useRef(isHydrated);
   const availabilityRef = React.useRef(availability);
   const isAuthenticatingRef = React.useRef(false);
@@ -107,6 +128,10 @@ export function BiometricLockProvider({
   React.useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
+
+  React.useEffect(() => {
+    lockTimeoutMsRef.current = lockTimeoutMs;
+  }, [lockTimeoutMs]);
 
   React.useEffect(() => {
     isHydratedRef.current = isHydrated;
@@ -151,8 +176,8 @@ export function BiometricLockProvider({
         promptSubtitle: "Biometric Lock",
         promptDescription: "Authenticate to continue",
         cancelLabel: "Cancel",
-        disableDeviceFallback: true,
-        fallbackLabel: "",
+        disableDeviceFallback: false,
+        fallbackLabel: "Use Passcode",
         requireConfirmation: true,
         biometricsSecurityLevel: "strong",
       });
@@ -181,16 +206,24 @@ export function BiometricLockProvider({
 
     (async () => {
       try {
-        const [storedEnabled, nextAvailability] = await Promise.all([
+        const [
+          storedEnabled,
+          storedTimeout,
+          nextAvailability,
+        ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(TIMEOUT_STORAGE_KEY),
           checkBiometricAvailability(),
         ]);
         const parsedEnabled = parseStoredBoolean(storedEnabled);
+        const parsedTimeout = parseStoredTimeout(storedTimeout);
 
         if (!isMounted) return;
 
         availabilityRef.current = nextAvailability;
         setAvailability(nextAvailability);
+        lockTimeoutMsRef.current = parsedTimeout;
+        setLockTimeoutMsState(parsedTimeout);
         if (parsedEnabled != null) {
           setEnabledState(parsedEnabled);
           setIsLocked(
@@ -216,6 +249,14 @@ export function BiometricLockProvider({
     }, 150);
     return () => clearTimeout(id);
   }, [enabled, isHydrated]);
+
+  React.useEffect(() => {
+    if (!isHydrated) return;
+    const id = setTimeout(() => {
+      void AsyncStorage.setItem(TIMEOUT_STORAGE_KEY, String(lockTimeoutMs));
+    }, 150);
+    return () => clearTimeout(id);
+  }, [isHydrated, lockTimeoutMs]);
 
   React.useEffect(() => {
     if (!isHydrated || handledColdStartRef.current) return;
@@ -255,7 +296,7 @@ export function BiometricLockProvider({
         const backgroundedAt = backgroundedAtRef.current;
         const wasBackgroundedLongEnough =
           backgroundedAt != null &&
-          Date.now() - backgroundedAt >= BACKGROUND_LOCK_THRESHOLD_MS;
+          Date.now() - backgroundedAt >= lockTimeoutMsRef.current;
 
         if (
           wasBackgroundedLongEnough &&
@@ -301,6 +342,15 @@ export function BiometricLockProvider({
     [refreshAvailability],
   );
 
+  const setLockTimeoutMs = React.useCallback((next: number) => {
+    const option = BIOMETRIC_LOCK_TIMEOUT_OPTIONS.find(
+      (item) => item.value === next,
+    );
+    const value = option?.value ?? DEFAULT_BACKGROUND_LOCK_THRESHOLD_MS;
+    lockTimeoutMsRef.current = value;
+    setLockTimeoutMsState(value);
+  }, []);
+
   const value = React.useMemo(
     () => ({
       enabled,
@@ -309,7 +359,9 @@ export function BiometricLockProvider({
       isAuthenticating,
       availability,
       lastError,
+      lockTimeoutMs,
       setBiometricLockEnabled,
+      setLockTimeoutMs,
       refreshAvailability,
       unlock: authenticate,
     }),
@@ -320,7 +372,9 @@ export function BiometricLockProvider({
       isAuthenticating,
       availability,
       lastError,
+      lockTimeoutMs,
       setBiometricLockEnabled,
+      setLockTimeoutMs,
       refreshAvailability,
       authenticate,
     ],

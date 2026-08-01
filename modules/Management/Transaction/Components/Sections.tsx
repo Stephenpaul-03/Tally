@@ -1,10 +1,7 @@
-import { useFadeSlide } from "@/components/animations/UseFadeSlide";
-import { useStagger } from "@/components/animations/UseStagger";
 import { EmptyState } from "@/components/EmptyStates";
 import { Transaction, TransactionType } from "@/utils/Types";
 import React from "react";
 import {
-  Animated,
   Platform,
   StyleProp,
   StyleSheet,
@@ -27,9 +24,6 @@ interface TransactionListProps {
   onEdit: (id: string) => void;
   cardedRows?: boolean;
   style?: StyleProp<ViewStyle>;
-  /** Include a context key (e.g. selectedDate or iso) so the stagger
-   *  replays even when the same transaction IDs appear in a different
-   *  sheet / date context. */
   animKey?: string;
 }
 
@@ -49,19 +43,8 @@ export function TransactionList({
   onEdit,
   cardedRows = true,
   style,
-  animKey,
 }: TransactionListProps) {
   const theme = useTheme();
-  const { getAnimStyle } = useStagger({
-    count: transactions.length,
-    // Combine animKey (sheet/date context) with the transaction IDs so the
-    // stagger replays whenever either the context OR the list contents change.
-    dataKey: `${animKey ?? ""}-${transactions.map((t) => t.id).join(",")}`,
-    stagger: 100,
-    distance: 20,
-    duration: 1000,
-    baseDelay: 300,
-  });
 
   return (
     <View
@@ -80,7 +63,7 @@ export function TransactionList({
       ]}
     >
       {transactions.map((transaction, index) => (
-        <Animated.View key={transaction.id} style={getAnimStyle(index)}>
+        <View key={transaction.id}>
           <TransactionRow
             transaction={transaction}
             onPressTransaction={onEdit}
@@ -96,7 +79,7 @@ export function TransactionList({
             }
             showDivider={cardedRows && index < transactions.length - 1}
           />
-        </Animated.View>
+        </View>
       ))}
     </View>
   );
@@ -161,17 +144,10 @@ export function NonEmptySection({
   listStyle?: StyleProp<ViewStyle>;
   animKey?: string;
 }) {
-  const { animStyle } = useFadeSlide({
-    from: "bottom",
-    distance: 20,
-    duration: 750,
-    delay: 400,
-  });
-
   if (transactions.length === 0) return null;
 
   return (
-    <Animated.View style={[styles.sectionBlock, animStyle]}>
+    <View style={styles.sectionBlock}>
       <TransactionList
         key={animKey ?? transactions.map((t) => t.id).join(",")}
         transactions={transactions}
@@ -180,7 +156,7 @@ export function NonEmptySection({
         style={listStyle}
         animKey={animKey}
       />
-    </Animated.View>
+    </View>
   );
 }
 

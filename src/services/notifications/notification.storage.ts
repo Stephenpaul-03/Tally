@@ -4,6 +4,8 @@ import {
   DEFAULT_DAILY_FINANCE_REMINDER,
   DEFAULT_MONTHLY_INSIGHT_PROMPT,
   NotificationPermissionStatus,
+  DailyFinanceReminderFrequency,
+  DailyFinanceReminderTone,
   type DailyFinanceReminderConfig,
   type MonthlyInsightPromptConfig,
   type NotificationPermissionSnapshot,
@@ -70,6 +72,7 @@ const storage = createStorage();
 
 const STORAGE_KEYS = {
   dailyReminderEnabled: "tally.reminder.enabled",
+  dailyReminderConfig: "tally.reminder.config",
   dailyReminderNotificationId: "tally.reminder.notificationId",
   dailyReminderTime: "tally.reminder.time",
   monthlyConfig: "notifications.monthly.config",
@@ -132,10 +135,113 @@ function parseReminderTimes(value: string | undefined): ReminderTime[] {
       );
     });
 
-    return validTimes.length > 0 ? validTimes.slice(0, 3) : fallback;
+    return validTimes.length > 0 ? validTimes.slice(0, 5) : fallback;
   }
 
   return [parseTimeValue(value, fallback[0])];
+}
+
+function weekdaysFromFrequency(frequency: DailyFinanceReminderFrequency) {
+  switch (frequency) {
+    case DailyFinanceReminderFrequency.Weekdays:
+      return [2, 3, 4, 5, 6];
+    case DailyFinanceReminderFrequency.Weekends:
+      return [1, 7];
+    default:
+      return [1, 2, 3, 4, 5, 6, 7];
+  }
+}
+
+function normalizeWeekdays(
+  value: Partial<DailyFinanceReminderConfig> | null,
+  frequency: DailyFinanceReminderFrequency,
+) {
+  if (Array.isArray(value?.weekdays)) {
+    const weekdays = Array.from(
+      new Set(
+        value.weekdays.filter((weekday) => {
+          return Number.isInteger(weekday) && weekday >= 1 && weekday <= 7;
+        }),
+      ),
+    ).sort((a, b) => a - b);
+
+    if (weekdays.length > 0) {
+      return weekdays;
+    }
+  }
+
+  return weekdaysFromFrequency(frequency);
+}
+
+function normalizeDailyReminderConfig(
+  value: Partial<DailyFinanceReminderConfig> | null,
+): DailyFinanceReminderConfig {
+  const fallback = DEFAULT_DAILY_FINANCE_REMINDER;
+  const reminders = Array.isArray(value?.reminders)
+    ? value.reminders.filter((time) => {
+        return (
+          Number.isInteger(time.hour) &&
+          Number.isInteger(time.minute) &&
+          time.hour >= 0 &&
+          time.hour <= 23 &&
+          time.minute >= 0 &&
+          time.minute <= 59
+        );
+      })
+    : fallback.reminders;
+  const frequency =
+    value?.frequency === DailyFinanceReminderFrequency.Weekdays ||
+    value?.frequency === DailyFinanceReminderFrequency.Weekends ||
+    value?.frequency === DailyFinanceReminderFrequency.Daily
+      ? value.frequency
+      : fallback.frequency;
+  const tone =
+    value?.tone === DailyFinanceReminderTone.Direct ||
+    value?.tone === DailyFinanceReminderTone.Minimal ||
+    value?.tone === DailyFinanceReminderTone.Fun ||
+    value?.tone === DailyFinanceReminderTone.Gentle
+      ? value.tone
+      : fallback.tone;
+  const quietHours = value?.quietHours ?? fallback.quietHours;
+
+  return {
+    enabled:
+      typeof value?.enabled === "boolean" ? value.enabled : fallback.enabled,
+    frequency,
+    weekdays: normalizeWeekdays(value, frequency),
+    tone,
+    quietHours: {
+      enabled:
+        typeof quietHours?.enabled === "boolean"
+          ? quietHours.enabled
+          : fallback.quietHours.enabled,
+      startHour:
+        Number.isInteger(quietHours?.startHour) &&
+        quietHours.startHour >= 0 &&
+        quietHours.startHour <= 23
+          ? quietHours.startHour
+          : fallback.quietHours.startHour,
+      startMinute:
+        Number.isInteger(quietHours?.startMinute) &&
+        quietHours.startMinute >= 0 &&
+        quietHours.startMinute <= 59
+          ? quietHours.startMinute
+          : fallback.quietHours.startMinute,
+      endHour:
+        Number.isInteger(quietHours?.endHour) &&
+        quietHours.endHour >= 0 &&
+        quietHours.endHour <= 23
+          ? quietHours.endHour
+          : fallback.quietHours.endHour,
+      endMinute:
+        Number.isInteger(quietHours?.endMinute) &&
+        quietHours.endMinute >= 0 &&
+        quietHours.endMinute <= 59
+          ? quietHours.endMinute
+          : fallback.quietHours.endMinute,
+    },
+    reminders: reminders.length > 0 ? reminders.slice(0, 5) : fallback.reminders,
+  };
 }
 
 function parseScheduleIds(value: string | undefined) {
@@ -192,6 +298,10 @@ export const notificationStorage = {
   },
 
   getDailyFinanceReminder(): StoredNotificationPreference<DailyFinanceReminderConfig> {
+    const rawStoredConfig = readJson<Partial<DailyFinanceReminderConfig>>(
+      STORAGE_KEYS.dailyReminderConfig,
+    );
+    const storedConfig = normalizeDailyReminderConfig(rawStoredConfig);
     const reminders = parseReminderTimes(
       storage.getString(STORAGE_KEYS.dailyReminderTime),
     );
@@ -201,11 +311,16 @@ export const notificationStorage = {
 
     return {
       config: {
+        ...storedConfig,
         enabled:
-          storage.getBoolean?.(STORAGE_KEYS.dailyReminderEnabled) ??
-          DEFAULT_DAILY_FINANCE_REMINDER.enabled,
-        frequency: DEFAULT_DAILY_FINANCE_REMINDER.frequency,
-        reminders,
+          rawStoredConfig != null
+            ? storedConfig.enabled
+            : (storage.getBoolean?.(STORAGE_KEYS.dailyReminderEnabled) ??
+              DEFAULT_DAILY_FINANCE_REMINDER.enabled),
+        reminders:
+          rawStoredConfig?.reminders
+            ? storedConfig.reminders
+            : reminders,
       },
       schedule: notificationIds.length > 0
         ? {
@@ -248,6 +363,7 @@ export const notificationStorage = {
     value: StoredNotificationPreference<DailyFinanceReminderConfig>,
   ) {
     storage.set(STORAGE_KEYS.dailyReminderEnabled, value.config.enabled);
+    writeJson(STORAGE_KEYS.dailyReminderConfig, value.config);
     storage.set(
       STORAGE_KEYS.dailyReminderTime,
       JSON.stringify(value.config.reminders.map(({ hour, minute }) => ({ hour, minute }))),

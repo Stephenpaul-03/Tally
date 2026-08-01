@@ -1,17 +1,15 @@
-import { BackButton } from "@/components/backbutton/BackButton";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { CustomColorPickerModal } from "@/modules/Management/Category/Components/ColorPickerModal";
 import { DeleteScreen } from "@/modules/Management/Category/Screens/DeleteScreen";
 import { CategoryEditScreen } from "@/modules/Management/Category/Screens/EditScreen";
 import { ListScreen } from "@/modules/Management/Category/Screens/ListScreen";
-import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
 
 const EXTRA_COLORS = [
@@ -269,52 +267,42 @@ export function CategoriesScreen() {
 
   const renderHeader = ({
     title,
-    subtitle,
     showBack = false,
     rightAccessory,
+    rightAccessoryBeforeSearch,
+    centerContent,
+    hideBack = false,
+    searchOpen,
+    query,
+    onQueryChange,
+    onSearchOpenChange,
+    searchPlaceholder,
   }: {
     title: string;
     subtitle?: string;
     showBack?: boolean;
     rightAccessory?: React.ReactNode;
+    rightAccessoryBeforeSearch?: React.ReactNode;
+    centerContent?: React.ReactNode;
+    hideBack?: boolean;
+    searchOpen?: boolean;
+    query?: string;
+    onQueryChange?: (value: string) => void;
+    onSearchOpenChange?: (value: boolean) => void;
+    searchPlaceholder?: string;
   }) => (
-    <View
-      style={[
-        CategoryManagementStyles.header,
-        { borderBottomColor: theme.colors.outlineVariant },
-      ]}
-    >
-      <BackButton
-        onPress={showBack ? handleBack : handleClose}
-        theme={theme}
-        size={34}
-      />
-      <View style={{ flex: 1 }}>
-        <Text
-          style={[
-            CategoryManagementStyles.headerTitle,
-            {
-              color: theme.colors.onSurface,
-              fontSize: 18,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            style={[
-              CategoryManagementStyles.headerSubtitle,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {rightAccessory ?? null}
-    </View>
+    <SettingsHeader
+      title={title}
+      centerContent={centerContent}
+      onBack={hideBack ? undefined : showBack ? handleBack : handleClose}
+      rightAccessory={rightAccessory}
+      rightAccessoryBeforeSearch={rightAccessoryBeforeSearch}
+      searchOpen={searchOpen}
+      query={query}
+      onQueryChange={onQueryChange}
+      onSearchOpenChange={onSearchOpenChange}
+      searchPlaceholder={searchPlaceholder}
+    />
   );
 
   return (
@@ -367,10 +355,10 @@ export function CategoriesScreen() {
       ) : (
         <ListScreen
           management={management}
-          fallbackName={fallbackName}
           listHeight={listHeight}
           theme={theme}
           renderHeader={renderHeader}
+          useSettingsHeader
         />
       )}
     </SafeAreaView>

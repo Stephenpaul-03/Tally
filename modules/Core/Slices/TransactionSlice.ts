@@ -30,7 +30,7 @@ import {
     TransactionState,
     TransactionType,
 } from "../../../utils/Types";
-import { financeRepository } from "../Repository/Index";
+import { financeRepository, switchWorkspace } from "../Repository/Index";
 import type { RootState } from "../Store";
 
 // Storage key for persistence
@@ -745,6 +745,9 @@ const transactionSlice = createSlice({
         type: t.type!,
         category: t.category!,
         account: t.account!,
+        currencyCode: t.currencyCode,
+        currencySymbol: t.currencySymbol,
+        currencyName: t.currencyName,
         notes: t.notes,
         tags: t.tags,
         createdBy: t.createdBy || "Imported",
@@ -1003,6 +1006,56 @@ const transactionSlice = createSlice({
         state.transactions = [];
         state.transactionDrafts = [];
         state.activeTransactionDraftId = null;
+      })
+      .addCase(clearTransactionsForDateRangeAsync.fulfilled, (state, action) => {
+        const { startDate, endDate } = action.meta.arg;
+        state.transactions = state.transactions.filter(
+          (transaction) =>
+            transaction.date < startDate || transaction.date > endDate,
+        );
+        state.transactionDrafts = [];
+        state.activeTransactionDraftId = null;
+      })
+      .addCase(deleteUnusedCategoriesAsync.fulfilled, (state) => {
+        const usedIncome = new Set(
+          state.transactions
+            .filter((transaction) => transaction.type === "income")
+            .map((transaction) => transaction.category),
+        );
+        const usedExpense = new Set(
+          state.transactions
+            .filter((transaction) => transaction.type === "expense")
+            .map((transaction) => transaction.category),
+        );
+        state.incomeCategories = state.incomeCategories.filter((name) =>
+          usedIncome.has(name),
+        );
+        state.expenseCategories = state.expenseCategories.filter((name) =>
+          usedExpense.has(name),
+        );
+      })
+      .addCase(deleteUnusedAccountsAsync.fulfilled, (state) => {
+        const usedAccounts = new Set(
+          state.transactions.map((transaction) => transaction.account),
+        );
+        state.accounts = state.accounts.filter((name) => usedAccounts.has(name));
+      })
+      .addCase(resetWorkspaceDataAsync.fulfilled, (state) => {
+        state.transactions = [];
+        state.transactionDrafts = [];
+        state.activeTransactionDraftId = null;
+        state.incomeCategories = [...DEFAULT_INCOME_CATEGORIES];
+        state.expenseCategories = [...DEFAULT_EXPENSE_CATEGORIES];
+        state.deletedIncomeCategories = [];
+        state.deletedExpenseCategories = [];
+        state.categoryIcons = {};
+        state.categoryColors = {};
+        state.accounts = [...DEFAULT_ACCOUNTS];
+        state.deletedAccounts = [];
+        state.accountIcons = {};
+        state.accountColors = {};
+        state.overallBudget = 0;
+        state.categoryBudgets = {};
       });
   },
 });
@@ -1299,6 +1352,39 @@ export const clearAllTransactionsAsync = createAsyncThunk(
   async () => {
     if (!financeRepository) throw new Error("Repository not available");
     await financeRepository.clearAllTransactions();
+  },
+);
+
+export const clearTransactionsForDateRangeAsync = createAsyncThunk(
+  "transactions/clearTransactionsForDateRange",
+  async ({ startDate, endDate }: { startDate: string; endDate: string }) => {
+    if (!financeRepository) throw new Error("Repository not available");
+    await financeRepository.clearTransactionsForDateRange(startDate, endDate);
+  },
+);
+
+export const deleteUnusedCategoriesAsync = createAsyncThunk(
+  "transactions/deleteUnusedCategories",
+  async () => {
+    if (!financeRepository) throw new Error("Repository not available");
+    return await financeRepository.deleteUnusedCategories();
+  },
+);
+
+export const deleteUnusedAccountsAsync = createAsyncThunk(
+  "transactions/deleteUnusedAccounts",
+  async () => {
+    if (!financeRepository) throw new Error("Repository not available");
+    return await financeRepository.deleteUnusedAccounts();
+  },
+);
+
+export const resetWorkspaceDataAsync = createAsyncThunk(
+  "transactions/resetWorkspaceData",
+  async () => {
+    if (!financeRepository) throw new Error("Repository not available");
+    await financeRepository.resetWorkspaceData();
+    switchWorkspace("personal");
   },
 );
 

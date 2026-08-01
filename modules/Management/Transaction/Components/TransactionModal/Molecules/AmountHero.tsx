@@ -1,8 +1,11 @@
+import {
+  CurrencyPickerField,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { typography } from "@/theme/typography";
 import { getContrastColor } from "@/utils/ColorHelpers";
-import { TransactionType } from "@/utils/Types";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { Text, TextInput, useTheme, type MD3Theme } from "react-native-paper";
@@ -11,27 +14,27 @@ import { amountHero } from "../Styles";
 interface AmountHeroProps {
   value: string;
   onChange: (v: string) => void;
-  transactionType: TransactionType;
+  currency: WorkspaceCurrency;
+  onCurrencyChange: (currency: WorkspaceCurrency) => void;
   error?: string;
 }
 
-const QUICK_ADD = [10, 50, 100, 500];
 export function AmountHero({
   value,
   onChange,
-  transactionType,
+  currency,
+  onCurrencyChange,
   error,
 }: AmountHeroProps) {
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
-  const currencyCode = activeWorkspace?.currencySymbol;
+  const fallbackCurrency: WorkspaceCurrency = {
+    code: activeWorkspace?.currencyCode ?? "INR",
+    name: activeWorkspace?.currencyName ?? "Indian Rupee",
+    symbol: activeWorkspace?.currencySymbol ?? "₹",
+  };
   const theme = useTheme<MD3Theme>();
 
-  const handleQuickAdd = (amount: number) => {
-    const current = parseFloat(value) || 0;
-    const next = current + amount;
-    // Keep up to 2 decimal places, strip trailing zeros
-    onChange(String(parseFloat(next.toFixed(2))));
-  };
+  const selectedCurrency = currency ?? fallbackCurrency;
 
   return (
     <View style={amountHero.container}>
@@ -50,15 +53,31 @@ export function AmountHero({
       </Text>
 
       <View style={amountHero.amountRow}>
-        {/* Currency symbol */}
-        <Text
-          style={[
-            amountHero.currencySymbol,
-            { color: getContrastColor(theme.colors.background) },
-          ]}
-        >
-          {currencyCode}
-        </Text>
+        <CurrencyPickerField
+          currency={selectedCurrency}
+          onChange={onCurrencyChange}
+          theme={theme}
+          renderTrigger={({ open }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Change transaction currency"
+              onPress={open}
+              style={({ pressed }) => [
+                amountHero.currencyButton,
+                { opacity: pressed ? 0.62 : 1 },
+              ]}
+            >
+              <Text
+                style={[
+                  amountHero.currencySymbol,
+                  { color: getContrastColor(theme.colors.background) },
+                ]}
+              >
+                {selectedCurrency.symbol}
+              </Text>
+            </Pressable>
+          )}
+        />
 
         <TextInput
           mode="flat"
@@ -90,47 +109,13 @@ export function AmountHero({
         </Text>
       ) : null}
 
-      {/* Quick-add buttons */}
       <View
         style={[
-          amountHero.quickAddRow,
-          {
-            backgroundColor: theme.colors.elevation.level2,
-            borderColor: theme.colors.outlineVariant,
-          },
+          amountHero.amountDivider,
+          { backgroundColor: theme.colors.primary },
         ]}
-      >
-        {QUICK_ADD.map((amt, i) => (
-          <React.Fragment key={amt}>
-            {i > 0 && (
-              <View
-                style={[
-                  amountHero.quickAddDivider,
-                  { backgroundColor: theme.colors.outlineVariant },
-                ]}
-              />
-            )}
-            <Pressable
-              onPress={() => handleQuickAdd(amt)}
-              style={({ pressed }) => [
-                amountHero.quickAddButton,
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
-              accessibilityLabel={`Add ${amt}`}
-            >
-              <Text
-                variant="labelMedium"
-                style={[
-                  amountHero.quickAddLabel,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                +{amt}
-              </Text>
-            </Pressable>
-          </React.Fragment>
-        ))}
-      </View>
+      />
+
     </View>
   );
 }

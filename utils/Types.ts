@@ -36,6 +36,9 @@ export interface Transaction {
   type: TransactionType; // 'income' | 'expense'
   category: string; // User-defined categories
   account: PaymentMethod; // User-managed account name, e.g. 'Card'
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyName?: string;
 
   // Optional fields
   notes?: string; // Additional notes
@@ -69,6 +72,9 @@ export interface TransactionFormData {
   type: TransactionType;
   category: string;
   account: PaymentMethod;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyName?: string;
   notes?: string;
   tags?: string[];
 }

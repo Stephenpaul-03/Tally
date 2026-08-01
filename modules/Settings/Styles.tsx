@@ -15,19 +15,19 @@ export const SettingsStyles = StyleSheet.create({
     paddingBottom: 20,
   },
   backButton: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: 99,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
   headerCenter: {
     flex: 1,
   },
   headerActionPlaceholder: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
   },
   headerTitle: {
     fontSize: 18,

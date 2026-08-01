@@ -17,7 +17,13 @@ export const amountHero = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 14,
+    marginBottom: 18,
+  },
+  currencyButton: {
+    minWidth: 48,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
   },
   currencySymbol: {
     fontSize: 36,
@@ -39,25 +45,9 @@ export const amountHero = StyleSheet.create({
     fontSize: 12,
     marginBottom: 8,
   },
-  // Quick-add pill row
-  quickAddRow: {
-    flexDirection: "row",
-    borderRadius: 12,
-    borderWidth: 0.5,
-    overflow: "hidden",
-  },
-  quickAddButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  quickAddDivider: {
-    width: 0.5,
-    alignSelf: "stretch",
-  },
-  quickAddLabel: {
-    fontWeight: "600",
+  amountDivider: {
+    height: 1,
+    marginBottom: 18,
   },
 });
 
@@ -67,7 +57,7 @@ export const fieldRow = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 2,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 0,
   },
   labelCell: {
     flexDirection: "row",
@@ -92,7 +82,7 @@ export const fieldRow = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 0,
     borderBottomColor: "transparent",
   },
   errorText: {
@@ -144,9 +134,9 @@ export const categoryPicker = StyleSheet.create({
     paddingBottom: 20,
   },
   handle: {
-    width: 36,
+    width: 42,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 999,
     alignSelf: "center",
     marginTop: 12,
     marginBottom: 8,
@@ -222,6 +212,16 @@ export const mainContent = StyleSheet.create({
     padding: 14,
     gap: 8,
   },
+  fullWidthSelectionRow: {
+    marginHorizontal: 20,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 0,
+    paddingHorizontal: 0,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 14,
+  },
   stackedLabel: {
     letterSpacing: 0.8,
     fontWeight: "800",
@@ -230,13 +230,15 @@ export const mainContent = StyleSheet.create({
   // ── Inline field card (Title, Notes, Date — each its own card) ────────────
   inlineFieldCard: {
     marginHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 0.5,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 0,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    paddingVertical: 0,
+    gap: 10,
+  },
+  inlineFieldBody: {
+    paddingBottom: 14,
   },
   inlineFieldIcon: {
     width: 32,
@@ -247,8 +249,9 @@ export const mainContent = StyleSheet.create({
     flexShrink: 0,
   },
   inlineFieldLabel: {
-    fontWeight: "600",
-    fontSize: 14,
+    letterSpacing: 0.8,
+    fontWeight: "800",
+    opacity: 1,
   },
   inlineFieldLabelOptional: {
     fontWeight: "400",
@@ -256,12 +259,11 @@ export const mainContent = StyleSheet.create({
     opacity: 0.5,
   },
   inlineFieldValue: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 18,
     backgroundColor: "transparent",
     paddingHorizontal: 0,
     paddingVertical: 0,
-    minHeight: 20,
+    minHeight: 32,
   },
   inlineFieldPlaceholder: {
     flex: 1,
@@ -313,7 +315,7 @@ export const mainContent = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 12,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 0,
   },
   titleInput: {
     flex: 1,
@@ -335,7 +337,6 @@ export const mainContent = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 14,
     paddingVertical: 11,
-    borderTopWidth: 0.5,
     gap: 8,
   },
   // ── Footer ───────────────────────────────────────────────────────────────
@@ -405,8 +406,8 @@ export const modal = StyleSheet.create({
     justifyContent: "center",
   },
   sheetHandle: {
-    width: 46,
-    height: 5,
+    width: 42,
+    height: 4,
     borderRadius: 999,
     opacity: 0.45,
   },
@@ -424,9 +425,9 @@ export const modal = StyleSheet.create({
     overflow: "hidden",
   },
   datePickerHandle: {
-    width: 36,
+    width: 42,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 999,
     alignSelf: "center",
     marginTop: 12,
   },
@@ -457,9 +458,9 @@ export const datePicker = StyleSheet.create({
   },
   datePickerHandle: {
     alignSelf: "center",
-    width: 36,
+    width: 42,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 999,
     marginTop: 10,
     marginBottom: 10,
   },

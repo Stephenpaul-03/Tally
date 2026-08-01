@@ -20,8 +20,6 @@ export function AccountsScreen() {
     iconGrid,
     listHeight,
     screen,
-    reorderMode,
-    setReorderMode,
     localName,
     localIcon,
     localColor,
@@ -55,11 +53,10 @@ export function AccountsScreen() {
           showBack
           hideCloseButton
           listHeight={listHeight}
-          reorderMode={reorderMode}
-          onToggleReorderMode={() => setReorderMode((v) => !v)}
           onBack={handleClose}
           onClose={handleClose}
           theme={theme}
+          useSettingsHeader
         />
       )}
 

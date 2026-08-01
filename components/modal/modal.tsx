@@ -8,7 +8,6 @@ import {
   Platform,
   StyleProp,
   useWindowDimensions,
-  View,
   ViewStyle,
 } from "react-native";
 import { Modal, Portal } from "react-native-paper";
@@ -47,8 +46,10 @@ export function AnimatedPaperModal({
   const { height } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
   const hiddenTranslateY = Math.max(0, Math.floor(height));
+  const progress = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(hiddenTranslateY)).current;
   const gestureStartTranslateY = useRef(0);
+  const [rendered, setRendered] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEscapeToClose(visible && escapeEnabled, onDismiss);
@@ -72,14 +73,49 @@ export function AnimatedPaperModal({
   }, [presentation, style, zIndex]);
 
   useEffect(() => {
-    if (presentation !== "sheet") return;
-    Animated.timing(sheetTranslateY, {
-      toValue: visible ? 0 : hiddenTranslateY,
-      duration: visible ? 750 : 750,
-      easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [hiddenTranslateY, presentation, sheetTranslateY, visible]);
+    if (visible) {
+      setRendered(true);
+      progress.stopAnimation();
+      sheetTranslateY.stopAnimation();
+      progress.setValue(0);
+      if (presentation === "sheet") sheetTranslateY.setValue(hiddenTranslateY);
+
+      Animated.parallel([
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    progress.stopAnimation();
+    sheetTranslateY.stopAnimation();
+    Animated.parallel([
+      Animated.timing(progress, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: hiddenTranslateY,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setRendered(false);
+    });
+  }, [hiddenTranslateY, presentation, progress, sheetTranslateY, visible]);
 
   useEffect(() => {
     if (!keyboardAware || presentation !== "sheet" || !visible) {
@@ -191,6 +227,26 @@ export function AnimatedPaperModal({
     sheetTranslateY,
   ]);
 
+  const contentAnimationStyle = useMemo(
+    () =>
+      presentation === "sheet"
+        ? {
+            opacity: progress,
+          }
+        : {
+            opacity: progress,
+            transform: [
+              {
+                scale: progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.98, 1],
+                }),
+              },
+            ],
+          },
+    [presentation, progress],
+  );
+
   // Sheet modals avoid the keyboard by lifting the bottom-anchored container.
   // Center modals still use KeyboardAvoidingView around their content.
   const wrappedChildren =
@@ -208,21 +264,26 @@ export function AnimatedPaperModal({
   return (
     <Portal>
       <Modal
-        visible={visible}
+        visible={rendered}
         onDismiss={onDismiss}
         dismissable={dismissable}
         style={combinedModalStyle}
         contentContainerStyle={combinedContentContainerStyle}
       >
         {presentation === "sheet" && sheetPanResponder ? (
-          <View
-            style={{ alignSelf: "stretch", flexShrink: 1 }}
+          <Animated.View
+            style={[
+              { alignSelf: "stretch", flexShrink: 1 },
+              contentAnimationStyle,
+            ]}
             {...sheetPanResponder.panHandlers}
           >
             {wrappedChildren}
-          </View>
+          </Animated.View>
         ) : (
-          wrappedChildren
+          <Animated.View style={contentAnimationStyle}>
+            {wrappedChildren}
+          </Animated.View>
         )}
       </Modal>
     </Portal>

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS workspaces (
   currency_symbol TEXT NOT NULL DEFAULT '₹',
   currency_name TEXT NOT NULL DEFAULT 'Indian Rupee',
   last_used_at TEXT,
+  last_backup_at TEXT,
+  last_backup_kind TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -53,6 +55,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_id INTEGER NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
   account TEXT,
+  currency_code TEXT,
+  currency_symbol TEXT,
+  currency_name TEXT,
   notes TEXT,
   tags TEXT, -- Stored as a JSON string
   created_by TEXT,

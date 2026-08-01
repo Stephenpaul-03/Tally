@@ -11,8 +11,9 @@ import {
   useSetTabBarEdgeButton,
 } from "@/components/tabbar/TabBarContext";
 import { SHELL_TAB_ROUTES } from "@/constants/routes";
+import { TransactionsScreen } from "@/modules/Management/Transaction/Screens/TransactionsScreen";
+import { OnboardingGate, OnboardingScreen } from "@/modules/Onboarding/Index";
 import { SettingsScreen } from "@/modules/Settings/Index";
-import { TransactionsScreen } from "@/screens/TransactionsScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -105,9 +106,11 @@ function SettingsStackScreen() {
 function RootStackNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="Transactions"
+      initialRouteName="OnboardingGate"
       screenOptions={{ headerShown: false }}
     >
+      <Stack.Screen name="OnboardingGate" component={OnboardingGate} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Transactions" component={TransactionsStackScreen} />
       <Stack.Screen name="Settings" component={SettingsStackScreen} />
     </Stack.Navigator>

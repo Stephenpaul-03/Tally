@@ -8,8 +8,6 @@ export function SettingsScreen() {
   const initialRouteName =
     route.params?.section === "notification-reminders"
       ? "Labs"
-      : route.params?.section === "workspaces"
-        ? "Workspaces"
       : "SettingsHome";
 
   return (

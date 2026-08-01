@@ -2,8 +2,13 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
 import { usePasswordPrompt } from "@/components/PasswordPrompt";
+import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
 import type { ExportResult } from "@/hooks/use-import-export";
+import {
+  markWorkspaceBackedUpAsync,
+  selectActiveWorkspaceId,
+} from "@/modules/Core/Slices/WorkspaceSlice";
 import { isEncryptionSupported } from "@/utils/CryptoUtils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -815,6 +820,8 @@ function ExportConfirmModal({
 export function BackupExportScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const encryptionSupported = isEncryptionSupported();
@@ -896,6 +903,12 @@ export function BackupExportScreen() {
         exportPassword: encryptBackup ? exportPassword.trim() : undefined,
       });
       if (result) {
+        await dispatch(
+          markWorkspaceBackedUpAsync({
+            id: activeWorkspaceId,
+            kind: exportScope === "all" ? "full" : exportScope,
+          }) as any,
+        );
         setExportResult(result);
         setShareVisible(true);
       }
@@ -908,6 +921,8 @@ export function BackupExportScreen() {
     exportScope,
     exportTransactions,
     fileNameDraft,
+    activeWorkspaceId,
+    dispatch,
     rangeEndMonth,
     rangeEndDate,
     rangeStartMonth,

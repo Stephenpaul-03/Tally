@@ -428,11 +428,7 @@ function BasicTabBar({
 
         // Snap the pill home (to the new index, or back to the current one).
         updatePill(nextIndex, true);
-        onTabDragRef.current?.(nextIndex);
-
-        if (nextIndex !== activeIndexRef.current) {
-          onTabPressRef.current(nextIndex);
-        }
+        onTabPressRef.current(nextIndex);
       },
 
       onPanResponderTerminate: () => {

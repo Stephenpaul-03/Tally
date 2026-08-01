@@ -21,6 +21,8 @@ export type Workspace = {
   currencyName: string;
   createdAt?: string;
   lastUsedAt?: string;
+  lastBackupAt?: string;
+  lastBackupKind?: "full" | "month" | "range";
 };
 
 export type WorkspaceInput = {
@@ -42,6 +44,14 @@ export type DatabaseBackup = {
   budgets: any[];
   categoryBudgets: any[];
   transactions: any[];
+};
+
+export type WorkspaceSetupInput = {
+  incomeCategories: { name: string; icon?: string; color?: string }[];
+  expenseCategories: { name: string; icon?: string; color?: string }[];
+  accounts: { name: string; icon?: string; color?: string }[];
+  overallBudget?: number;
+  categoryBudgets?: { categoryName: string; amount: number }[];
 };
 
 export const DEFAULT_WORKSPACE_ID = "personal";
@@ -83,6 +93,9 @@ interface TransactionRow {
   category: string;
   type: "income" | "expense";
   account: string;
+  currency_code: string | null;
+  currency_symbol: string | null;
+  currency_name: string | null;
   notes: string | null;
   tags: string | null;
   created_by: string;
@@ -118,6 +131,8 @@ interface WorkspaceRow {
   currency_name: string | null;
   created_at: string;
   last_used_at: string | null;
+  last_backup_at: string | null;
+  last_backup_kind: string | null;
 }
 
 interface CategoryBudgetRow {
@@ -156,6 +171,9 @@ const mapTransactionRow = (row: TransactionRow): Transaction => ({
   category: row.category,
   type: row.type,
   account: formatAccountLabel(row.account) as Transaction["account"],
+  currencyCode: row.currency_code ?? undefined,
+  currencySymbol: row.currency_symbol ?? undefined,
+  currencyName: row.currency_name ?? undefined,
   notes: row.notes ?? undefined,
   tags: parseTags(row.tags),
   createdBy: row.created_by,
@@ -183,6 +201,13 @@ const mapWorkspaceRow = (row: WorkspaceRow): Workspace => ({
   currencyName: row.currency_name ?? "Indian Rupee",
   createdAt: row.created_at,
   lastUsedAt: row.last_used_at ?? undefined,
+  lastBackupAt: row.last_backup_at ?? undefined,
+  lastBackupKind:
+    row.last_backup_kind === "full" ||
+    row.last_backup_kind === "month" ||
+    row.last_backup_kind === "range"
+      ? row.last_backup_kind
+      : undefined,
 });
 
 const mapBudgetRows = (
@@ -260,6 +285,8 @@ const ensureWorkspaceSchema = () => {
         currency_symbol TEXT NOT NULL DEFAULT '₹',
         currency_name TEXT NOT NULL DEFAULT 'Indian Rupee',
         last_used_at TEXT,
+        last_backup_at TEXT,
+        last_backup_kind TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -271,10 +298,13 @@ const ensureWorkspaceSchema = () => {
 const addWorkspaceMetadataColumns = () => {
   const columns = [
     "owner_name TEXT",
-    "currency_code TEXT NOT NULL DEFAULT 'INR'",
-    "currency_symbol TEXT NOT NULL DEFAULT '₹'",
-    "currency_name TEXT NOT NULL DEFAULT 'Indian Rupee'",
+    "currency_code TEXT",
+    "currency_symbol TEXT",
+    "currency_name TEXT",
     "last_used_at TEXT",
+    "last_backup_at TEXT",
+    "last_backup_kind TEXT",
+    "created_at TEXT",
   ];
 
   for (const column of columns) {
@@ -283,6 +313,19 @@ const addWorkspaceMetadataColumns = () => {
     } catch {
       // Ignore duplicate-column failures for existing databases.
     }
+  }
+
+  try {
+    db.execSync(`
+      UPDATE workspaces
+      SET
+        currency_code = COALESCE(currency_code, 'INR'),
+        currency_symbol = COALESCE(currency_symbol, '₹'),
+        currency_name = COALESCE(currency_name, 'Indian Rupee'),
+        created_at = COALESCE(created_at, CURRENT_TIMESTAMP);
+    `);
+  } catch {
+    // Ignore backfill failures; workspace reads still provide JS defaults.
   }
 };
 
@@ -303,6 +346,26 @@ const getTableSql = (tableName: string): string => {
   );
   return row?.sql ?? "";
 };
+
+const getTableColumns = (tableName: string) => {
+  try {
+    const rows = db.getAllSync<{ name: string }>(`PRAGMA table_info(${tableName});`);
+    return new Set(rows.map((row) => row.name));
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const sqlString = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
+const workspaceColumnExpr = (
+  columns: Set<string>,
+  columnName: keyof WorkspaceRow,
+  fallbackSql: string,
+) =>
+  columns.has(columnName)
+    ? `COALESCE(${columnName}, ${fallbackSql}) AS ${columnName}`
+    : `${fallbackSql} AS ${columnName}`;
 
 const migrateWorkspaceUniqueConstraints = () => {
   const accountsSql = getTableSql("accounts");
@@ -403,8 +466,25 @@ const migrateWorkspaceUniqueConstraints = () => {
 
 export class SQLiteWorkspaceRepository {
   async getWorkspaces(): Promise<Workspace[]> {
+    const columns = getTableColumns("workspaces");
+    const createdOrder = columns.has("created_at") ? "created_at ASC," : "";
+    const selectColumns = [
+      workspaceColumnExpr(columns, "id", sqlString(DEFAULT_WORKSPACE_ID)),
+      workspaceColumnExpr(columns, "name", "'Workspace'"),
+      workspaceColumnExpr(columns, "icon", "'briefcase-outline'"),
+      workspaceColumnExpr(columns, "color", "'#6366F1'"),
+      workspaceColumnExpr(columns, "owner_name", "NULL"),
+      workspaceColumnExpr(columns, "currency_code", "'INR'"),
+      workspaceColumnExpr(columns, "currency_symbol", sqlString("₹")),
+      workspaceColumnExpr(columns, "currency_name", "'Indian Rupee'"),
+      workspaceColumnExpr(columns, "created_at", "CURRENT_TIMESTAMP"),
+      workspaceColumnExpr(columns, "last_used_at", "NULL"),
+      workspaceColumnExpr(columns, "last_backup_at", "NULL"),
+      workspaceColumnExpr(columns, "last_backup_kind", "NULL"),
+    ].join(", ");
+
     const rows = await db.getAllAsync<WorkspaceRow>(
-      `SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at
+      `SELECT ${selectColumns}
        FROM workspaces
        ORDER BY
         CASE id
@@ -412,8 +492,9 @@ export class SQLiteWorkspaceRepository {
           WHEN 'family' THEN 1
           ELSE 2
         END,
-        created_at ASC,
+        ${createdOrder}
         name ASC`,
+      [],
     );
     return rows.map(mapWorkspaceRow);
   }
@@ -464,7 +545,7 @@ export class SQLiteWorkspaceRepository {
     }
 
     const row = await db.getFirstAsync<WorkspaceRow>(
-      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at FROM workspaces WHERE id = ?",
+      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at, last_backup_at, last_backup_kind FROM workspaces WHERE id = ?",
       [workspaceId],
     );
     if (!row) {
@@ -478,7 +559,7 @@ export class SQLiteWorkspaceRepository {
     data: Partial<WorkspaceInput>,
   ): Promise<Workspace> {
     const current = await db.getFirstAsync<WorkspaceRow>(
-      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at FROM workspaces WHERE id = ?",
+      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at, last_backup_at, last_backup_kind FROM workspaces WHERE id = ?",
       [id],
     );
     if (!current) {
@@ -502,7 +583,7 @@ export class SQLiteWorkspaceRepository {
     );
 
     const updated = await db.getFirstAsync<WorkspaceRow>(
-      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at FROM workspaces WHERE id = ?",
+      "SELECT id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name, created_at, last_used_at, last_backup_at, last_backup_kind FROM workspaces WHERE id = ?",
       [id],
     );
     if (!updated) {
@@ -515,6 +596,16 @@ export class SQLiteWorkspaceRepository {
     await db.runAsync(
       "UPDATE workspaces SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?",
       [id],
+    );
+  }
+
+  async markWorkspaceBackedUp(
+    id: string,
+    kind: "full" | "month" | "range",
+  ): Promise<void> {
+    await db.runAsync(
+      "UPDATE workspaces SET last_backup_at = CURRENT_TIMESTAMP, last_backup_kind = ? WHERE id = ?",
+      [kind, id],
     );
   }
 
@@ -534,6 +625,88 @@ export class SQLiteWorkspaceRepository {
     await db.runAsync("DELETE FROM categories WHERE workspace_id = ?", [id]);
     await db.runAsync("DELETE FROM accounts WHERE workspace_id = ?", [id]);
     await db.runAsync("DELETE FROM workspaces WHERE id = ?", [id]);
+  }
+
+  async copyWorkspaceSetup(fromWorkspaceId: string, toWorkspaceId: string) {
+    if (fromWorkspaceId === toWorkspaceId) return;
+
+    const source = await db.getFirstAsync<{ id: string }>(
+      "SELECT id FROM workspaces WHERE id = ?",
+      [fromWorkspaceId],
+    );
+    const target = await db.getFirstAsync<{ id: string }>(
+      "SELECT id FROM workspaces WHERE id = ?",
+      [toWorkspaceId],
+    );
+
+    if (!source || !target) {
+      throw new Error("Workspace setup copy needs valid workspaces.");
+    }
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM category_budgets WHERE workspace_id = ?", [
+        toWorkspaceId,
+      ]);
+      await db.runAsync("DELETE FROM budgets WHERE workspace_id = ?", [
+        toWorkspaceId,
+      ]);
+      await db.runAsync("DELETE FROM categories WHERE workspace_id = ?", [
+        toWorkspaceId,
+      ]);
+      await db.runAsync("DELETE FROM accounts WHERE workspace_id = ?", [
+        toWorkspaceId,
+      ]);
+
+      await db.runAsync(
+        `INSERT INTO accounts (workspace_id, name, icon, color, sort_order, is_deleted)
+         SELECT ?, name, icon, color, sort_order, is_deleted
+         FROM accounts
+         WHERE workspace_id = ?
+         ORDER BY sort_order ASC, id ASC`,
+        [toWorkspaceId, fromWorkspaceId],
+      );
+
+      await db.runAsync(
+        `INSERT INTO categories (workspace_id, name, type, icon, color, is_deleted)
+         SELECT ?, name, type, icon, color, is_deleted
+         FROM categories
+         WHERE workspace_id = ?
+         ORDER BY type ASC, id ASC`,
+        [toWorkspaceId, fromWorkspaceId],
+      );
+
+      await db.runAsync(
+        `INSERT INTO budgets (workspace_id, monthly_amount)
+         SELECT ?, monthly_amount
+         FROM budgets
+         WHERE workspace_id = ?`,
+        [toWorkspaceId, fromWorkspaceId],
+      );
+
+      const sourceBudgets = await db.getAllAsync<{
+        categoryName: string;
+        amount: number;
+      }>(
+        `SELECT c.name AS categoryName, cb.amount AS amount
+         FROM category_budgets cb
+         JOIN categories c ON c.id = cb.category_id AND c.workspace_id = cb.workspace_id
+         WHERE cb.workspace_id = ?`,
+        [fromWorkspaceId],
+      );
+
+      for (const budget of sourceBudgets) {
+        const targetCategory = await db.getFirstAsync<{ id: number }>(
+          "SELECT id FROM categories WHERE workspace_id = ? AND name = ? AND type = 'expense'",
+          [toWorkspaceId, budget.categoryName],
+        );
+        if (!targetCategory) continue;
+
+        await db.runAsync(
+          "INSERT OR REPLACE INTO category_budgets (workspace_id, category_id, amount) VALUES (?, ?, ?)",
+          [toWorkspaceId, targetCategory.id, budget.amount],
+        );
+      }
+    });
   }
 
   async getDatabaseBackup(): Promise<DatabaseBackup> {
@@ -596,6 +769,24 @@ try {
 
 try {
   db.execSync("ALTER TABLE accounts ADD COLUMN sort_order INTEGER DEFAULT 0;");
+} catch {
+  // Ignore duplicate-column failures for existing databases.
+}
+
+try {
+  db.execSync("ALTER TABLE transactions ADD COLUMN currency_code TEXT;");
+} catch {
+  // Ignore duplicate-column failures for existing databases.
+}
+
+try {
+  db.execSync("ALTER TABLE transactions ADD COLUMN currency_symbol TEXT;");
+} catch {
+  // Ignore duplicate-column failures for existing databases.
+}
+
+try {
+  db.execSync("ALTER TABLE transactions ADD COLUMN currency_name TEXT;");
 } catch {
   // Ignore duplicate-column failures for existing databases.
 }
@@ -699,7 +890,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     const rows = await db.getAllAsync<TransactionRow>(
       `SELECT
         t.id, t.title, t.amount, t.date, c.name AS category, t.type,
-        t.account, t.notes, t.tags, t.created_by, t.is_deleted,
+        t.account, t.currency_code, t.currency_symbol, t.currency_name,
+        t.notes, t.tags, t.created_by, t.is_deleted,
         t.created_at, t.updated_at
        FROM transactions t
        JOIN categories c ON t.category_id = c.id AND c.workspace_id = t.workspace_id
@@ -724,8 +916,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
 
     await db.runAsync(
       `INSERT INTO transactions
-        (id, workspace_id, title, amount, date, category_id, type, account, notes, tags, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workspace_id, title, amount, date, category_id, type, account, currency_code, currency_symbol, currency_name, notes, tags, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newTransaction.id,
         this.workspaceId,
@@ -735,6 +927,9 @@ export class SQLiteFinanceRepository implements FinanceRepository {
         categoryId,
         newTransaction.type,
         newTransaction.account,
+        newTransaction.currencyCode ?? null,
+        newTransaction.currencySymbol ?? null,
+        newTransaction.currencyName ?? null,
         newTransaction.notes ?? null,
         serializeTags(newTransaction.tags),
         newTransaction.createdBy,
@@ -765,6 +960,12 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     if (data.date !== undefined) columnMap["date"] = data.date;
     if (data.type !== undefined) columnMap["type"] = data.type;
     if (data.account !== undefined) columnMap["account"] = data.account;
+    if (data.currencyCode !== undefined)
+      columnMap["currency_code"] = data.currencyCode ?? null;
+    if (data.currencySymbol !== undefined)
+      columnMap["currency_symbol"] = data.currencySymbol ?? null;
+    if (data.currencyName !== undefined)
+      columnMap["currency_name"] = data.currencyName ?? null;
     if (data.notes !== undefined) columnMap["notes"] = data.notes ?? null;
     // tags is string[] | string | null — must be serialized to string for SQLite
     if (data.tags !== undefined) columnMap["tags"] = serializeTags(data.tags);
@@ -790,7 +991,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     const updated = await db.getFirstAsync<TransactionRow>(
       `SELECT
         t.id, t.title, t.amount, t.date, c.name AS category, t.type,
-        t.account, t.notes, t.tags, t.created_by, t.is_deleted,
+        t.account, t.currency_code, t.currency_symbol, t.currency_name,
+        t.notes, t.tags, t.created_by, t.is_deleted,
         t.created_at, t.updated_at
        FROM transactions t
        JOIN categories c ON t.category_id = c.id AND c.workspace_id = t.workspace_id
@@ -829,6 +1031,16 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     await db.runAsync("DELETE FROM transactions WHERE workspace_id = ?", [
       this.workspaceId,
     ]);
+  }
+
+  async clearTransactionsForDateRange(
+    startDate: string,
+    endDate: string,
+  ): Promise<void> {
+    await db.runAsync(
+      "DELETE FROM transactions WHERE workspace_id = ? AND date >= ? AND date <= ?",
+      [this.workspaceId, startDate, endDate],
+    );
   }
 
   // --- Fetch categories by type ---
@@ -949,6 +1161,40 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     await db.runAsync(
       "UPDATE categories SET is_deleted = 1 WHERE id = ? AND workspace_id = ?",
       [id, this.workspaceId],
+    );
+  }
+
+  async deleteUnusedCategories(): Promise<{
+    income: number;
+    expense: number;
+  }> {
+    const rows = await db.getAllAsync<{
+      id: number;
+      type: "income" | "expense";
+    }>(
+      `SELECT c.id, c.type
+       FROM categories c
+       LEFT JOIN transactions t
+        ON t.category_id = c.id AND t.workspace_id = c.workspace_id
+       WHERE c.workspace_id = ? AND c.is_deleted = 0
+       GROUP BY c.id
+       HAVING COUNT(t.id) = 0`,
+      [this.workspaceId],
+    );
+
+    for (const row of rows) {
+      await db.runAsync(
+        "UPDATE categories SET is_deleted = 1 WHERE id = ? AND workspace_id = ?",
+        [row.id, this.workspaceId],
+      );
+    }
+
+    return rows.reduce(
+      (counts, row) => ({
+        ...counts,
+        [row.type]: counts[row.type] + 1,
+      }),
+      { income: 0, expense: 0 },
     );
   }
 
@@ -1086,6 +1332,28 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     }
   }
 
+  async deleteUnusedAccounts(): Promise<number> {
+    const rows = await db.getAllAsync<{ id: number }>(
+      `SELECT a.id
+       FROM accounts a
+       LEFT JOIN transactions t
+        ON t.account = a.name AND t.workspace_id = a.workspace_id
+       WHERE a.workspace_id = ? AND a.is_deleted = 0
+       GROUP BY a.id
+       HAVING COUNT(t.id) = 0`,
+      [this.workspaceId],
+    );
+
+    for (const row of rows) {
+      await db.runAsync(
+        "UPDATE accounts SET is_deleted = 1 WHERE id = ? AND workspace_id = ?",
+        [row.id, this.workspaceId],
+      );
+    }
+
+    return rows.length;
+  }
+
   async getBudget(): Promise<BudgetSettings> {
     const budgetRow = await db.getFirstAsync<{ monthly_amount: number }>(
       "SELECT monthly_amount FROM budgets WHERE workspace_id = ?",
@@ -1143,6 +1411,123 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       await this.upsertCategoryBudget(entry.categoryName, entry.amount);
     }
     return this.getBudget();
+  }
+
+  async replaceWorkspaceSetup(data: WorkspaceSetupInput): Promise<void> {
+    const uniqueByName = <T extends { name: string }>(items: T[]) => {
+      const seen = new Set<string>();
+      return items
+        .map((item) => ({ ...item, name: item.name.trim() }))
+        .filter((item) => {
+          if (!item.name) return false;
+          const key = item.name.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    };
+
+    const accounts = uniqueByName(data.accounts);
+    const incomeCategories = uniqueByName(data.incomeCategories);
+    const expenseCategories = uniqueByName(data.expenseCategories);
+    const overallBudget = Math.max(
+      0,
+      Number.isFinite(data.overallBudget ?? 0) ? (data.overallBudget ?? 0) : 0,
+    );
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM category_budgets WHERE workspace_id = ?", [
+        this.workspaceId,
+      ]);
+      await db.runAsync("DELETE FROM budgets WHERE workspace_id = ?", [
+        this.workspaceId,
+      ]);
+      await db.runAsync("DELETE FROM categories WHERE workspace_id = ?", [
+        this.workspaceId,
+      ]);
+      await db.runAsync("DELETE FROM accounts WHERE workspace_id = ?", [
+        this.workspaceId,
+      ]);
+
+      for (let index = 0; index < accounts.length; index += 1) {
+        const account = accounts[index];
+        await db.runAsync(
+          "INSERT INTO accounts (workspace_id, name, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)",
+          [
+            this.workspaceId,
+            account.name,
+            account.icon ?? null,
+            account.color ?? null,
+            index,
+          ],
+        );
+      }
+
+      for (const category of incomeCategories) {
+        await db.runAsync(
+          "INSERT INTO categories (workspace_id, name, type, icon, color) VALUES (?, ?, 'income', ?, ?)",
+          [
+            this.workspaceId,
+            category.name,
+            category.icon ?? null,
+            category.color ?? null,
+          ],
+        );
+      }
+
+      for (const category of expenseCategories) {
+        await db.runAsync(
+          "INSERT INTO categories (workspace_id, name, type, icon, color) VALUES (?, ?, 'expense', ?, ?)",
+          [
+            this.workspaceId,
+            category.name,
+            category.icon ?? null,
+            category.color ?? null,
+          ],
+        );
+      }
+
+      if (overallBudget > 0) {
+        await db.runAsync(
+          "INSERT INTO budgets (workspace_id, monthly_amount) VALUES (?, ?)",
+          [this.workspaceId, overallBudget],
+        );
+      }
+
+      for (const entry of data.categoryBudgets ?? []) {
+        const amount = Math.max(
+          0,
+          Number.isFinite(entry.amount) ? entry.amount : 0,
+        );
+        if (amount <= 0) continue;
+        const category = await db.getFirstAsync<{ id: number }>(
+          "SELECT id FROM categories WHERE workspace_id = ? AND name = ? AND type = 'expense'",
+          [this.workspaceId, entry.categoryName],
+        );
+        if (!category) continue;
+        await db.runAsync(
+          "INSERT INTO category_budgets (workspace_id, category_id, amount) VALUES (?, ?, ?)",
+          [this.workspaceId, category.id, amount],
+        );
+      }
+    });
+  }
+
+  async resetWorkspaceData(): Promise<void> {
+    await db.runAsync("DELETE FROM transactions");
+    await db.runAsync("DELETE FROM category_budgets");
+    await db.runAsync("DELETE FROM budgets");
+    await db.runAsync("DELETE FROM categories");
+    await db.runAsync("DELETE FROM accounts");
+    await db.runAsync("DELETE FROM workspaces");
+    db.execSync(`
+      INSERT OR IGNORE INTO workspaces (id, name, icon, color, currency_code, currency_symbol, currency_name) VALUES
+        ${seedWorkspacesSql};
+    `);
+    for (const workspace of DEFAULT_WORKSPACES) {
+      await seedDefaultCategoriesForWorkspace(workspace.id);
+      await seedDefaultAccountsForWorkspace(workspace.id);
+    }
   }
 
   // Intentional no-op: Redux-to-SQLite migration is handled at the app

@@ -180,18 +180,28 @@ export function useCategoryManagement(activeTab: TransactionType) {
     ).length;
   }, [nonDeletedTransactions, pendingDelete]);
 
-  const categoryStats = useMemo(() => {
-    const stats: Record<string, { count: number; amount: number }> = {};
+  const categoryStatsByType = useMemo(() => {
+    const stats: Record<
+      TransactionType,
+      Record<string, { count: number; amount: number }>
+    > = {
+      expense: {},
+      income: {},
+    };
     for (const transaction of nonDeletedTransactions) {
-      if (transaction.type !== selectedType) continue;
-      const current = stats[transaction.category] ?? { count: 0, amount: 0 };
-      stats[transaction.category] = {
+      const current = stats[transaction.type][transaction.category] ?? {
+        count: 0,
+        amount: 0,
+      };
+      stats[transaction.type][transaction.category] = {
         count: current.count + 1,
         amount: current.amount + Math.abs(transaction.amount),
       };
     }
     return stats;
-  }, [nonDeletedTransactions, selectedType]);
+  }, [nonDeletedTransactions]);
+
+  const categoryStats = categoryStatsByType[selectedType];
 
   const iconOptions = useMemo(() => {
     const pool = getCategoryIconOptions(selectedType);
@@ -232,6 +242,8 @@ export function useCategoryManagement(activeTab: TransactionType) {
     editingCategory,
     selectedType,
     activeCategories,
+    incomeCategories,
+    expenseCategories,
     counts: {
       income: incomeCategories.length,
       expense: expenseCategories.length,
@@ -244,6 +256,7 @@ export function useCategoryManagement(activeTab: TransactionType) {
     deletingCategory: pendingDelete,
     deleteAffectCount,
     categoryStats,
+    categoryStatsByType,
     reassignToCategory,
 
     // Actions

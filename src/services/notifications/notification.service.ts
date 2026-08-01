@@ -17,6 +17,7 @@ import { notificationStorage } from "./notification.storage";
 import { handleNotificationResponse } from "./notification.handlers";
 import {
   DailyFinanceReminderFrequency,
+  DailyFinanceReminderTone,
   DEFAULT_DAILY_FINANCE_REMINDER,
   MonthlyInsightTiming,
   NotificationChannelId,
@@ -31,6 +32,7 @@ import {
   type NotificationResponseEnvelope,
   type NotificationsStateSnapshot,
   type NotificationScheduleRecord,
+  type QuietHoursConfig,
   type ReminderTime,
   type SchedulerNotificationContent,
   type StoredNotificationPreference,
@@ -51,11 +53,47 @@ const MONTH_NAMES = [
   "November",
   "December",
 ] as const;
-const DAILY_REMINDER_MESSAGES = [
-  "Your ledger's waiting 🧾",
-  "Quick check before the day ends?",
-  "A moment to log today's expenses",
-] as const;
+const DAILY_REMINDER_COPY: Record<
+  DailyFinanceReminderTone,
+  readonly { title: string; body: string }[]
+> = {
+  [DailyFinanceReminderTone.Gentle]: [
+    {
+      title: "A gentle money check-in",
+      body: "A moment to log today's spending.",
+    },
+    {
+      title: "Tally reminder",
+      body: "Quick check before the day ends?",
+    },
+  ],
+  [DailyFinanceReminderTone.Direct]: [
+    {
+      title: "Log today's expenses",
+      body: "Keep your budget current with a quick update.",
+    },
+    {
+      title: "Expense reminder",
+      body: "Add anything you spent today.",
+    },
+  ],
+  [DailyFinanceReminderTone.Minimal]: [
+    {
+      title: "Tally",
+      body: "Log today.",
+    },
+  ],
+  [DailyFinanceReminderTone.Fun]: [
+    {
+      title: "Your ledger is waiting",
+      body: "Give future-you a clean money trail.",
+    },
+    {
+      title: "Tiny finance ritual",
+      body: "One minute now, fewer mysteries later.",
+    },
+  ],
+};
 
 function createSnapshot(): NotificationsStateSnapshot {
   return {
@@ -112,21 +150,22 @@ function mapNativePermissionToResult(
 }
 
 function buildDailyReminderContent(
+  config: DailyFinanceReminderConfig,
 ): SchedulerNotificationContent {
-  const message =
-    DAILY_REMINDER_MESSAGES[
-      Math.floor(Math.random() * DAILY_REMINDER_MESSAGES.length)
-    ];
+  const messages =
+    DAILY_REMINDER_COPY[config.tone] ??
+    DAILY_REMINDER_COPY[DailyFinanceReminderTone.Gentle];
+  const copy = messages[Math.floor(Math.random() * messages.length)];
   const payload: DailyFinanceReminderPayload = {
     createdAt: new Date().toISOString(),
     type: NotificationType.DailyFinanceReminder,
   };
 
   return {
-    body: message,
+    body: copy?.body ?? "A moment to log today's spending.",
     channelId: NotificationChannelId.Reminders,
     data: payload,
-    title: "Daily Reminder",
+    title: copy?.title ?? "Tally reminder",
   };
 }
 
@@ -150,15 +189,42 @@ function buildMonthlyInsightContent(
   };
 }
 
-function getWeekdaysForFrequency(frequency: DailyFinanceReminderFrequency) {
-  switch (frequency) {
-    case DailyFinanceReminderFrequency.Weekdays:
-      return [2, 3, 4, 5, 6];
-    case DailyFinanceReminderFrequency.Weekends:
-      return [1, 7];
-    default:
-      return [];
+function toMinutes(hour: number, minute: number) {
+  return hour * 60 + minute;
+}
+
+function isTimeInQuietHours(
+  time: ReminderTime,
+  quietHours: QuietHoursConfig,
+) {
+  if (!quietHours.enabled) return false;
+  const current = toMinutes(time.hour, time.minute);
+  const start = toMinutes(quietHours.startHour, quietHours.startMinute);
+  const end = toMinutes(quietHours.endHour, quietHours.endMinute);
+
+  if (start === end) return false;
+  if (start < end) return current >= start && current < end;
+  return current >= start || current < end;
+}
+
+function moveDateOutOfQuietHours(date: Date, quietHours: QuietHoursConfig) {
+  if (
+    !isTimeInQuietHours(
+      { hour: date.getHours(), minute: date.getMinutes() },
+      quietHours,
+    )
+  ) {
+    return date;
   }
+
+  const next = new Date(date);
+  next.setHours(quietHours.endHour, quietHours.endMinute, 0, 0);
+
+  if (next.getTime() <= date.getTime()) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  return next;
 }
 
 function buildScheduleRecord(
@@ -387,7 +453,7 @@ class NotificationService {
     }
 
     return scheduleNotificationAsync(
-      buildDailyReminderContent(),
+      buildDailyReminderContent(DEFAULT_DAILY_FINANCE_REMINDER),
       {
         channelId: NotificationChannelId.Reminders,
         kind: "seconds",
@@ -426,6 +492,13 @@ class NotificationService {
     config.reminders.forEach(({ hour, minute }) => {
       assertValidTime(hour, minute);
     });
+    const weekdays = Array.from(
+      new Set(
+        config.weekdays.filter((weekday) => {
+          return Number.isInteger(weekday) && weekday >= 1 && weekday <= 7;
+        }),
+      ),
+    ).sort((a, b) => a - b);
 
     const permission = await this.ensurePermissionsAsync({
       openSettingsOnDeny: options?.openSettingsOnDeny ?? true,
@@ -447,11 +520,13 @@ class NotificationService {
 
     await this.cancelExistingSchedule(this.state.dailyFinanceReminder);
 
-    const content = buildDailyReminderContent();
+    const content = buildDailyReminderContent(config);
     const ids: string[] = [];
 
-    for (const reminder of config.reminders) {
-      if (config.frequency === DailyFinanceReminderFrequency.Daily) {
+    for (const reminder of config.reminders.filter(
+      (time) => !isTimeInQuietHours(time, config.quietHours),
+    )) {
+      if (weekdays.length === 7) {
         ids.push(
           await scheduleNotificationAsync(content, {
             channelId: NotificationChannelId.Reminders,
@@ -461,8 +536,6 @@ class NotificationService {
           }),
         );
       } else {
-        const weekdays = getWeekdaysForFrequency(config.frequency);
-
         for (const weekday of weekdays) {
           ids.push(
             await scheduleNotificationAsync(content, {
@@ -501,6 +574,7 @@ class NotificationService {
     },
   ) {
     return this.scheduleDailyFinanceReminder({
+      ...DEFAULT_DAILY_FINANCE_REMINDER,
       enabled: true,
       frequency: DailyFinanceReminderFrequency.Daily,
       reminders: [time],
@@ -563,7 +637,7 @@ class NotificationService {
   async addDailyReminderTime(time?: ReminderTime) {
     const current = notificationStorage.getDailyFinanceReminder();
 
-    if (current.config.reminders.length >= 3) {
+    if (current.config.reminders.length >= 5) {
       return current;
     }
 
@@ -659,7 +733,10 @@ class NotificationService {
       return this.state.monthlyInsightPrompt;
     }
 
-    const dates = buildUpcomingMonthlyDates(config);
+    const quietHours = this.state.dailyFinanceReminder.config.quietHours;
+    const dates = buildUpcomingMonthlyDates(config).map((date) =>
+      moveDateOutOfQuietHours(date, quietHours),
+    );
     const ids: string[] = [];
 
     await this.cancelExistingSchedule(this.state.monthlyInsightPrompt);

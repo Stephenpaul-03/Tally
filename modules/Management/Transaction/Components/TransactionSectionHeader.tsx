@@ -1,6 +1,6 @@
-import { formatAmount } from "@/modules/Insights/Utils";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
+import { formatCurrencyWithSymbol } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -20,6 +20,7 @@ type Props = {
   totalLabel?: string;
   metric?: "spent" | "earned";
   collapsed?: boolean;
+  renderContentWhenCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   children: React.ReactNode;
 };
@@ -27,11 +28,11 @@ type Props = {
 export function TransactionSectionHeader({
   title,
   total,
-  currencyCode,
   currencySymbol,
   totalLabel,
   metric = "spent",
   collapsed = false,
+  renderContentWhenCollapsed = false,
   onToggleCollapsed,
   children,
 }: Props) {
@@ -41,7 +42,7 @@ export function TransactionSectionHeader({
   const totalLabelText = totalLabel ?? metric;
   const totalAmountText = totalLabel
     ? ""
-    : formatAmount(Math.abs(total), currencyCode, currencySymbol);
+    : formatCurrencyWithSymbol(Math.abs(total), currencySymbol, false);
   const totalAccentColor =
     metric === "earned" ? theme.semantic.income : theme.colors.error;
   const totalIcon =
@@ -138,7 +139,7 @@ export function TransactionSectionHeader({
       ) : (
         <View style={styles.header}>{headerContent}</View>
       )}
-      {isCollapsed ? null : (
+      {isCollapsed && !renderContentWhenCollapsed ? null : (
         <>
           <View
             style={[
@@ -152,6 +153,8 @@ export function TransactionSectionHeader({
     </View>
   );
 }
+
+export default TransactionSectionHeader;
 
 const styles = StyleSheet.create({
   section: {

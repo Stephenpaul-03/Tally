@@ -1,4 +1,5 @@
 import { Linking } from "react-native";
+import reminderCopyCatalog from "./daily-reminder-copy.json";
 
 import {
   cancelScheduledNotificationIdsAsync,
@@ -53,47 +54,10 @@ const MONTH_NAMES = [
   "November",
   "December",
 ] as const;
-const DAILY_REMINDER_COPY: Record<
+const DAILY_REMINDER_COPY = reminderCopyCatalog as Record<
   DailyFinanceReminderTone,
   readonly { title: string; body: string }[]
-> = {
-  [DailyFinanceReminderTone.Gentle]: [
-    {
-      title: "A gentle money check-in",
-      body: "A moment to log today's spending.",
-    },
-    {
-      title: "Tally reminder",
-      body: "Quick check before the day ends?",
-    },
-  ],
-  [DailyFinanceReminderTone.Direct]: [
-    {
-      title: "Log today's expenses",
-      body: "Keep your budget current with a quick update.",
-    },
-    {
-      title: "Expense reminder",
-      body: "Add anything you spent today.",
-    },
-  ],
-  [DailyFinanceReminderTone.Minimal]: [
-    {
-      title: "Tally",
-      body: "Log today.",
-    },
-  ],
-  [DailyFinanceReminderTone.Fun]: [
-    {
-      title: "Your ledger is waiting",
-      body: "Give future-you a clean money trail.",
-    },
-    {
-      title: "Tiny finance ritual",
-      body: "One minute now, fewer mysteries later.",
-    },
-  ],
-};
+>;
 
 function createSnapshot(): NotificationsStateSnapshot {
   return {

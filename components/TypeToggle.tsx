@@ -17,11 +17,19 @@ export function TypeToggle({
   onChange,
   mini = false,
   progressAnim,
+  radius,
+  height,
+  trackBackgroundColor,
+  borderWidth,
 }: {
   value: TransactionType;
   onChange: (v: TransactionType) => void;
   mini?: boolean;
   progressAnim?: Animated.Value;
+  radius?: number;
+  height?: number;
+  trackBackgroundColor?: string;
+  borderWidth?: number;
 }) {
   const theme = useTheme<MD3Theme>();
   const c = theme.colors;
@@ -120,7 +128,10 @@ export function TypeToggle({
             styles.track,
             mini && styles.trackMini,
             {
-              backgroundColor: c.surface,
+              backgroundColor: trackBackgroundColor ?? c.surface,
+              borderRadius: radius ?? (mini ? 12 : 14),
+              borderWidth: borderWidth ?? 0.5,
+              minHeight: height,
               padding: trackPadding,
             },
           ]}
@@ -138,6 +149,12 @@ export function TypeToggle({
                   left: trackPadding,
                   backgroundColor: activeBg,
                   borderColor: activeBorder,
+                  borderRadius: radius
+                    ? Math.max(radius - trackPadding, 0)
+                    : mini
+                      ? 9
+                      : 10,
+                  borderWidth: borderWidth ?? 0.5,
                   transform: [
                     {
                       translateX: slideAnim.interpolate({

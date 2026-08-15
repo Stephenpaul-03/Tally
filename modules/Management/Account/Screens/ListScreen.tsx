@@ -1,9 +1,12 @@
 import { useStagger } from "@/components/animations/UseStagger";
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SectionLabel } from "@/components/SectionLabel";
+import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
+import { useAppSelector } from "@/hooks/Redux";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { CategoryTile } from "@/modules/Management/Category/Components/CategoryTile";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
@@ -29,36 +32,25 @@ interface AccountListScreenProps {
   useSettingsHeader?: boolean;
 }
 
-type AccountSortMode = "custom" | "nameAsc" | "nameDesc" | "usageDesc";
+type AccountSortField = "name" | "usage";
+type AccountSortDirection = "asc" | "desc";
 
 const ACCOUNT_SORT_OPTIONS: {
-  id: AccountSortMode;
+  id: AccountSortField;
   label: string;
   description: string;
   icon: string;
 }[] = [
   {
-    id: "custom",
-    label: "Workspace order",
-    description: "Use the saved account order",
-    icon: "view-list-outline",
-  },
-  {
-    id: "nameAsc",
-    label: "Name A-Z",
-    description: "Alphabetical",
+    id: "name",
+    label: "Name",
+    description: "Sort account names",
     icon: "sort-alphabetical-ascending",
   },
   {
-    id: "nameDesc",
-    label: "Name Z-A",
-    description: "Reverse alphabetical",
-    icon: "sort-alphabetical-descending",
-  },
-  {
-    id: "usageDesc",
-    label: "Most used",
-    description: "Highest transaction count first",
+    id: "usage",
+    label: "Usage",
+    description: "Sort by transaction count",
     icon: "chart-bar",
   },
 ];
@@ -76,6 +68,8 @@ export function AccountListScreen({
   useSettingsHeader = false,
 }: AccountListScreenProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const { getWorkspaceDefaults } = useWorkspaceDefaults();
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const c = theme.colors;
   const accounts = management.activeAccounts;
   const isPickerMode = Boolean(onSelectAccount);
@@ -84,7 +78,17 @@ export function AccountListScreen({
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<AccountSortMode>("custom");
+  const workspaceDefaults = getWorkspaceDefaults(activeWorkspace?.id ?? "personal");
+  const [sortField, setSortField] = useState<AccountSortField>(
+    workspaceDefaults.accountSortField,
+  );
+  const [sortDirection, setSortDirection] = useState<AccountSortDirection>(
+    workspaceDefaults.accountSortDirection,
+  );
+  React.useEffect(() => {
+    setSortField(workspaceDefaults.accountSortField);
+    setSortDirection(workspaceDefaults.accountSortDirection);
+  }, [workspaceDefaults.accountSortDirection, workspaceDefaults.accountSortField]);
   const animatedOnceRef = React.useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAccounts = useMemo(() => {
@@ -103,17 +107,14 @@ export function AccountListScreen({
       : accounts;
 
     return [...filtered].sort((a, b) => {
-      if (sortMode === "nameAsc") return a.localeCompare(b);
-      if (sortMode === "nameDesc") return b.localeCompare(a);
-      if (sortMode === "usageDesc") {
-        return (
-          (management.accountStats[b]?.count ?? 0) -
-          (management.accountStats[a]?.count ?? 0)
-        );
-      }
-      return accounts.indexOf(a) - accounts.indexOf(b);
+      const result =
+        sortField === "name"
+          ? a.localeCompare(b)
+          : (management.accountStats[a]?.count ?? 0) -
+            (management.accountStats[b]?.count ?? 0);
+      return sortDirection === "asc" ? result : -result;
     });
-  }, [accounts, management, normalizedQuery, sortMode]);
+  }, [accounts, management, normalizedQuery, sortDirection, sortField]);
 
   const { getAnimStyle } = useStagger({
     count: visibleAccounts.length,
@@ -150,16 +151,16 @@ export function AccountListScreen({
         borderRadius: 99,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: sortMode !== "custom" ? c.primaryContainer : c.surface,
+        backgroundColor: c.surface,
         borderWidth: 1,
-        borderColor: sortMode !== "custom" ? c.primary : c.outlineVariant,
+        borderColor: c.outlineVariant,
       }}
       accessibilityLabel="Sort accounts"
     >
       <MaterialCommunityIcons
         name="sort"
         size={18}
-        color={sortMode !== "custom" ? c.primary : c.onSurfaceVariant}
+        color={c.onSurfaceVariant}
       />
     </TouchableRipple>
   ) : undefined;
@@ -225,22 +226,16 @@ export function AccountListScreen({
                     borderRadius: 10,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor:
-                      sortMode !== "custom"
-                        ? c.primaryContainer
-                        : c.elevation.level1,
+                    backgroundColor: c.elevation.level1,
                     borderWidth: 0.5,
-                    borderColor:
-                      sortMode !== "custom" ? c.primary : c.outlineVariant,
+                    borderColor: c.outlineVariant,
                   }}
                   accessibilityLabel="Sort accounts"
                 >
                   <MaterialCommunityIcons
                     name="sort"
                     size={18}
-                    color={
-                      sortMode !== "custom" ? c.primary : c.onSurfaceVariant
-                    }
+                    color={c.onSurfaceVariant}
                   />
                 </TouchableRipple>
               ) : null}
@@ -376,102 +371,18 @@ export function AccountListScreen({
           </Pressable>
         </View>
       )}
-      <AnimatedPaperModal
+      <SortOptionSheet
         visible={sortOpen}
         onDismiss={() => setSortOpen(false)}
-        presentation="sheet"
-        dismissable
-        contentContainerStyle={{
-          backgroundColor: c.background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          padding: 16,
-        }}
-      >
-        <View
-          style={{
-            alignSelf: "center",
-            width: 38,
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: theme.colors.outlineVariant,
-          }}
-        />
-        <View style={{ gap: 4, marginBottom: 8 }}>
-          <Text
-            style={{
-              ...typography.editorial.sectionLabel,
-              fontSize: 18,
-              color: c.onSurface,
-            }}
-          >
-            Sort accounts
-          </Text>
-          <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
-            Choose how the account grid is ordered.
-          </Text>
-        </View>
-        {ACCOUNT_SORT_OPTIONS.map(({ id, label, description, icon }) => {
-          const selected = sortMode === id;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => {
-                setSortMode(id as AccountSortMode);
-                setSortOpen(false);
-              }}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 10,
-                borderRadius: 14,
-                backgroundColor: selected ? c.primaryContainer : "transparent",
-                opacity: pressed ? 0.65 : 1,
-              })}
-            >
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: selected ? c.surface : c.elevation.level1,
-                  borderWidth: 1,
-                  borderColor: selected ? c.primary : c.outlineVariant,
-                }}
-              >
-                <MaterialCommunityIcons
-                  name={icon as any}
-                  size={18}
-                  color={selected ? c.primary : c.onSurfaceVariant}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "700",
-                    color: c.onSurface,
-                  }}
-                >
-                  {label}
-                </Text>
-                <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
-                  {description}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name={selected ? "radiobox-marked" : "radiobox-blank"}
-                size={20}
-                color={selected ? c.primary : c.onSurfaceVariant}
-              />
-            </Pressable>
-          );
-        })}
-      </AnimatedPaperModal>
+        title="Sort accounts"
+        subtitle="Choose how the account grid is ordered."
+        options={ACCOUNT_SORT_OPTIONS}
+        value={sortField}
+        direction={sortDirection}
+        resetDirection="asc"
+        onChange={(value) => setSortField(value as AccountSortField)}
+        onDirectionChange={(direction) => setSortDirection(direction)}
+      />
     </View>
   );
 }

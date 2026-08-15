@@ -42,9 +42,26 @@ export function useBudgetManagement() {
   const monthKey = new Date().toISOString().slice(0, 7);
 
   const categoryEntries = React.useMemo(() => {
+    const today = new Date();
+    const last30DaysStart = new Date(today);
+    last30DaysStart.setDate(today.getDate() - 30);
+    last30DaysStart.setHours(0, 0, 0, 0);
+
     const monthlySpent = expenseTransactions.reduce<Record<string, number>>(
       (acc, txn) => {
         if (!txn.date?.startsWith(monthKey)) return acc;
+        acc[txn.category] = (acc[txn.category] ?? 0) + Math.max(0, txn.amount);
+        return acc;
+      },
+      {},
+    );
+    const last30DaysSpent = expenseTransactions.reduce<Record<string, number>>(
+      (acc, txn) => {
+        if (!txn.date) return acc;
+        const txnDate = new Date(`${txn.date}T00:00:00`);
+        if (Number.isNaN(txnDate.getTime()) || txnDate < last30DaysStart) {
+          return acc;
+        }
         acc[txn.category] = (acc[txn.category] ?? 0) + Math.max(0, txn.amount);
         return acc;
       },
@@ -57,6 +74,7 @@ export function useBudgetManagement() {
         name: category,
         budget,
         spent: monthlySpent[category] ?? 0,
+        last30DaysSpent: last30DaysSpent[category] ?? 0,
         icon: getCategoryIconName(category, "expense", categoryIcons),
         color: getCategoryColor(category, "expense", categoryColors),
       };

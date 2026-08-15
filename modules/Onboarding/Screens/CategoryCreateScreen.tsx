@@ -61,6 +61,7 @@ export function CategoryCreateScreen({ navigation, route }: Props) {
       onChangeIcon={setIcon}
       onChangeName={setName}
       onSubmit={add}
+      presentation="modal"
       submitLabelCreate="Add category"
       theme={theme}
     />

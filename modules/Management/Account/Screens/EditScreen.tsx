@@ -26,6 +26,8 @@ type Props = {
   footer?: React.ReactNode;
   theme: MD3Theme;
   background: string;
+  presentation?: "screen" | "modal";
+  visible?: boolean;
 };
 
 export function AccountEditScreen({
@@ -47,13 +49,31 @@ export function AccountEditScreen({
   footer,
   theme,
   background,
+  presentation = "screen",
+  visible = true,
 }: Props) {
   const c = theme.colors;
-  const isEditing = Boolean(management.editingAccount);
+  const wasEditingRef = React.useRef(false);
+  const lastActivityCountRef = React.useRef(0);
+  const wasProtectedRef = React.useRef(false);
+  if (management.editingAccount) {
+    wasEditingRef.current = true;
+    lastActivityCountRef.current =
+      management.accountStats[management.editingAccount.name]?.count ?? 0;
+    wasProtectedRef.current = PROTECTED_ACCOUNTS.has(
+      management.editingAccount.name,
+    );
+  }
+  const isEditing =
+    Boolean(management.editingAccount) || (!visible && wasEditingRef.current);
   const isProtected =
-    isEditing && PROTECTED_ACCOUNTS.has(management.editingAccount!.name);
+    management.editingAccount
+      ? PROTECTED_ACCOUNTS.has(management.editingAccount.name)
+      : !visible && wasProtectedRef.current;
   const activityCount = isEditing
-    ? (management.accountStats[management.editingAccount!.name]?.count ?? 0)
+    ? management.editingAccount
+      ? (management.accountStats[management.editingAccount.name]?.count ?? 0)
+      : lastActivityCountRef.current
     : 0;
 
   const deleteAccessory =
@@ -129,9 +149,11 @@ export function AccountEditScreen({
       onChangeIcon={onChangeIcon}
       onChangeName={onChangeName}
       onSubmit={onSubmit}
+      presentation={presentation}
       submitLabelCreate="Add account"
       submitLabelEdit="Save changes"
       theme={theme}
+      visible={visible}
     />
   );
 }

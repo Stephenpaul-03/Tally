@@ -14,6 +14,7 @@ type Props = {
   icon: string;
   color: string;
   budget: number;
+  last30DaysSpent: number;
   onSaveBudget: (value: string) => Promise<void> | void;
   onRemoveBudget: () => Promise<void> | void;
   bg?: string;
@@ -22,6 +23,11 @@ type Props = {
   muted?: string;
 };
 
+function getSuggestedBudgetAmount(last30DaysSpent: number) {
+  if (last30DaysSpent <= 0) return 0;
+  return Math.round(last30DaysSpent / 500) * 500;
+}
+
 export function BudgetDetailsSheet({
   visible,
   onDismiss,
@@ -29,6 +35,7 @@ export function BudgetDetailsSheet({
   icon,
   color,
   budget,
+  last30DaysSpent,
   onSaveBudget,
   onRemoveBudget,
   bg,
@@ -46,14 +53,30 @@ export function BudgetDetailsSheet({
   const [draft, setDraft] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
   const [isRemoving, setIsRemoving] = React.useState(false);
+  const suggestedBudget = getSuggestedBudgetAmount(last30DaysSpent);
+  const usingSuggestedBudget = budget <= 0 && suggestedBudget > 0;
+  const headerSubtitle =
+    budget > 0
+      ? "Budget details"
+      : last30DaysSpent > 0
+        ? `Last 30 days: ${currencySymbol}${Math.round(
+            last30DaysSpent,
+          ).toLocaleString("en-IN")}`
+        : "No budget yet";
 
   React.useEffect(() => {
     if (visible) {
-      setDraft(budget > 0 ? String(budget) : "");
+      setDraft(
+        budget > 0
+          ? String(budget)
+          : suggestedBudget > 0
+            ? String(suggestedBudget)
+            : "",
+      );
       setIsSaving(false);
       setIsRemoving(false);
     }
-  }, [budget, visible]);
+  }, [budget, suggestedBudget, visible]);
 
   const handleSave = async () => {
     if (isSaving) return;
@@ -128,8 +151,13 @@ export function BudgetDetailsSheet({
               >
                 {name}
               </Text>
-              <Text style={{ color: subdued, fontSize: 12 }}>
-                Budget details
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+                style={{ color: subdued, fontSize: 12 }}
+              >
+                {headerSubtitle}
               </Text>
             </View>
           </View>
@@ -188,9 +216,22 @@ export function BudgetDetailsSheet({
           },
         ]}
       >
-        <Text style={[budgetStyles.sheetFieldLabel, { color: subdued }]}>
-          Budget amount
-        </Text>
+        <View style={budgetStyles.sheetFieldLabelRow}>
+          <Text style={[budgetStyles.sheetFieldLabel, { color: subdued }]}>
+            Budget amount
+          </Text>
+          {usingSuggestedBudget ? (
+            <Text
+              numberOfLines={1}
+              style={[
+                budgetStyles.sheetFieldHint,
+                { color: theme.colors.primary },
+              ]}
+            >
+              Amount calculated based on last 30 days
+            </Text>
+          ) : null}
+        </View>
         <TextInput
           mode="outlined"
           value={draft}

@@ -432,7 +432,8 @@ export const budgetStyles = StyleSheet.create({
     fontWeight: "700",
   },
   accountLikeSubtitle: {
-    fontSize: 10,
+    fontSize: 9,
+    lineHeight: 11,
     opacity: 0.78,
   },
   accountLikeProgressTrack: {
@@ -609,12 +610,25 @@ export const budgetStyles = StyleSheet.create({
     paddingTop: 20,
     gap: 14,
   },
+  sheetFieldLabelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+  },
   sheetFieldLabel: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+  },
+  sheetFieldHint: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 13,
+    textAlign: "right",
   },
   editField: {
     backgroundColor: "transparent",

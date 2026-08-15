@@ -1,4 +1,12 @@
 import { StyleSheet } from "react-native";
+import type { MD3Theme } from "react-native-paper";
+
+export const withAlpha = (color: string, alpha: number) => {
+  if (!color.startsWith("#")) return color;
+  return `${color}${Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, "0")}`;
+};
 
 export const amountHero = StyleSheet.create({
   // No background card — open layout sitting directly on modal background
@@ -163,231 +171,523 @@ export const categoryPicker = StyleSheet.create({
   },
 });
 
-export const mainContent = StyleSheet.create({
-  keyboardView: {
-    flexShrink: 1,
-  },
-  // ── Header ───────────────────────────────────────────────────────────────
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  headerTitle: {
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  headerSubtitle: {
-    marginTop: 2,
-  },
-  closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // ── Scroll ───────────────────────────────────────────────────────────────
-  scrollView: {
-    flexShrink: 1,
-  },
-  scrollContent: {
-    paddingTop: 14,
-    paddingBottom: 20,
-    gap: 10,
-  },
-  // ── Two-column row (Category + Account) ──────────────────────────────────
-  twoColRow: {
-    flexDirection: "row",
-    marginHorizontal: 20,
-    gap: 10,
-  },
-  twoColCard: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 0.5,
-    padding: 14,
-    gap: 8,
-  },
-  fullWidthSelectionRow: {
-    marginHorizontal: 20,
-    borderRadius: 0,
-    borderWidth: 0,
-    borderBottomWidth: 0,
-    paddingHorizontal: 0,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 14,
-  },
-  stackedLabel: {
-    letterSpacing: 0.8,
-    fontWeight: "800",
-    opacity: 1,
-  },
-  // ── Inline field card (Title, Notes, Date — each its own card) ────────────
-  inlineFieldCard: {
-    marginHorizontal: 20,
-    borderRadius: 0,
-    borderWidth: 0,
-    borderBottomWidth: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 0,
-    gap: 10,
-  },
-  inlineFieldBody: {
-    paddingBottom: 14,
-  },
-  inlineFieldIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  inlineFieldLabel: {
-    letterSpacing: 0.8,
-    fontWeight: "800",
-    opacity: 1,
-  },
-  inlineFieldLabelOptional: {
-    fontWeight: "400",
-    fontSize: 13,
-    opacity: 0.5,
-  },
-  inlineFieldValue: {
-    fontSize: 18,
-    backgroundColor: "transparent",
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    minHeight: 32,
-  },
-  inlineFieldPlaceholder: {
-    flex: 1,
-    fontSize: 14,
-    opacity: 0.4,
-  },
-  // ── Date card label row ───────────────────────────────────────────────────
-  dateLabelSection: {
-    marginHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 0.5,
-    overflow: "hidden",
-  },
-  dateLabelRow: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 6,
-  },
-  dateLabelText: {
-    letterSpacing: 1.2,
-    fontWeight: "800",
-    fontSize: 11,
-  },
-  dateValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    gap: 10,
-  },
-  // ── Details card (legacy grouped — kept for edit mode) ──────────────────
-  detailsCard: {
-    marginHorizontal: 20,
-    marginBottom: 2,
-  },
-  detailsLabel: {
-    letterSpacing: 0.6,
-    marginBottom: 6,
-    marginLeft: 2,
-  },
-  surface: {
-    borderRadius: 14,
-    borderWidth: 0.5,
-    overflow: "hidden",
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 0,
-  },
-  titleInput: {
-    flex: 1,
-    backgroundColor: "transparent",
-    fontSize: 14,
-    height: 20,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-  errorText: {
-    fontSize: 12,
-    paddingHorizontal: 14,
-    paddingBottom: 4,
-  },
-  // ── Notes collapsed row ──────────────────────────────────────────────────
-  notesCollapsed: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    gap: 8,
-  },
-  // ── Footer ───────────────────────────────────────────────────────────────
-  footer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  submitButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 12,
-    paddingVertical: 16,
-  },
-  submitButtonText: {
-    fontWeight: "800",
-    fontSize: 15,
-    letterSpacing: 1,
-  },
-  deleteButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // ── Keep legacy stubs so nothing breaks ─────────────────────────────────
-  notesCard: {
-    marginHorizontal: 20,
-    marginBottom: 2,
-  },
-  notesRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 0,
-    gap: 12,
-  },
-  notesInput: {
-    flex: 1,
-    backgroundColor: "transparent",
-    fontSize: 14,
-    minHeight: 20,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-});
+export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
+  StyleSheet.create({
+    keyboardView: {
+      flexShrink: 1,
+    },
+    iosShell: {
+      backgroundColor: "transparent",
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 18,
+      position: "relative",
+      overflow: "hidden",
+    },
+    iosBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    iosTopBar: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+      marginBottom: 16,
+    },
+    iosTopSpacer: {
+      height: 54,
+      width: 54,
+    },
+    iosCircleButton: {
+      alignItems: "center",
+      backgroundColor: colors.elevation.level1,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      borderWidth: 0,
+      height: 54,
+      justifyContent: "center",
+      width: 54,
+    },
+    iosSegmentedControl: {
+      alignItems: "center",
+      backgroundColor: colors.surfaceVariant,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      borderWidth: 12,
+      flexDirection: "row",
+      gap: 6,
+      justifyContent: "center",
+      minHeight: 54,
+      padding: 6,
+    },
+    iosSegmentButton: {
+      alignItems: "center",
+      borderRadius: 26,
+      flexDirection: "row",
+      gap: 8,
+      justifyContent: "center",
+      minHeight: 42,
+      minWidth: 42,
+      paddingHorizontal: 14,
+    },
+    iosSegmentSelected: {
+      backgroundColor: colors.primaryContainer,
+    },
+    iosSegmentText: {
+      color: colors.onSurface,
+      fontSize: 15,
+      fontWeight: "800",
+      lineHeight: 19,
+    },
+    iosSegmentIcon: {
+      alignItems: "center",
+      backgroundColor: colors.secondaryContainer,
+      borderRadius: 18,
+      height: 36,
+      justifyContent: "center",
+      width: 36,
+    },
+    iosCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 26,
+      gap: 10,
+      padding: 20,
+      elevation: 4,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+    },
+    iosAccountRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    iosAccountPill: {
+      alignItems: "center",
+      backgroundColor: colors.elevation.level1,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      flexDirection: "row",
+      gap: 10,
+      minHeight: 54,
+      minWidth: 40,
+      paddingLeft: 8,
+      paddingRight: 14,
+    },
+    iosAccountIcon: {
+      alignItems: "center",
+      borderRadius: 18,
+      height: 38,
+      justifyContent: "center",
+      width: 38,
+    },
+    iosAccountText: {
+      minWidth: 0,
+    },
+    iosAccountName: {
+      color: colors.onSurface,
+      fontSize: 14,
+      fontWeight: "800",
+      lineHeight: 18,
+    },
+    iosCategoryPill: {
+      alignItems: "center",
+      backgroundColor: colors.elevation.level1,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      flexDirection: "row",
+      gap: 8,
+      maxWidth: "60%",
+      minHeight: 54,
+      paddingLeft: 8,
+      paddingRight: 14,
+    },
+    iosCategoryIcon: {
+      alignItems: "center",
+      borderRadius: 17,
+      height: 34,
+      justifyContent: "center",
+      width: 34,
+    },
+    iosCategoryText: {
+      color: colors.onSurface,
+      flexShrink: 1,
+      fontSize: 14,
+      fontWeight: "800",
+      lineHeight: 18,
+    },
+    iosAmountWrap: {
+      alignItems: "center",
+      gap: 2,
+      paddingVertical: 30,
+    },
+    iosAmount: {
+      color: colors.onSurface,
+      fontSize: 64,
+      fontWeight: "800",
+      letterSpacing: 0,
+      lineHeight: 74,
+      textAlign: "center",
+    },
+    iosConvertedPill: {
+      alignItems: "center",
+      alignSelf: "center",
+      backgroundColor: colors.surfaceVariant,
+      flexDirection: "row",
+      gap: 6,
+      overflow: "hidden",
+      paddingHorizontal: 12,
+    },
+    iosNotePillInput: {
+      backgroundColor: "transparent",
+      flex: 1,
+      fontSize: 13,
+      fontWeight: "200",
+      height: 24,
+      lineHeight: 16,
+      minWidth: 0,
+      paddingHorizontal: 0,
+    },
+    iosUtilityRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 10,
+    },
+    iosDatePill: {
+      alignItems: "center",
+      backgroundColor: colors.surfaceVariant,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      borderWidth: 0,
+      flexDirection: "row",
+      gap: 8,
+      height: 54,
+      paddingHorizontal: 14,
+    },
+    iosDateText: {
+      color: colors.onSurface,
+      fontSize: 16,
+      fontWeight: "800",
+      lineHeight: 20,
+      paddingVertical: 10,
+    },
+    iosUtilityButton: {
+      alignItems: "center",
+      backgroundColor: colors.surfaceVariant,
+      borderColor: colors.outlineVariant,
+      borderRadius: 26,
+      borderWidth: 1,
+      height: 48,
+      justifyContent: "center",
+      width: 48,
+    },
+    iosUtilityButtonRight: {
+      marginLeft: "auto",
+    },
+    iosTitleInput: {
+      backgroundColor: colors.elevation.level1,
+      borderRadius: 14,
+      color: colors.onSurface,
+      flex: 1,
+      fontSize: 13,
+      fontWeight: "400",
+      height: 48,
+    },
+    iosTitleOutline: {
+      borderRadius: 14,
+      borderWidth: 0,
+    },
+    iosNotesInput: {
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 26,
+      color: colors.onSurface,
+      fontSize: 14,
+      minHeight: 44,
+      paddingHorizontal: 14,
+    },
+    iosKeypad: {
+      gap: 7,
+      marginHorizontal: 0,
+      paddingHorizontal: 0,
+    },
+    iosKeypadRow: {
+      flexDirection: "row",
+      gap: 7,
+    },
+    iosKey: {
+      alignItems: "center",
+      backgroundColor: colors.elevation.level1,
+      borderRadius: 14,
+      flex: 1,
+      height: 57,
+      justifyContent: "center",
+      minWidth: 0,
+    },
+    iosKeyBlank: {
+      backgroundColor: "transparent",
+    },
+    iosClearKey: {
+      backgroundColor: withAlpha(colors.errorContainer, 0.72),
+      borderColor: colors.error,
+      borderWidth: 0,
+    },
+    iosClearKeyText: {
+      color: colors.error,
+      fontSize: 24,
+      fontWeight: "900",
+      lineHeight: 29,
+    },
+    iosKeyText: {
+      color: colors.onSurface,
+      fontSize: 26,
+      fontWeight: "500",
+      lineHeight: 31,
+    },
+    iosBottomRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+      minHeight: 54,
+    },
+    iosSaveButton: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 26,
+      height: 54,
+      minWidth: 88,
+      justifyContent: "center",
+      paddingHorizontal: 20,
+    },
+    iosSaveButtonText: {
+      color: colors.onPrimary,
+      fontSize: 17,
+      fontWeight: "800",
+      lineHeight: 21,
+    },
+    // ── Header ───────────────────────────────────────────────────────────────
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 12,
+      gap: 8,
+    },
+    headerTitle: {
+      fontWeight: "700",
+      textAlign: "center",
+    },
+    headerSubtitle: {
+      marginTop: 2,
+    },
+    closeButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // ── Scroll ───────────────────────────────────────────────────────────────
+    scrollView: {
+      flexShrink: 1,
+    },
+    scrollContent: {
+      paddingTop: 14,
+      paddingBottom: 20,
+      gap: 10,
+    },
+    // ── Two-column row (Category + Account) ──────────────────────────────────
+    twoColRow: {
+      flexDirection: "row",
+      marginHorizontal: 20,
+      gap: 10,
+    },
+    twoColCard: {
+      flex: 1,
+      borderRadius: 14,
+      // borderWidth: 0.5,
+      padding: 14,
+      gap: 8,
+    },
+    fullWidthSelectionRow: {
+      marginHorizontal: 20,
+      borderRadius: 0,
+      borderWidth: 0,
+      borderBottomWidth: 0,
+      paddingHorizontal: 0,
+      paddingTop: 10,
+      paddingBottom: 14,
+      gap: 14,
+    },
+    stackedLabel: {
+      letterSpacing: 0.8,
+      fontWeight: "800",
+      opacity: 1,
+    },
+    // ── Inline field card (Title, Notes, Date — each its own card) ────────────
+    inlineFieldCard: {
+      marginHorizontal: 20,
+      borderRadius: 0,
+      borderWidth: 0,
+      borderBottomWidth: 0,
+      paddingHorizontal: 14,
+      paddingVertical: 0,
+      gap: 10,
+    },
+    inlineFieldBody: {
+      paddingBottom: 14,
+    },
+    inlineFieldIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    inlineFieldLabel: {
+      letterSpacing: 0.8,
+      fontWeight: "800",
+      opacity: 1,
+    },
+    inlineFieldLabelOptional: {
+      fontWeight: "400",
+      fontSize: 13,
+      opacity: 0.5,
+    },
+    inlineFieldValue: {
+      fontSize: 18,
+      backgroundColor: "transparent",
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      minHeight: 32,
+    },
+    inlineFieldPlaceholder: {
+      flex: 1,
+      fontSize: 14,
+      opacity: 0.4,
+    },
+    // ── Date card label row ───────────────────────────────────────────────────
+    dateLabelSection: {
+      marginHorizontal: 20,
+      borderRadius: 14,
+      borderWidth: 0.5,
+      overflow: "hidden",
+    },
+    dateLabelRow: {
+      paddingHorizontal: 14,
+      paddingTop: 12,
+      paddingBottom: 6,
+    },
+    dateLabelText: {
+      letterSpacing: 1.2,
+      fontWeight: "800",
+      fontSize: 11,
+    },
+    dateValueRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingBottom: 14,
+      gap: 10,
+    },
+    // ── Details card (legacy grouped — kept for edit mode) ──────────────────
+    detailsCard: {
+      marginHorizontal: 20,
+      marginBottom: 2,
+    },
+    detailsLabel: {
+      letterSpacing: 0.6,
+      marginBottom: 6,
+      marginLeft: 2,
+    },
+    surface: {
+      borderRadius: 14,
+      borderWidth: 0.5,
+      overflow: "hidden",
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      gap: 12,
+      borderBottomWidth: 0,
+    },
+    titleInput: {
+      flex: 1,
+      backgroundColor: "transparent",
+      fontSize: 14,
+      height: 20,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+    },
+    errorText: {
+      fontSize: 12,
+      paddingHorizontal: 14,
+      paddingBottom: 4,
+    },
+    // ── Notes collapsed row ──────────────────────────────────────────────────
+    notesCollapsed: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      gap: 8,
+    },
+    // ── Footer ───────────────────────────────────────────────────────────────
+    footer: {
+      flexDirection: "row",
+      paddingHorizontal: 20,
+      gap: 10,
+    },
+    submitButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: 12,
+      paddingVertical: 16,
+    },
+    submitButtonText: {
+      fontWeight: "800",
+      fontSize: 15,
+      letterSpacing: 1,
+    },
+    deleteButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      borderWidth: 0.5,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // ── Keep legacy stubs so nothing breaks ─────────────────────────────────
+    notesCard: {
+      marginHorizontal: 20,
+      marginBottom: 2,
+    },
+    notesRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 0,
+      gap: 12,
+    },
+    notesInput: {
+      flex: 1,
+      backgroundColor: "transparent",
+      fontSize: 14,
+      minHeight: 20,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+    },
+  });
 
 export const modal = StyleSheet.create({
   sheet: {
@@ -397,7 +697,7 @@ export const modal = StyleSheet.create({
   sheetContent: {
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
-    borderTopWidth: 0.5,
+    borderTopWidth: 0,
     overflow: "hidden",
   },
   sheetHandleZone: {
@@ -413,7 +713,7 @@ export const modal = StyleSheet.create({
   },
   modalContent: {
     borderRadius: 20,
-    borderWidth: 0.5,
+    borderWidth: 0,
     alignSelf: "center",
   },
   datePickerContent: {
@@ -450,7 +750,6 @@ export const datePicker = StyleSheet.create({
   datePickerOverlay: {
     zIndex: 999,
     elevation: 999,
-    backgroundColor: "rgba(0,0,0,0.45)",
     borderRadius: 16,
   },
   datePickerPanel: {

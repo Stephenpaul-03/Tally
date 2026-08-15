@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
 import { Surface, Text, useTheme, type MD3Theme } from "react-native-paper";
-import { mainContent } from "../Styles";
+import { createMainContentStyles } from "../Styles";
 
 interface SelectionCardProps {
   label: string;
@@ -19,6 +19,7 @@ export function SelectionCard({
   onPress,
 }: SelectionCardProps) {
   const theme = useTheme<MD3Theme>();
+  const mainContent = createMainContentStyles(theme.colors);
 
   const card = (
     <Surface

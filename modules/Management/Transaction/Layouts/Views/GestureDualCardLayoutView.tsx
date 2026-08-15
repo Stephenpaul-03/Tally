@@ -408,6 +408,7 @@ export function GestureDualCardLayoutView({
     [controlButtons],
   );
   const hasSearchControl = Boolean(resolvedControlButtons.rightMiddle.search);
+  const appHeaderTitle = activeTab === "insights" ? "Insights" : "Tally";
 
   const palette = useMemo(
     () => ({
@@ -1120,9 +1121,9 @@ export function GestureDualCardLayoutView({
               >
                 <Text
                   numberOfLines={1}
-                  style={[styles.appName, { color: theme.colors.onSurface }]}
+                  style={[styles.appName, { color: theme.colors.primary }]}
                 >
-                  Tally
+                  {appHeaderTitle}
                 </Text>
                 <Pressable
                   accessibilityRole="button"
@@ -1132,7 +1133,6 @@ export function GestureDualCardLayoutView({
                   style={({ pressed }) => [
                     styles.settingsButton,
                     {
-                      backgroundColor: theme.colors.elevation.level2,
                       opacity: pressed ? 0.68 : 1,
                     },
                   ]}
@@ -1140,7 +1140,7 @@ export function GestureDualCardLayoutView({
                   <MaterialCommunityIcons
                     name="cog-outline"
                     size={22}
-                    color={theme.colors.onSurface}
+                    color={theme.colors.primary}
                   />
                 </Pressable>
               </View>
@@ -1456,8 +1456,8 @@ const styles = StyleSheet.create({
   },
   appName: {
     ...typography.editorial.hero,
-    fontSize: 34,
-    lineHeight: 42,
+    fontSize: 24,
+    lineHeight: 30,
   },
   settingsButton: {
     alignItems: "center",

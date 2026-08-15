@@ -10,6 +10,7 @@ import {
 } from "@/components/tabbar/TabBarContext";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { useAppSelector } from "@/hooks/Redux";
+import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
 import {
   selectAccountColors,
   selectAccountIcons,
@@ -87,16 +88,16 @@ const TRANSACTION_LIST_FOOTER_MIN_HEIGHT = 300;
 const TRANSACTION_LIST_HORIZONTAL_TRIM = 6;
 const TRANSACTION_LIST_TIMELINE_LEFT = 24.5;
 
-type TransactionSortField =
+export type TransactionSortField =
   | "date"
   | "amount"
   | "title"
   | "category"
   | "account"
   | "type";
-type TransactionSortDirection = "asc" | "desc";
+export type TransactionSortDirection = "asc" | "desc";
 
-type TransactionSortConfig = {
+export type TransactionSortConfig = {
   field: TransactionSortField;
   direction: TransactionSortDirection;
 };
@@ -739,7 +740,7 @@ function TransactionBottomSheet({
   const theme = useTheme();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const panelHeight = Math.round(windowHeight * (compact ? 0.52 : 0.78));
+  const panelHeight = Math.round(windowHeight * (compact ? 0.54 : 0.78));
   const panelSizeStyle = fitContent
     ? { maxHeight: panelHeight }
     : { height: panelHeight };
@@ -1494,7 +1495,7 @@ function AmountFilterSheet({
   );
 }
 
-function TransactionSortModal({
+export function TransactionSortModal({
   visible,
   sortConfig,
   onChange,
@@ -1755,6 +1756,10 @@ export default function Transactions({
   const theme = useTheme<ExtendedMD3Theme>();
   const { activeTab: shellActiveTab } = useAppShell();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
+  const { getWorkspaceDefaults } = useWorkspaceDefaults();
+  const workspaceDefaults = getWorkspaceDefaults(
+    activeWorkspace?.id ?? "personal",
+  );
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
   const accountIcons = useAppSelector(selectAccountIcons);
@@ -1775,7 +1780,19 @@ export default function Transactions({
   const [draftFilters, setDraftFilters] =
     React.useState<TransactionViewFilters>(DEFAULT_VIEW_FILTERS);
   const [appliedSort, setAppliedSort] =
-    React.useState<TransactionSortConfig>(DEFAULT_SORT_CONFIG);
+    React.useState<TransactionSortConfig>(() => ({
+      field: workspaceDefaults.transactionSortField,
+      direction: workspaceDefaults.transactionSortDirection,
+    }));
+  React.useEffect(() => {
+    setAppliedSort({
+      field: workspaceDefaults.transactionSortField,
+      direction: workspaceDefaults.transactionSortDirection,
+    });
+  }, [
+    workspaceDefaults.transactionSortDirection,
+    workspaceDefaults.transactionSortField,
+  ]);
   const [collapsedDaySections, setCollapsedDaySections] = React.useState<
     Record<string, boolean>
   >({});

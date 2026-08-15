@@ -80,7 +80,10 @@ function AppInner() {
   const navigationTheme = getNavigationTheme(paperTheme);
   useEffect(() => {
     if (Platform.OS !== "android") return;
-    void NavigationBar.setBackgroundColorAsync("transparent");
+    void NavigationBar.setBackgroundColorAsync("#00000000");
+    void NavigationBar.setBorderColorAsync("#00000000");
+    void NavigationBar.setPositionAsync("absolute");
+    void NavigationBar.setBehaviorAsync("overlay-swipe");
     void NavigationBar.setButtonStyleAsync(paperTheme.dark ? "light" : "dark");
   }, [paperTheme.dark]);
 

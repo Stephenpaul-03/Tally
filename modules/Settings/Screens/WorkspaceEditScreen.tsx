@@ -1,14 +1,11 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
-import {
-  ACCOUNT_EXTRA_ICONS,
-  CATEGORY_EXTRA_ICONS,
-  MANAGEMENT_COLORS,
-  MANAGEMENT_NAME_LIMIT,
-} from "@/components/ManagementOptions";
+import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
+import options from "@/data/management-options.json";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
+import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import { workspaceRepository } from "@/modules/Core/Repository/Index";
 import {
   createWorkspaceAsync,
@@ -19,19 +16,16 @@ import {
   updateWorkspaceAsync,
 } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  NavigationContext,
-  NavigationRouteContext,
-  type RouteProp,
-} from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
 import React, { useMemo } from "react";
 import { Alert } from "react-native";
 import { TouchableRipple, useTheme, type MD3Theme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { SettingsStackParamList } from "../Navigation";
 
 type Props = {
+  modal?: boolean;
+  visible?: boolean;
+  workspace?: Workspace;
   workspaceName?: string;
   workspaceIcon?: string;
   workspaceColor?: string;
@@ -74,17 +68,9 @@ export function WorkspaceEditScreen(props: Props) {
   const paperTheme = useTheme();
   const theme = props.theme ?? paperTheme;
   const c = theme.colors;
+  const navigation = useNavigation<any>();
 
-  const route = React.useContext(NavigationRouteContext) as
-    | RouteProp<SettingsStackParamList, "WorkspaceEdit">
-    | undefined;
-  const navigation = React.useContext(NavigationContext) as
-    | NativeStackNavigationProp<SettingsStackParamList, "WorkspaceEdit">
-    | undefined;
-
-  const isNavScreen = Boolean(
-    route && route.name === "WorkspaceEdit" && !props.workspaceName,
-  );
+  const isLocalMode = Boolean(props.modal);
 
   // Redux dispatch and select
   const dispatch = useAppDispatch();
@@ -93,7 +79,7 @@ export function WorkspaceEditScreen(props: Props) {
   const { getWorkspaceDefaults, setWorkspaceDefaults } = useWorkspaceDefaults();
 
   // Local state for Navigation Screen mode
-  const paramWorkspace = route?.params?.workspace;
+  const paramWorkspace = props.workspace;
   const [localName, setLocalName] = React.useState(paramWorkspace?.name ?? "");
   const [localIcon, setLocalIcon] = React.useState(
     paramWorkspace?.icon ?? "briefcase-outline",
@@ -106,38 +92,45 @@ export function WorkspaceEditScreen(props: Props) {
     React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
+  React.useEffect(() => {
+    if (!props.modal) return;
+    setLocalName(paramWorkspace?.name ?? "");
+    setLocalIcon(paramWorkspace?.icon ?? "briefcase-outline");
+    setLocalColor(paramWorkspace?.color ?? "#6366F1");
+  }, [paramWorkspace?.color, paramWorkspace?.icon, paramWorkspace?.id, paramWorkspace?.name, props.modal]);
+
   const workspaceIconOptions = useMemo(
     () =>
       [
         ...new Set([
           "briefcase-outline",
-          ...ACCOUNT_EXTRA_ICONS,
-          ...CATEGORY_EXTRA_ICONS,
+          ...options.accountIcons,
+          ...options.categoryIcons,
         ]),
       ],
     [],
   );
-  const workspaceColorOptions = useMemo(() => MANAGEMENT_COLORS, []);
+  const workspaceColorOptions = useMemo(() => options.colors, []);
 
   // Compute values based on mode
-  const activeName = isNavScreen ? localName : (props.workspaceName ?? "");
-  const activeIcon = isNavScreen
+  const activeName = isLocalMode ? localName : (props.workspaceName ?? "");
+  const activeIcon = isLocalMode
     ? localIcon
     : (props.workspaceIcon ?? "briefcase-outline");
-  const activeColor = isNavScreen
+  const activeColor = isLocalMode
     ? localColor
     : (props.workspaceColor ?? "#6366F1");
-  const changeName = isNavScreen ? setLocalName : props.onChangeName;
-  const changeIcon = isNavScreen ? setLocalIcon : props.onChangeIcon;
-  const changeColor = isNavScreen ? setLocalColor : props.onChangeColor;
+  const changeName = isLocalMode ? setLocalName : props.onChangeName;
+  const changeIcon = isLocalMode ? setLocalIcon : props.onChangeIcon;
+  const changeColor = isLocalMode ? setLocalColor : props.onChangeColor;
 
   const resolvedColors = props.allColors ?? workspaceColorOptions;
   const resolvedIcons = props.allIcons ?? workspaceIconOptions;
   const resolvedIconGrid = props.iconGrid ?? DEFAULT_ICON_GRID;
-  const editingMode = isNavScreen
+  const editingMode = isLocalMode
     ? Boolean(paramWorkspace)
     : Boolean(props.isEditing);
-  const resolvedCanSubmit = isNavScreen
+  const resolvedCanSubmit = isLocalMode
     ? localName.trim().length > 0
     : Boolean(props.canSubmit);
 
@@ -216,7 +209,7 @@ export function WorkspaceEditScreen(props: Props) {
           ],
         );
       }
-      navigation?.goBack();
+      activeOnBack();
     } catch (error) {
       const fallback = paramWorkspace
         ? "Couldn't update workspace"
@@ -243,7 +236,7 @@ export function WorkspaceEditScreen(props: Props) {
       await dispatch(deleteWorkspaceAndReload(deleteTarget.id) as any);
       toast.success(`${deleteTarget.name} Workspace deleted`);
       setDeleteTarget(null);
-      navigation?.goBack();
+      activeOnBack();
       return true;
     } catch {
       toast.error("Couldn't delete workspace");
@@ -253,10 +246,10 @@ export function WorkspaceEditScreen(props: Props) {
     }
   };
 
-  const activeSubmit = isNavScreen ? handleNavScreenSubmit : props.onSubmit;
-  const activeDelete = isNavScreen ? handleNavScreenDelete : props.onDelete;
-  const activeOnBack = isNavScreen
-    ? () => navigation?.goBack()
+  const activeSubmit = isLocalMode ? handleNavScreenSubmit : props.onSubmit;
+  const activeDelete = isLocalMode ? handleNavScreenDelete : props.onDelete;
+  const activeOnBack = isLocalMode
+    ? (props.onBack ?? (() => {}))
     : (props.onBack ?? (() => {}));
 
   const deleteAccessory = activeDelete ? (
@@ -301,10 +294,12 @@ export function WorkspaceEditScreen(props: Props) {
       onChangeIcon={changeIcon!}
       onChangeName={changeName!}
       onSubmit={activeSubmit!}
+      presentation={isLocalMode ? "modal" : "screen"}
       showHeader={props.showHeader ?? true}
       submitLabelCreate="Create workspace"
       submitLabelEdit="Save changes"
       theme={theme}
+      visible={props.visible ?? true}
     />
   );
 

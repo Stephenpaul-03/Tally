@@ -2,6 +2,7 @@ import { AlertModal } from "@/components/alert/AlertModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import {
   deleteWorkspaceAndReload,
@@ -34,6 +35,7 @@ export function WorkspacesModal({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const { interactionHintsEnabled } = useAddonPrefs();
   const workspaces = useAppSelector(selectWorkspaces);
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const workspacesLoading = useAppSelector(
@@ -49,6 +51,8 @@ export function WorkspacesModal({
   const [showDeleteBlockedAlert, setShowDeleteBlockedAlert] = useState(false);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const firstSwipeableRef = React.useRef<any>(null);
+  const workspaceHintPlayedRef = React.useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
   const visibleWorkspaces = normalizedQuery
     ? workspaces.filter((workspace) =>
@@ -64,6 +68,27 @@ export function WorkspacesModal({
           .includes(normalizedQuery),
       )
     : workspaces;
+
+  React.useEffect(() => {
+    if (!visible || !interactionHintsEnabled) {
+      workspaceHintPlayedRef.current = false;
+      firstSwipeableRef.current?.close();
+      return;
+    }
+    if (workspaceHintPlayedRef.current || visibleWorkspaces.length === 0) {
+      return;
+    }
+
+    workspaceHintPlayedRef.current = true;
+    const timers = [
+      setTimeout(() => firstSwipeableRef.current?.openRight(), 520),
+      setTimeout(() => firstSwipeableRef.current?.close(), 1500),
+      setTimeout(() => firstSwipeableRef.current?.openLeft(), 1950),
+      setTimeout(() => firstSwipeableRef.current?.close(), 2950),
+    ];
+
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, [interactionHintsEnabled, visible, visibleWorkspaces.length]);
 
   const openWorkspaceModal = () => {
     onOpenWorkspaceEdit();
@@ -264,34 +289,42 @@ export function WorkspacesModal({
             </View>
           ) : (
             <View style={styles.workspaceList}>
-              {visibleWorkspaces.map((workspace) => {
+              {visibleWorkspaces.map((workspace, workspaceIndex) => {
                 const active = activeWorkspaceId === workspace.id;
                 return (
                   <View key={workspace.id} style={styles.swipeRowClip}>
                     <Swipeable
+                      ref={
+                        workspaceIndex === 0
+                          ? (instance) => {
+                              firstSwipeableRef.current = instance;
+                            }
+                          : undefined
+                      }
+                      animationOptions={{ speed: 5, bounciness: 0 }}
                       overshootLeft={false}
                       overshootRight={false}
                       renderLeftActions={() => renderDeleteAction(workspace)}
                       renderRightActions={() => renderEditAction(workspace)}
                     >
                       <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                        accessibilityLabel={
-                          active
-                            ? `${workspace.name} is selected`
-                            : `Switch to ${workspace.name}`
-                        }
-                        disabled={active || Boolean(switchingWorkspaceId)}
-                        onPress={() => void finishWorkspaceSwitch(workspace)}
-                        style={({ pressed }) => [
-                          styles.workspaceRow,
-                          {
-                            backgroundColor: theme.colors.elevation.level1,
-                            opacity: pressed ? 0.72 : 1,
-                          },
-                        ]}
-                      >
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={
+                            active
+                              ? `${workspace.name} is selected`
+                              : `Switch to ${workspace.name}`
+                          }
+                          disabled={active || Boolean(switchingWorkspaceId)}
+                          onPress={() => void finishWorkspaceSwitch(workspace)}
+                          style={({ pressed }) => [
+                            styles.workspaceRow,
+                            {
+                              backgroundColor: theme.colors.elevation.level1,
+                              opacity: pressed ? 0.72 : 1,
+                            },
+                          ]}
+                        >
                         <View style={styles.workspaceRowInner}>
                           <View
                             accessibilityLabel={`${workspace.name} workspace`}

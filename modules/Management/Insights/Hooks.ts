@@ -31,6 +31,7 @@ export type CategoryInsightRow = {
   income: number;
   spent: number;
   incomeShare: number;
+  spendingShare: number;
   budget: number;
   budgetUsed: number;
   budgetLeft: number;
@@ -71,30 +72,49 @@ function monthKeyFromDate(date: Date) {
   return `${year}-${month}`;
 }
 
-function getShiftedMonthKey(offset: number) {
-  const date = new Date();
+function dateFromMonthKey(monthKey: string) {
+  const [year, month] = monthKey.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  if (Number.isNaN(date.getTime())) return new Date();
+  return date;
+}
+
+export function getShiftedMonthKey(offset: number, baseMonthKey?: string) {
+  const date = baseMonthKey ? dateFromMonthKey(baseMonthKey) : new Date();
   date.setDate(1);
   date.setMonth(date.getMonth() + offset);
   return monthKeyFromDate(date);
 }
 
-function getComparisonMonthKeys(compareMode: CategoryInsightCompareMode) {
+function getComparisonMonthKeys(
+  compareMode: CategoryInsightCompareMode,
+  currentMonthKey: string,
+) {
   return compareMode === "lastMonth"
-    ? [getShiftedMonthKey(-1)]
-    : [getShiftedMonthKey(-1), getShiftedMonthKey(-2), getShiftedMonthKey(-3)];
+    ? [getShiftedMonthKey(-1, currentMonthKey)]
+    : [
+        getShiftedMonthKey(-1, currentMonthKey),
+        getShiftedMonthKey(-2, currentMonthKey),
+        getShiftedMonthKey(-3, currentMonthKey),
+      ];
 }
 
-function getRecentMonthKeys(count: number) {
+function getRecentMonthKeys(count: number, endMonthKey = getCurrentMonthKey()) {
   return Array.from({ length: count }, (_, index) =>
-    getShiftedMonthKey(index - count + 1),
+    getShiftedMonthKey(index - count + 1, endMonthKey),
   );
 }
 
-function formatShortMonth(monthKey: string) {
-  const [year, month] = monthKey.split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
+export function formatShortMonth(monthKey: string) {
+  const date = dateFromMonthKey(monthKey);
   if (Number.isNaN(date.getTime())) return monthKey;
   return new Intl.DateTimeFormat("en-IN", { month: "short" }).format(date);
+}
+
+export function formatInsightMonth(monthKey: string) {
+  const date = dateFromMonthKey(monthKey);
+  if (Number.isNaN(date.getTime())) return monthKey;
+  return new Intl.DateTimeFormat("en-IN", { month: "long" }).format(date);
 }
 
 function sumByCategory(
@@ -137,7 +157,7 @@ function sumTransactionsInMonths(
   }, 0);
 }
 
-function getCurrentMonthKey() {
+export function getCurrentMonthKey() {
   return monthKeyFromDate(new Date());
 }
 
@@ -156,6 +176,7 @@ export function formatPercent(value: number) {
 
 export function useCategorySpendInsights(
   compareMode: CategoryInsightCompareMode,
+  selectedMonthKey = getCurrentMonthKey(),
 ) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const categories = useAppSelector(selectActiveExpenseCategories);
@@ -165,10 +186,10 @@ export function useCategorySpendInsights(
   const expenseTransactions = useAppSelector(selectExpenseTransactions);
   const incomeTransactions = useAppSelector(selectIncomeTransactions);
 
-  const currentMonthKey = React.useMemo(() => getShiftedMonthKey(0), []);
+  const currentMonthKey = selectedMonthKey;
   const comparisonMonthKeys = React.useMemo(
-    () => getComparisonMonthKeys(compareMode),
-    [compareMode],
+    () => getComparisonMonthKeys(compareMode, currentMonthKey),
+    [compareMode, currentMonthKey],
   );
 
   const rows = React.useMemo<CategoryInsightRow[]>(() => {
@@ -185,6 +206,7 @@ export function useCategorySpendInsights(
     const comparisonIncome =
       sumTransactionsInMonths(incomeTransactions, comparisonMonthKeys) /
       comparisonMonthKeys.length;
+    const totalCurrentSpent = sumTransactionsInMonths(expenseTransactions, [currentMonthKey]);
 
     return categories
       .map((category) => {
@@ -194,6 +216,7 @@ export function useCategorySpendInsights(
           (comparisonSpentByCategory[category] ?? 0) /
           comparisonMonthKeys.length;
         const incomeShare = currentIncome > 0 ? (spent / currentIncome) * 100 : 0;
+        const spendingShare = totalCurrentSpent > 0 ? (spent / totalCurrentSpent) * 100 : 0;
         const budgetUsed = budget > 0 ? (spent / budget) * 100 : 0;
         const comparisonIncomeShare =
           comparisonIncome > 0 ? (comparisonSpent / comparisonIncome) * 100 : 0;
@@ -208,6 +231,7 @@ export function useCategorySpendInsights(
           income: currentIncome,
           spent,
           incomeShare,
+          spendingShare,
           budget,
           budgetUsed,
           budgetLeft: budget > 0 ? budget - spent : 0,
@@ -250,6 +274,7 @@ export function useCategorySpendInsights(
 
 export function useIncomeAccountSpendInsights(
   compareMode: CategoryInsightCompareMode,
+  selectedMonthKey = getCurrentMonthKey(),
 ) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const accounts = useAppSelector(selectActiveAccounts);
@@ -259,10 +284,10 @@ export function useIncomeAccountSpendInsights(
   const expenseTransactions = useAppSelector(selectExpenseTransactions);
   const incomeTransactions = useAppSelector(selectIncomeTransactions);
 
-  const currentMonthKey = React.useMemo(() => getShiftedMonthKey(0), []);
+  const currentMonthKey = selectedMonthKey;
   const comparisonMonthKeys = React.useMemo(
-    () => getComparisonMonthKeys(compareMode),
-    [compareMode],
+    () => getComparisonMonthKeys(compareMode, currentMonthKey),
+    [compareMode, currentMonthKey],
   );
 
   const rows = React.useMemo<CategoryInsightRow[]>(() => {
@@ -292,6 +317,7 @@ export function useIncomeAccountSpendInsights(
           (comparisonIncomeByAccount[account] ?? 0) /
           comparisonMonthKeys.length;
         const incomeShare = income > 0 ? (spent / income) * 100 : 0;
+        const spendingShare = 0;
         const budgetUsed = budget > 0 ? (spent / budget) * 100 : 0;
         const comparisonIncomeShare =
           comparisonIncome > 0 ? (comparisonSpent / comparisonIncome) * 100 : 0;
@@ -306,6 +332,7 @@ export function useIncomeAccountSpendInsights(
           income,
           spent,
           incomeShare,
+          spendingShare,
           budget,
           budgetUsed,
           budgetLeft: budget > 0 ? budget - spent : 0,
@@ -346,13 +373,13 @@ export function useIncomeAccountSpendInsights(
   };
 }
 
-export function useHeroBalanceSummary(): HeroBalanceSummary {
+export function useHeroBalanceSummary(selectedMonthKey = getCurrentMonthKey()): HeroBalanceSummary {
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const overallBudget = useAppSelector(selectOverallBudget);
   const expenseTransactions = useAppSelector(selectExpenseTransactions);
   const incomeTransactions = useAppSelector(selectIncomeTransactions);
-  const currentMonthKey = React.useMemo(() => getCurrentMonthKey(), []);
+  const currentMonthKey = selectedMonthKey;
   const workspaceDefaults = getWorkspaceDefaults(
     activeWorkspaceId ?? "personal",
   );
@@ -398,13 +425,16 @@ export function useHeroBalanceSummary(): HeroBalanceSummary {
   ]);
 }
 
-export function useCategoryTrendInsights() {
+export function useCategoryTrendInsights(selectedMonthKey = getCurrentMonthKey()) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const categories = useAppSelector(selectActiveExpenseCategories);
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
   const expenseTransactions = useAppSelector(selectExpenseTransactions);
-  const monthKeys = React.useMemo(() => getRecentMonthKeys(6), []);
+  const monthKeys = React.useMemo(
+    () => getRecentMonthKeys(6, selectedMonthKey),
+    [selectedMonthKey],
+  );
 
   const rows = React.useMemo<CategoryTrendRow[]>(() => {
     const byCategoryMonth = expenseTransactions.reduce<

@@ -97,7 +97,12 @@ function AppearanceContent({ modal = false, onBack }: ContentProps) {
 function InterfaceContent({ modal = false, onBack }: ContentProps) {
   const theme = useTheme();
   const { tabBarEnabled, setTabBarEnabled } = useTabBarModePreference();
-  const { minimalIconsEnabled, handleMinimalIconsToggle } = useSettings();
+  const {
+    minimalIconsEnabled,
+    handleMinimalIconsToggle,
+    interactionHintsEnabled,
+    handleInteractionHintsToggle,
+  } = useSettings();
 
   return (
     <>
@@ -129,6 +134,31 @@ function InterfaceContent({ modal = false, onBack }: ContentProps) {
                   }
                 />
               </Pressable>
+            }
+          />
+          <ActionRow
+            icon="gesture-swipe-horizontal"
+            label="Interaction hints"
+            description="Show one-time gestures that explain swipeable controls"
+            onPress={() =>
+              handleInteractionHintsToggle(!interactionHintsEnabled)
+            }
+            theme={theme}
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={interactionHintsEnabled}
+                onValueChange={handleInteractionHintsToggle}
+                trackColor={{
+                  false: theme.colors.outlineVariant,
+                  true: theme.colors.primary,
+                }}
+                thumbColor={
+                  interactionHintsEnabled
+                    ? theme.colors.onPrimary
+                    : theme.colors.surface
+                }
+              />
             }
           />
           <ActionRow

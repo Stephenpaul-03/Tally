@@ -32,6 +32,7 @@ import { NotificationsModal } from "./NotificationsScreen";
 import { AppearanceModal, InterfaceModal } from "./AppearanceScreen";
 import { SecurityModal } from "./SecurityScreen";
 import { WorkspacesModal } from "./WorkspacesScreen";
+import { WorkspaceEditScreen } from "./WorkspaceEditScreen";
 
 function formatLastBackupDescription(workspace: Workspace | null) {
   if (!workspace?.lastBackupAt) return "Last backup: No backup yet";
@@ -65,7 +66,7 @@ type SettingsSearchItem = {
 
 type SearchableSettingsScreen = Exclude<
   keyof SettingsStackParamList,
-  "WorkspaceEdit"
+  never
 >;
 
 export function MainSettingsScreen() {
@@ -79,6 +80,8 @@ export function MainSettingsScreen() {
   const [appearanceOpen, setAppearanceOpen] = React.useState(false);
   const [interfaceOpen, setInterfaceOpen] = React.useState(false);
   const [workspacesOpen, setWorkspacesOpen] = React.useState(false);
+  const [workspaceEditOpen, setWorkspaceEditOpen] = React.useState(false);
+  const [workspaceToEdit, setWorkspaceToEdit] = React.useState<Workspace>();
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
   const [securityOpen, setSecurityOpen] = React.useState(false);
   const [betaContactScenario, setBetaContactScenario] =
@@ -86,7 +89,6 @@ export function MainSettingsScreen() {
   const [passcodeOpen, setPasscodeOpen] = React.useState(false);
   const [passcode, setPasscode] = React.useState("");
   const devTapCountRef = React.useRef(0);
-  const reopenWorkspacesOnFocusRef = React.useRef(false);
   const appVersion = Constants.expoConfig?.version ?? "0.1.0";
   const developerToolsUnlocked = useDeveloperToolsUnlockedForSession();
   const closeSearch = React.useCallback(() => {
@@ -140,26 +142,16 @@ export function MainSettingsScreen() {
   }, [closeSearch]);
   const openWorkspaceEditFromModal = React.useCallback(
     (workspace?: Workspace) => {
-      reopenWorkspacesOnFocusRef.current = true;
       setWorkspacesOpen(false);
-      navigation.navigate({ name: "WorkspaceEdit", params: { workspace } });
+      setWorkspaceToEdit(workspace);
+      setWorkspaceEditOpen(true);
     },
-    [navigation],
+    [],
   );
   const closeAboutModal = React.useCallback(() => {
     setAboutOpen(false);
   }, []);
 
-  React.useEffect(
-    () =>
-      navigation.addListener("focus", () => {
-        if (!reopenWorkspacesOnFocusRef.current) return;
-
-        reopenWorkspacesOnFocusRef.current = false;
-        setWorkspacesOpen(true);
-      }),
-    [navigation],
-  );
   const handleDeveloperTap = React.useCallback(() => {
     const next = devTapCountRef.current + 1;
     devTapCountRef.current = next;
@@ -631,17 +623,17 @@ export function MainSettingsScreen() {
                 theme={theme}
               />
               <ActionRow
-                icon="database-outline"
-                label="Data"
-                description="Create or restore transaction backups"
-                onPress={() => navigation.navigate("Data")}
-                theme={theme}
-              />
-              <ActionRow
                 icon="tune-variant"
                 label="Defaults"
                 description="Currency, account, and category defaults"
                 onPress={() => navigation.navigate("Defaults")}
+                theme={theme}
+              />
+              <ActionRow
+                icon="database-outline"
+                label="Data"
+                description="Create or restore transaction backups"
+                onPress={() => navigation.navigate("Data")}
                 theme={theme}
               />
             </SheetCard>
@@ -733,6 +725,18 @@ export function MainSettingsScreen() {
         visible={workspacesOpen}
         onDismiss={() => setWorkspacesOpen(false)}
         onOpenWorkspaceEdit={openWorkspaceEditFromModal}
+      />
+
+      <WorkspaceEditScreen
+        modal
+        workspace={workspaceToEdit}
+        onBack={() => {
+          setWorkspaceEditOpen(false);
+          setWorkspaceToEdit(undefined);
+          setWorkspacesOpen(true);
+        }}
+        theme={theme}
+        visible={workspaceEditOpen}
       />
 
       <AppearanceModal

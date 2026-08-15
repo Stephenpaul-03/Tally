@@ -1,7 +1,7 @@
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
+import options from "@/data/management-options.json";
 import { useEffect, useMemo, useState } from "react";
-import { EXTRA_COLORS, EXTRA_ICONS } from "./Constants";
 import type { Screen } from "./Types";
 
 const NAME_LIMIT = 30;
@@ -24,7 +24,7 @@ export function useAccountModalState(
 
   const allColors = useMemo(() => {
     const merged = [...(management.colorOptions ?? [])];
-    for (const color of EXTRA_COLORS) {
+    for (const color of options.colors) {
       if (!merged.includes(color)) merged.push(color);
     }
     return merged;
@@ -32,7 +32,7 @@ export function useAccountModalState(
 
   const allIcons = useMemo(() => {
     const merged = [...(management.iconOptions ?? [])];
-    for (const icon of EXTRA_ICONS) {
+    for (const icon of options.accountIcons) {
       if (!merged.includes(icon)) merged.push(icon);
     }
     return merged;

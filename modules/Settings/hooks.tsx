@@ -100,11 +100,13 @@ export function useSettings() {
     guidedChatEnabled,
     betterAnalyticsEnabled,
     minimalIconsEnabled,
+    interactionHintsEnabled,
     labsNoticeDismissed,
     insightsCardOrder,
     setGuidedChatEnabled,
     setBetterAnalyticsEnabled,
     setMinimalIconsEnabled,
+    setInteractionHintsEnabled,
     setLabsNoticeDismissed,
     setInsightsCardOrder,
   } = useAddonPrefs();
@@ -418,6 +420,13 @@ export function useSettings() {
     );
   };
 
+  const handleInteractionHintsToggle = (enabled: boolean) => {
+    setInteractionHintsEnabled(enabled);
+    toast.success(
+      enabled ? "Interaction hints turned on" : "Interaction hints turned off",
+    );
+  };
+
   return {
     themeId,
     setThemeId,
@@ -456,6 +465,8 @@ export function useSettings() {
     handleBetterAnalyticsToggle,
     minimalIconsEnabled,
     handleMinimalIconsToggle,
+    interactionHintsEnabled,
+    handleInteractionHintsToggle,
     trueBlack,
     setTrueBlack,
     labsNoticeDismissed,

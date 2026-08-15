@@ -62,6 +62,7 @@ export function AccountsScreen() {
 
       {screen === "edit" && (
         <AccountEditScreen
+          visible
           management={management}
           localName={localName}
           localIcon={localIcon}
@@ -79,6 +80,7 @@ export function AccountsScreen() {
           hideCloseButton
           theme={theme}
           background={theme.colors.background}
+          presentation="modal"
         />
       )}
 

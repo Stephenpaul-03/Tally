@@ -1,9 +1,12 @@
 import { useStagger } from "@/components/animations/UseStagger";
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SectionLabel } from "@/components/SectionLabel";
+import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { TypeToggle } from "@/components/TypeToggle";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
+import { useAppSelector } from "@/hooks/Redux";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { typography } from "@/theme/typography";
 import type { TransactionType } from "@/utils/Types";
@@ -40,36 +43,25 @@ type ListScreenProps = {
   }) => React.ReactNode;
 };
 
-type CategorySortMode = "custom" | "nameAsc" | "nameDesc" | "usageDesc";
+type CategorySortField = "name" | "usage";
+type CategorySortDirection = "asc" | "desc";
 
 const CATEGORY_SORT_OPTIONS: {
-  id: CategorySortMode;
+  id: CategorySortField;
   label: string;
   description: string;
   icon: string;
 }[] = [
   {
-    id: "custom",
-    label: "Workspace order",
-    description: "Use the current category order",
-    icon: "view-grid-outline",
-  },
-  {
-    id: "nameAsc",
-    label: "Name A-Z",
-    description: "Alphabetical",
+    id: "name",
+    label: "Name",
+    description: "Sort category names",
     icon: "sort-alphabetical-ascending",
   },
   {
-    id: "nameDesc",
-    label: "Name Z-A",
-    description: "Reverse alphabetical",
-    icon: "sort-alphabetical-descending",
-  },
-  {
-    id: "usageDesc",
-    label: "Most used",
-    description: "Highest transaction count first",
+    id: "usage",
+    label: "Usage",
+    description: "Sort by transaction count",
     icon: "chart-bar",
   },
 ];
@@ -85,13 +77,24 @@ export function ListScreen({
   renderHeader,
 }: ListScreenProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const { getWorkspaceDefaults } = useWorkspaceDefaults();
+  const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const c = theme.colors;
   const divider = c.outlineVariant;
   const { width } = useWindowDimensions();
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
-  const [sortMode, setSortMode] = React.useState<CategorySortMode>("custom");
+  const workspaceDefaults = getWorkspaceDefaults(activeWorkspace?.id ?? "personal");
+  const [sortField, setSortField] = React.useState<CategorySortField>(
+    workspaceDefaults.categorySortField,
+  );
+  const [sortDirection, setSortDirection] =
+    React.useState<CategorySortDirection>(workspaceDefaults.categorySortDirection);
+  React.useEffect(() => {
+    setSortField(workspaceDefaults.categorySortField);
+    setSortDirection(workspaceDefaults.categorySortDirection);
+  }, [workspaceDefaults.categorySortDirection, workspaceDefaults.categorySortField]);
   const animatedOnceRef = React.useRef(false);
   const [useIntroAnimation, setUseIntroAnimation] = React.useState(true);
   const pageProgress = React.useRef(
@@ -131,18 +134,15 @@ export function ListScreen({
       );
 
       return [...ordered].sort((a, b) => {
-        if (sortMode === "nameAsc") return a.localeCompare(b);
-        if (sortMode === "nameDesc") return b.localeCompare(a);
-        if (sortMode === "usageDesc") {
-          return (
-            (management.categoryStatsByType[type][b]?.count ?? 0) -
-            (management.categoryStatsByType[type][a]?.count ?? 0)
-          );
-        }
-        return ordered.indexOf(a) - ordered.indexOf(b);
+        const result =
+          sortField === "name"
+            ? a.localeCompare(b)
+            : (management.categoryStatsByType[type][a]?.count ?? 0) -
+              (management.categoryStatsByType[type][b]?.count ?? 0);
+        return sortDirection === "asc" ? result : -result;
       });
     },
-    [management, normalizedQuery, sortMode],
+    [management, normalizedQuery, sortDirection, sortField],
   );
 
   const expenseCategories = React.useMemo(
@@ -217,16 +217,16 @@ export function ListScreen({
         borderRadius: 99,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: sortMode !== "custom" ? c.primaryContainer : c.surface,
+        backgroundColor: c.surface,
         borderWidth: 1,
-        borderColor: sortMode !== "custom" ? c.primary : c.outlineVariant,
+        borderColor: c.outlineVariant,
       }}
       accessibilityLabel="Sort categories"
     >
       <MaterialCommunityIcons
         name="sort"
         size={18}
-        color={sortMode !== "custom" ? c.primary : c.onSurfaceVariant}
+        color={c.onSurfaceVariant}
       />
     </TouchableRipple>
   ) : undefined;
@@ -414,102 +414,18 @@ export function ListScreen({
           </Pressable>
         </View>
       )}
-      <AnimatedPaperModal
+      <SortOptionSheet
         visible={sortOpen}
         onDismiss={() => setSortOpen(false)}
-        presentation="sheet"
-        dismissable
-        contentContainerStyle={{
-          backgroundColor: c.background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          padding: 16,
-        }}
-      >
-        <View
-          style={{
-            alignSelf: "center",
-            width: 38,
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: theme.colors.outlineVariant,
-          }}
-        />
-        <View style={{ gap: 4, marginBottom: 8 }}>
-          <Text
-            style={{
-              ...typography.editorial.sectionLabel,
-              fontSize: 18,
-              color: c.onSurface,
-            }}
-          >
-            Sort categories
-          </Text>
-          <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
-            Choose how the category grid is ordered.
-          </Text>
-        </View>
-        {CATEGORY_SORT_OPTIONS.map(({ id, label, description, icon }) => {
-          const selected = sortMode === id;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => {
-                setSortMode(id as CategorySortMode);
-                setSortOpen(false);
-              }}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 10,
-                borderRadius: 14,
-                backgroundColor: selected ? c.primaryContainer : "transparent",
-                opacity: pressed ? 0.65 : 1,
-              })}
-            >
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: selected ? c.surface : c.elevation.level1,
-                  borderWidth: 1,
-                  borderColor: selected ? c.primary : c.outlineVariant,
-                }}
-              >
-                <MaterialCommunityIcons
-                  name={icon as any}
-                  size={18}
-                  color={selected ? c.primary : c.onSurfaceVariant}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "700",
-                    color: c.onSurface,
-                  }}
-                >
-                  {label}
-                </Text>
-                <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
-                  {description}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name={selected ? "radiobox-marked" : "radiobox-blank"}
-                size={20}
-                color={selected ? c.primary : c.onSurfaceVariant}
-              />
-            </Pressable>
-          );
-        })}
-      </AnimatedPaperModal>
+        title="Sort categories"
+        subtitle="Choose how the category grid is ordered."
+        options={CATEGORY_SORT_OPTIONS}
+        value={sortField}
+        direction={sortDirection}
+        resetDirection="asc"
+        onChange={(value) => setSortField(value as CategorySortField)}
+        onDirectionChange={(direction) => setSortDirection(direction)}
+      />
     </View>
   );
 }

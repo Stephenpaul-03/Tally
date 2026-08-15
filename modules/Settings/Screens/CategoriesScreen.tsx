@@ -1,3 +1,4 @@
+import options from "@/data/management-options.json";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { CustomColorPickerModal } from "@/modules/Management/Category/Components/ColorPickerModal";
@@ -12,114 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
 
-const EXTRA_COLORS = [
-  "#EF4444",
-  "#F97316",
-  "#F59E0B",
-  "#EAB308",
-  "#84CC16",
-  "#22C55E",
-  "#10B981",
-  "#14B8A6",
-  "#06B6D4",
-  "#3B82F6",
-  "#6366F1",
-  "#8B5CF6",
-  "#A855F7",
-  "#EC4899",
-  "#F43F5E",
-  "#64748B",
-  "#78716C",
-  "#1D4ED8",
-  "#047857",
-  "#B45309",
-  "#7C3AED",
-  "#DB2777",
-  "#0E7490",
-  "#065F46",
-];
-
-const EXTRA_ICONS = [
-  "cash",
-  "credit-card-outline",
-  "bank-outline",
-  "wallet-outline",
-  "currency-usd",
-  "chart-line",
-  "trending-up",
-  "trending-down",
-  "piggy-bank-outline",
-  "safe-square-outline",
-  "food-outline",
-  "coffee-outline",
-  "beer-outline",
-  "pizza",
-  "silverware-fork-knife",
-  "cup-water",
-  "cake-variant-outline",
-  "ice-cream",
-  "car-outline",
-  "bus",
-  "train",
-  "airplane",
-  "bicycle",
-  "motorbike",
-  "taxi",
-  "gas-station-outline",
-  "shopping-outline",
-  "shopping-search-outline",
-  "cart-outline",
-  "tshirt-crew-outline",
-  "hanger",
-  "heart-pulse",
-  "hospital-box-outline",
-  "pill",
-  "run",
-  "weight-lifter",
-  "yoga",
-  "meditation",
-  "home-outline",
-  "sofa-outline",
-  "lightbulb-outline",
-  "water-outline",
-  "washing-machine",
-  "broom",
-  "tools",
-  "music-note",
-  "television-play",
-  "gamepad-variant-outline",
-  "movie-open-outline",
-  "book-open-outline",
-  "headphones",
-  "microphone-outline",
-  "laptop",
-  "cellphone",
-  "tablet",
-  "printer-outline",
-  "router-wireless",
-  "cloud-outline",
-  "account-group-outline",
-  "human-male-female",
-  "baby-face-outline",
-  "dog-side",
-  "cat",
-  "tag-outline",
-  "star-outline",
-  "gift-outline",
-  "alarm-outline",
-  "clipboard-list-outline",
-  "calendar-outline",
-  "map-marker-outline",
-  "school-outline",
-  "briefcase-outline",
-  "leaf-outline",
-  "flower-outline",
-  "recycle",
-  "fire",
-  "snowflake",
-  "weather-sunny",
-];
-
 const NAME_LIMIT = 30;
 
 export function CategoriesScreen() {
@@ -128,37 +21,23 @@ export function CategoriesScreen() {
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { height, width, isMobileLayout: isMobile } = useBreakpoint();
   const management = useCategoryManagement("expense");
+  const allColors = options.colors;
+  const allIcons = options.categoryIcons;
   const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
   const [localName, setLocalName] = useState(
     management.editingCategory?.name.slice(0, NAME_LIMIT) ?? "",
   );
   const [localIcon, setLocalIcon] = useState(
     management.editingCategory?.icon ??
-      management.iconOptions[0] ??
+      allIcons[0] ??
       "tag-outline",
   );
   const [localColor, setLocalColor] = useState(
     management.editingCategory?.color ??
-      management.colorOptions[0] ??
+      allColors[0] ??
       "#3B82F6",
   );
   const [localDest, setLocalDest] = useState("");
-
-  const allColors = useMemo(() => {
-    const merged = [...management.colorOptions];
-    for (const color of EXTRA_COLORS) {
-      if (!merged.includes(color)) merged.push(color);
-    }
-    return merged;
-  }, [management.colorOptions]);
-
-  const allIcons = useMemo(() => {
-    const merged = [...management.iconOptions];
-    for (const icon of EXTRA_ICONS) {
-      if (!merged.includes(icon)) merged.push(icon);
-    }
-    return merged;
-  }, [management.iconOptions]);
 
   useLayoutEffect(() => {
     if (!management.isEditOpen) return;
@@ -320,9 +199,16 @@ export function CategoriesScreen() {
         initialColor={localColor}
       />
 
-      {management.isEditOpen ? (
-        <CategoryEditScreen
-          key={management.editingCategory?.name ?? "new"}
+      <ListScreen
+        management={management}
+        listHeight={listHeight}
+        theme={theme}
+        renderHeader={renderHeader}
+        useSettingsHeader
+      />
+
+      <CategoryEditScreen
+        visible={management.isEditOpen}
           management={management}
           localName={localName}
           setLocalName={setLocalName}
@@ -338,8 +224,10 @@ export function CategoriesScreen() {
           theme={theme}
           onSubmit={handleSubmit}
           onBack={handleBack}
+          presentation="modal"
         />
-      ) : management.isDeleteOpen ? (
+
+      {management.isDeleteOpen ? (
         <DeleteScreen
           management={management}
           deletingName={deletingName}
@@ -352,15 +240,7 @@ export function CategoriesScreen() {
           onConfirmDelete={handleConfirmDelete}
           renderHeader={renderHeader}
         />
-      ) : (
-        <ListScreen
-          management={management}
-          listHeight={listHeight}
-          theme={theme}
-          renderHeader={renderHeader}
-          useSettingsHeader
-        />
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }

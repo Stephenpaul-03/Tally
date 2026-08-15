@@ -1,8 +1,10 @@
 import { AlertModal } from "@/components/alert/AlertModal";
-import type { WorkspaceCurrency } from "@/components/CurrencyPickerField";
+import {
+  CurrencyPickerField,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { DateChip } from "@/components/pageheader/DateChip";
 import {
   formatDayChipLabel,
   parseIso,
@@ -10,61 +12,70 @@ import {
 import { toast } from "@/components/toast/ToastProvider";
 import { TypeToggle } from "@/components/TypeToggle";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
+import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
+import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
-import {
-  selectActiveWorkspace,
-  selectActiveWorkspaceId,
-} from "@/modules/Core/Slices/WorkspaceSlice";
 import {
   addTransactionAsync,
   deleteTransactionAsync,
   removeTransactionDraft,
-  selectActiveTransactionDraft,
-  selectActiveTransactionDraftId,
   selectAccountColors,
   selectAccountIcons,
   selectActiveAccounts,
   selectActiveExpenseCategories,
   selectActiveIncomeCategories,
+  selectActiveTransactionDraft,
+  selectActiveTransactionDraftId,
   selectCategoryColors,
   selectCategoryIcons,
   selectEditingTransactionId,
   selectModalMode,
   selectTransactionById,
   selectTransactions,
-  upsertTransactionDraft,
   updateTransactionAsync,
+  upsertTransactionDraft,
 } from "@/modules/Core/Slices/TransactionSlice";
-import { typography } from "@/theme/typography";
-import { getContrastColor } from "@/utils/ColorHelpers";
+import {
+  selectActiveWorkspace,
+  selectActiveWorkspaceId,
+} from "@/modules/Core/Slices/WorkspaceSlice";
+import { AccountManagementModal } from "@/modules/Management/Account/Index";
+import { CategoryManagementModal } from "@/modules/Management/Category/Index";
 import { parseIsoDateOnlyParts } from "@/utils/Date";
 import {
   formatAccountLabel,
+  getAccountColor,
+  getAccountIconName,
+  getCategoryColor,
+  getCategoryIconName,
   getLastTransaction,
   getTodayDate,
   validateAmount,
 } from "@/utils/Helpers";
 import { TransactionFormData, TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useLayoutEffect, useMemo, useState } from "react";
-import { Keyboard, Pressable, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import * as NavigationBar from "expo-navigation-bar";
+import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Keyboard,
+  Platform,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import {
   Portal,
-  Surface,
   Text,
+  TextInput,
   useTheme,
   type MD3Theme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AccountPicker } from "./Molecules/AccountPicker";
-import { AmountHero } from "./Molecules/AmountHero";
-import { CategoryPicker } from "./Molecules/CategoryPicker";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
-import { SelectionCard } from "./Molecules/SelectionCard";
-import { TransactionRowPreview } from "./Molecules/TransactionRowPreview";
-import { mainContent, modal } from "./Styles";
+import { createMainContentStyles, modal, withAlpha } from "./Styles";
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -72,6 +83,233 @@ interface TransactionModalProps {
   defaultType?: TransactionType;
   initialAmount?: string | null;
   initialDate?: string | null;
+}
+
+const KEYPAD_ROWS = [
+  ["7", "8", "9"],
+  ["4", "5", "6"],
+  ["1", "2", "3"],
+  ["clear", "0", "backspace"],
+];
+
+function AnimatedAmountCharacter({
+  character,
+  color,
+  entering,
+  exiting,
+  onFinished,
+  textStyle,
+}: {
+  character: string;
+  color: string;
+  entering?: boolean;
+  exiting?: boolean;
+  onFinished?: () => void;
+  textStyle?: React.ComponentProps<typeof Animated.Text>["style"];
+}) {
+  const translateY = React.useRef(
+    new Animated.Value(exiting ? 0 : entering ? -18 : 0),
+  ).current;
+  const opacity = React.useRef(
+    new Animated.Value(exiting ? 1 : entering ? 0 : 1),
+  ).current;
+
+  useEffect(() => {
+    if (!entering && !exiting) return;
+    translateY.setValue(exiting ? 0 : -18);
+    opacity.setValue(exiting ? 1 : 0);
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: exiting ? 20 : 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: exiting ? 0 : 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) onFinished?.();
+    });
+  }, [entering, exiting, onFinished, opacity, translateY]);
+
+  return (
+    <Animated.Text
+      style={[textStyle, { color, opacity, transform: [{ translateY }] }]}
+    >
+      {character}
+    </Animated.Text>
+  );
+}
+
+function AnimatedClearingCharacter({
+  item,
+  color,
+  textStyle,
+  onFinished,
+}: {
+  item: { character: string; id: number };
+  color: string;
+  textStyle: React.ComponentProps<typeof Animated.Text>["style"];
+  onFinished: (id: number) => void;
+}) {
+  const handleFinished = React.useCallback(
+    () => onFinished(item.id),
+    [item.id, onFinished],
+  );
+
+  return (
+    <AnimatedAmountCharacter
+      character={item.character}
+      color={color}
+      exiting
+      textStyle={textStyle}
+      onFinished={handleFinished}
+    />
+  );
+}
+
+function AnimatedAmountDisplay({
+  currencySymbol,
+  value,
+  color,
+  style,
+  currencyControl,
+}: {
+  currencySymbol: string;
+  value: string;
+  color: string;
+  style: React.ComponentProps<typeof Animated.Text>["style"];
+  currencyControl?: (args: {
+    color: string;
+    textStyle: React.ComponentProps<typeof Animated.Text>["style"];
+  }) => React.ReactNode;
+}) {
+  const { width } = useWindowDimensions();
+  const previousValueRef = React.useRef(value);
+  const [enteringIndex, setEnteringIndex] = useState<number | null>(null);
+  const [clearingCharacters, setClearingCharacters] = useState<
+    { character: string; id: number }[]
+  >([]);
+  const [showClearedZero, setShowClearedZero] = useState(value.length === 0);
+
+  const handleClearingCharacterFinished = React.useCallback((id: number) => {
+    setClearingCharacters((current) => {
+      const next = current.filter((candidate) => candidate.id !== id);
+      if (next.length === 0) setShowClearedZero(true);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const previousValue = previousValueRef.current;
+    const isClearing = previousValue.length > 0 && value.length === 0;
+    let commonLength = 0;
+    while (
+      commonLength < previousValue.length &&
+      commonLength < value.length &&
+      previousValue[commonLength] === value[commonLength]
+    ) {
+      commonLength += 1;
+    }
+
+    if (isClearing) {
+      setShowClearedZero(false);
+      setClearingCharacters(
+        previousValue.split("").map((character, index) => ({
+          character,
+          id: Date.now() + index,
+        })),
+      );
+    } else if (
+      value.length > previousValue.length ||
+      (previousValue.length === 0 && value.length > 0)
+    ) {
+      setEnteringIndex(commonLength);
+    }
+    if (!isClearing) {
+      setClearingCharacters([]);
+      setShowClearedZero(value.length === 0);
+    }
+    previousValueRef.current = value;
+
+    if (!isClearing && value.length > previousValue.length) {
+      const timeout = setTimeout(() => setEnteringIndex(null), 220);
+      return () => clearTimeout(timeout);
+    }
+  }, [value]);
+
+  const displayLength = Math.max(value.length, 1) + 1;
+  const amountFontSize = Math.min(
+    64,
+    Math.max(30, (width - 96) / (displayLength * 0.58)),
+  );
+  const amountTextStyle = [
+    style,
+    {
+      fontSize: amountFontSize,
+      lineHeight: amountFontSize * 1.15,
+    },
+  ];
+
+  return (
+    <Animated.View
+      style={{
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "center",
+      }}
+    >
+      {currencyControl ? (
+        currencyControl({ color, textStyle: amountTextStyle })
+      ) : (
+        <Animated.Text style={[amountTextStyle, { color }]}>
+          {currencySymbol}
+        </Animated.Text>
+      )}
+      {value.split("").map((character, index) => (
+        <AnimatedAmountCharacter
+          key={`${index}-${character}`}
+          character={character}
+          color={color}
+          textStyle={amountTextStyle}
+          entering={index === enteringIndex}
+        />
+      ))}
+      {value.length === 0 && showClearedZero ? (
+        <AnimatedAmountCharacter
+          character="0"
+          color={color}
+          entering
+          textStyle={amountTextStyle}
+        />
+      ) : null}
+      {clearingCharacters.length > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            alignItems: "center",
+            flexDirection: "row",
+            justifyContent: "center",
+            left: 0,
+            position: "absolute",
+            right: 0,
+          }}
+        >
+          {clearingCharacters.map((item) => (
+            <AnimatedClearingCharacter
+              key={`clearing-${item.id}`}
+              item={item}
+              color={color}
+              textStyle={amountTextStyle}
+              onFinished={handleClearingCharacterFinished}
+            />
+          ))}
+        </Animated.View>
+      ) : null}
+    </Animated.View>
+  );
 }
 
 export function TransactionModal({
@@ -83,8 +321,17 @@ export function TransactionModal({
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const theme = useTheme<MD3Theme>();
-  const { width, height, isMobileLayout } = useBreakpoint();
+  const mainContent = createMainContentStyles(theme.colors);
+  const { width, isMobileLayout } = useBreakpoint();
   const { bottom } = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    void NavigationBar.setBackgroundColorAsync("#00000000");
+    void NavigationBar.setBorderColorAsync("#00000000");
+    void NavigationBar.setPositionAsync("absolute");
+    void NavigationBar.setBehaviorAsync("overlay-swipe");
+  }, []);
 
   const modalMode = useAppSelector(selectModalMode);
   const editingTransactionId = useAppSelector(selectEditingTransactionId);
@@ -122,9 +369,6 @@ export function TransactionModal({
 
   const isEditMode = modalMode === "edit";
 
-  const sheetMaxHeight = Math.max(Math.min(height * 0.97, 940), 620);
-  const webMaxHeight = Math.min(height * 0.94, 900);
-
   const [formData, setFormData] = useState<TransactionFormData>({
     title: "",
     date: getTodayDate(),
@@ -144,10 +388,19 @@ export function TransactionModal({
   >({});
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [noteFocused, setNoteFocused] = useState(false);
+  const [titleFocused, setTitleFocused] = useState(false);
   const titleInputRef = React.useRef<any>(null);
+  const noteInputRef = React.useRef<any>(null);
+  const headerEntrance = React.useRef(new Animated.Value(0)).current;
+  const cardEntrance = React.useRef(new Animated.Value(0)).current;
+  const noteWidthAnimation = React.useRef(new Animated.Value(92)).current;
+  const cardSectionEntrances = React.useRef(
+    Array.from({ length: 5 }, () => new Animated.Value(0)),
+  ).current;
   const addBaselineRef = React.useRef<TransactionFormData | null>(null);
   const closeHandledRef = React.useRef(false);
+  const closeAnimationRunningRef = React.useRef(false);
   const skipDraftOnCloseRef = React.useRef(false);
   const addModeDate = useMemo(
     () => initialDate?.trim() || getTodayDate(),
@@ -228,7 +481,6 @@ export function TransactionModal({
       : "";
 
     if (isEditMode && editingTransaction) {
-      const hasNotes = Boolean(editingTransaction.notes?.trim());
       setFormData({
         title: editingTransaction.title || editingTransaction.category,
         date: editingTransaction.date,
@@ -252,9 +504,7 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setNotesExpanded(hasNotes);
     } else if (activeDraft) {
-      const hasNotes = Boolean(activeDraft.notes?.trim());
       const nextFormData: TransactionFormData = {
         title: activeDraft.title,
         date: activeDraft.date,
@@ -264,8 +514,10 @@ export function TransactionModal({
         account: activeDraft.account,
         notes: activeDraft.notes || "",
         tags: activeDraft.tags,
-        currencyCode: activeDraft.currencyCode ?? defaultTransactionCurrency.code,
-        currencyName: activeDraft.currencyName ?? defaultTransactionCurrency.name,
+        currencyCode:
+          activeDraft.currencyCode ?? defaultTransactionCurrency.code,
+        currencyName:
+          activeDraft.currencyName ?? defaultTransactionCurrency.name,
         currencySymbol:
           activeDraft.currencySymbol ?? defaultTransactionCurrency.symbol,
       };
@@ -277,7 +529,6 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setNotesExpanded(hasNotes);
     } else {
       const nextFormData = {
         title: "",
@@ -302,7 +553,6 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
-      setNotesExpanded(false);
     }
 
     setErrors({});
@@ -369,19 +619,62 @@ export function TransactionModal({
     );
   }, [activeDraftId, amountString, dispatch, formData]);
 
+  const closeWithAnimation = React.useCallback(
+    (afterClose: () => void) => {
+      if (closeAnimationRunningRef.current) return;
+      closeAnimationRunningRef.current = true;
+
+      headerEntrance.stopAnimation();
+      cardEntrance.stopAnimation();
+      cardSectionEntrances.forEach((animation) => animation.stopAnimation());
+
+      Animated.parallel([
+        Animated.timing(headerEntrance, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardEntrance, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.stagger(
+          40,
+          [...cardSectionEntrances].reverse().map((animation) =>
+            Animated.timing(animation, {
+              toValue: 0,
+              duration: 250,
+              easing: Easing.in(Easing.cubic),
+              useNativeDriver: true,
+            }),
+          ),
+        ),
+      ]).start();
+
+      setTimeout(() => {
+        closeAnimationRunningRef.current = false;
+        afterClose();
+      }, 245);
+    },
+    [cardEntrance, cardSectionEntrances, headerEntrance],
+  );
+
   const handleRequestClose = React.useCallback(() => {
     if (closeHandledRef.current) return;
     closeHandledRef.current = true;
     if (skipDraftOnCloseRef.current) {
-      onClose();
+      closeWithAnimation(onClose);
       return;
     }
     if (!isEditMode && hasMeaningfulDraft()) {
       saveDraft();
       toast.info("Draft saved");
     }
-    onClose();
-  }, [hasMeaningfulDraft, isEditMode, onClose, saveDraft]);
+    closeWithAnimation(onClose);
+  }, [closeWithAnimation, hasMeaningfulDraft, isEditMode, onClose, saveDraft]);
 
   const handleTypeChange = (type: TransactionType) =>
     setFormData((prev) => ({
@@ -433,15 +726,22 @@ export function TransactionModal({
       dispatch(addTransactionAsync(data));
       toast.success("Transaction added");
     }
-    onClose();
+    closeWithAnimation(onClose);
   };
 
   const handleConfirmDelete = () => {
+    if (!isEditMode && activeDraft) {
+      dispatch(removeTransactionDraft(activeDraft.id));
+      toast.success("Draft deleted");
+      setIsDeleteConfirmOpen(false);
+      closeWithAnimation(onClose);
+      return;
+    }
     if (!editingTransactionId) return;
     dispatch(deleteTransactionAsync(editingTransactionId));
     toast.success("Transaction deleted");
     setIsDeleteConfirmOpen(false);
-    onClose();
+    closeWithAnimation(onClose);
   };
 
   const handleDateChange = (iso: string) => {
@@ -454,10 +754,6 @@ export function TransactionModal({
     if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
   };
 
-  const isExpense = formData.type === "expense";
-  const previewTimestamp =
-    editingTransaction?.createdAt || editingTransaction?.updatedAt;
-
   const selectedCategory =
     formData.category || resolveDefaultCategory(formData.type);
   const selectedAccountValue = formData.account || defaultAccountForType;
@@ -466,318 +762,562 @@ export function TransactionModal({
     name: formData.currencyName ?? defaultTransactionCurrency.name,
     symbol: formData.currencySymbol ?? defaultTransactionCurrency.symbol,
   };
+  const accountManagement = useAccountManagement();
+  const categoryManagement = useCategoryManagement(formData.type);
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+
+  React.useEffect(() => {
+    categoryManagement.handleSelectType(formData.type);
+  }, [categoryManagement, formData.type]);
+
+  const selectedAccountIcon = getAccountIconName(
+    selectedAccountValue,
+    accountIcons,
+  ) as React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  const selectedAccountColor = getAccountColor(
+    selectedAccountValue,
+    accountColors,
+  );
+  const selectedCategoryIcon = getCategoryIconName(
+    selectedCategory,
+    formData.type,
+    categoryIcons,
+  ) as React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  const selectedCategoryColor = getCategoryColor(
+    selectedCategory,
+    formData.type,
+    categoryColors,
+  );
+  const amountIsZero = !amountString || Number(amountString) === 0;
+  const amountColor = errors.amount
+    ? theme.colors.error
+    : amountIsZero
+      ? theme.colors.onSurfaceVariant
+      : theme.colors.onSurface;
+  const maxNotePillWidth = Math.min(Math.max(width - 80, 220), 680);
+  const noteText = formData.notes?.trim() || "Add note";
+  const collapsedNotePillWidth = Math.min(
+    maxNotePillWidth,
+    Math.max(92, 44 + noteText.length * 7.2),
+  );
+  useEffect(() => {
+    Animated.timing(noteWidthAnimation, {
+      toValue: collapsedNotePillWidth,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [collapsedNotePillWidth, noteWidthAnimation]);
+
+  const blurInputs = React.useCallback(() => {
+    Keyboard.dismiss();
+    titleInputRef.current?.blur?.();
+    noteInputRef.current?.blur?.();
+    setTitleFocused(false);
+    setNoteFocused(false);
+  }, []);
+
+  useEffect(() => {
+    const subscription = Keyboard.addListener("keyboardDidHide", blurInputs);
+    return () => subscription.remove();
+  }, [blurInputs]);
+
+  useLayoutEffect(() => {
+    headerEntrance.stopAnimation();
+    cardEntrance.stopAnimation();
+    cardSectionEntrances.forEach((animation) => animation.stopAnimation());
+
+    if (!isOpen) {
+      Animated.parallel([
+        Animated.timing(headerEntrance, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardEntrance, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.stagger(
+          35,
+          [...cardSectionEntrances].reverse().map((animation) =>
+            Animated.timing(animation, {
+              toValue: 0,
+              duration: 220,
+              easing: Easing.in(Easing.cubic),
+              useNativeDriver: true,
+            }),
+          ),
+        ),
+      ]).start();
+      return;
+    }
+
+    headerEntrance.setValue(0);
+    cardEntrance.setValue(0);
+    cardSectionEntrances.forEach((animation) => animation.setValue(0));
+
+    Animated.sequence([
+      Animated.delay(260),
+      Animated.parallel([
+        Animated.timing(headerEntrance, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardEntrance, {
+          toValue: 1,
+          duration: 560,
+          easing: Easing.out(Easing.back(1.05)),
+          useNativeDriver: true,
+        }),
+        Animated.stagger(
+          90,
+          cardSectionEntrances.map((animation) =>
+            Animated.timing(animation, {
+              toValue: 1,
+              duration: 420,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+          ),
+        ),
+      ]),
+    ]).start();
+  }, [cardEntrance, cardSectionEntrances, headerEntrance, isOpen]);
+
+  const sectionEntranceStyle = (animation: Animated.Value) => ({
+    opacity: animation,
+    transform: [
+      {
+        translateY: animation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [14, 0],
+        }),
+      },
+    ],
+  });
+
+  const handleKeypadPress = (key: string) => {
+    if (key === "backspace") {
+      handleAmountChange(amountString.slice(0, -1));
+      return;
+    }
+    if (key === "clear") {
+      handleAmountChange("");
+      return;
+    }
+    handleAmountChange(
+      key === "0" && !amountString ? "0." : `${amountString}${key}`,
+    );
+  };
   const content = (
-    <View style={[mainContent.keyboardView, { overflow: "visible" }]}>
-      {/* ── Modal Header ── */}
-      <View style={mainContent.header}>
-        {/* Close (X) — always left */}
+    <View
+      style={[
+        mainContent.keyboardView,
+        mainContent.iosShell,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: 18 + bottom,
+        },
+        isMobileLayout && { paddingTop: 0 },
+      ]}
+      onTouchStart={() => {
+        if (noteFocused || titleFocused) blurInputs();
+      }}
+    >
+      {isMobileLayout ? (
+        <View style={modal.sheetHandleZone} accessibilityLabel="Drag handle">
+          <View
+            style={[
+              modal.sheetHandle,
+              { backgroundColor: theme.colors.onSurface },
+            ]}
+          />
+        </View>
+      ) : null}
+      <Animated.View
+        style={[
+          mainContent.iosTopBar,
+          {
+            opacity: headerEntrance,
+            transform: [
+              {
+                translateY: headerEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-12, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close"
           onPress={handleRequestClose}
-          style={[
-            mainContent.closeButton,
-            { backgroundColor: theme.colors.surface },
+          style={({ pressed }) => [
+            mainContent.iosCircleButton,
+            { opacity: pressed ? 0.68 : 1 },
           ]}
         >
           <MaterialCommunityIcons
             name="close"
-            size={18}
-            color={theme.colors.onSurfaceVariant}
+            size={28}
+            color={theme.colors.onSurface}
           />
         </Pressable>
 
-        {/* Title — plain text in edit mode, mini type toggle in add mode */}
-        <View style={{ flex: 1, paddingHorizontal: 8 }}>
-          {isEditMode ? (
-            <Text
-              variant="titleMedium"
-              style={[
-                mainContent.headerTitle,
-                { color: theme.colors.onSurface },
-              ]}
-            >
-              Edit transaction
-            </Text>
-          ) : (
-            <TypeToggle
-              value={formData.type}
-              onChange={handleTypeChange}
-              mini
-            />
-          )}
-        </View>
-
-        <DateChip
-          label={dateChipLabel}
-          expanded={isDatePickerOpen}
-          onPress={() => {
-            Keyboard.dismiss();
-            setIsDatePickerOpen(true);
-          }}
-          onLongPress={() => {
-            Keyboard.dismiss();
-            setIsDatePickerOpen(true);
-          }}
-          backgroundColor={theme.colors.elevation.level3}
-        />
-      </View>
-
-      <KeyboardAwareScrollView
-        style={[mainContent.scrollView]}
-        contentContainerStyle={mainContent.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 1. Preview row — edit mode only */}
-        {isEditMode && (
-          <TransactionRowPreview
-            formData={formData}
-            amountString={amountString}
-            previewTimestamp={previewTimestamp}
+        <View style={{ width: 180 }}>
+          <TypeToggle
+            value={formData.type}
+            onChange={handleTypeChange}
+            mini
+            radius={26}
+            height={54}
+            trackBackgroundColor={theme.colors.elevation.level1}
+            borderWidth={0}
           />
-        )}
-
-        {/* 2. Amount hero — open layout with quick-add buttons */}
-        <AmountHero
-          value={amountString}
-          onChange={handleAmountChange}
-          currency={selectedCurrency}
-          onCurrencyChange={(currency) =>
-            setFormData((prev) => ({
-              ...prev,
-              currencyCode: currency.code,
-              currencyName: currency.name,
-              currencySymbol: currency.symbol,
-            }))
-          }
-          error={errors.amount}
-        />
-
-        <View style={mainContent.twoColRow}>
-          <SelectionCard
-            label="CATEGORY"
-            error={errors.category}
-            style={{
-              backgroundColor: theme.colors.elevation.level1,
-              borderColor: errors.category
-                ? theme.colors.error
-                : theme.colors.outlineVariant,
-            }}
-          >
-            <CategoryPicker
-              value={selectedCategory}
-              onChange={(v) => {
-                setFormData((prev) => ({ ...prev, category: v }));
-                if (errors.category)
-                  setErrors((prev) => ({ ...prev, category: undefined }));
-              }}
-              transactionType={formData.type}
-              categoryIcons={categoryIcons}
-              categoryColors={categoryColors}
-              isMobileLayout={isMobileLayout}
-              maxWidth={Math.min(420, width - 64)}
-            />
-          </SelectionCard>
-
-          <SelectionCard
-            label="ACCOUNT"
-            style={{
-              backgroundColor: theme.colors.elevation.level1,
-              borderColor: theme.colors.outlineVariant,
-            }}
-          >
-            <AccountPicker
-              value={selectedAccountValue}
-              onChange={(account) =>
-                setFormData((prev) => ({ ...prev, account }))
-              }
-              accountIcons={accountIcons}
-              accountColors={accountColors}
-              isMobileLayout={isMobileLayout}
-              maxWidth={Math.min(420, width - 64)}
-            />
-          </SelectionCard>
         </View>
 
-        <Surface
-          elevation={0}
-          style={[
-            mainContent.inlineFieldCard,
-            {
-              backgroundColor: "transparent",
-            },
-          ]}
-        >
-          <Pressable onPress={() => titleInputRef.current?.focus?.()}>
-            <Text
-              variant="labelSmall"
-              style={[
-                mainContent.inlineFieldLabel,
-                {
-                  color: errors.title
-                    ? theme.colors.error
-                    : theme.colors.primary,
-                },
-              ]}
-            >
-              Title
-            </Text>
-          </Pressable>
-          <View style={mainContent.inlineFieldBody}>
-            <DebouncedTextInput
-              mode="flat"
-              dense
-              ref={titleInputRef}
-              initialValue={formData.title}
-              onChangeText={(v) =>
-                setFormData((prev) => ({ ...prev, title: v }))
-              }
-              onBlur={(v) => {
-                setFormData((prev) => ({ ...prev, title: v }));
-                if (errors.title)
-                  setErrors((prev) => ({ ...prev, title: undefined }));
-              }}
-              placeholder={
-                isEditMode ? "e.g. Groceries, Salary…" : "e.g. Milk, Tea…"
-              }
-              style={mainContent.inlineFieldValue}
-              underlineColor="transparent"
-              activeUnderlineColor="transparent"
-              cursorColor={theme.colors.primary}
-              placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-              contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-            />
-          </View>
-          {errors.title ? (
-            <Text variant="labelSmall" style={{ color: theme.colors.error }}>
-              {errors.title}
-            </Text>
-          ) : null}
-        </Surface>
-
-        <Surface
-          elevation={0}
-          style={[
-            mainContent.inlineFieldCard,
-            {
-              backgroundColor: "transparent",
-            },
-          ]}
-        >
-          {notesExpanded ? (
-            <>
-              <Text
-                variant="labelSmall"
-                style={[
-                  mainContent.inlineFieldLabel,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                Notes
-              </Text>
-              <View style={mainContent.inlineFieldBody}>
-                <DebouncedTextInput
-                  mode="flat"
-                  dense
-                  initialValue={formData.notes || ""}
-                  onChangeText={(v) =>
-                    setFormData((prev) => ({ ...prev, notes: v }))
-                  }
-                  onBlur={(v) =>
-                    setFormData((prev) => ({ ...prev, notes: v }))
-                  }
-                  placeholder="Add a note..."
-                  style={mainContent.inlineFieldValue}
-                  underlineColor="transparent"
-                  activeUnderlineColor="transparent"
-                  cursorColor={theme.colors.primary}
-                  placeholderTextColor={theme.colors.onSurfaceVariant + "55"}
-                  contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
-                />
-              </View>
-            </>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add notes"
-              onPress={() => setNotesExpanded(true)}
-              style={({ pressed }) => [
-                mainContent.notesCollapsed,
-                { opacity: pressed ? 0.64 : 1 },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="note-plus-outline"
-                size={18}
-                color={theme.colors.onSurfaceVariant}
-              />
-              <Text
-                style={[
-                  mainContent.inlineFieldLabel,
-                  { color: theme.colors.onSurfaceVariant, opacity: 0.72 },
-                ]}
-              >
-                Add notes
-              </Text>
-            </Pressable>
-          )}
-        </Surface>
-
-        {/* 5. Save button */}
-        <View style={mainContent.footer}>
-          {isEditMode && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Delete transaction"
-              onPress={() => setIsDeleteConfirmOpen(true)}
-              style={[
-                mainContent.deleteButton,
-                {
-                  backgroundColor: theme.colors.errorContainer,
-                  borderColor: theme.colors.error + "44",
-                },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="trash-can-outline"
-                size={18}
-                color={theme.colors.error}
-              />
-            </Pressable>
-          )}
+        {isEditMode || Boolean(activeDraft) ? (
           <Pressable
             accessibilityRole="button"
-            onPress={handleSubmit}
-            style={[
-              mainContent.submitButton,
-              { backgroundColor: theme.colors.primary },
+            accessibilityLabel={
+              isEditMode ? "Delete transaction" : "Delete draft"
+            }
+            onPress={() => setIsDeleteConfirmOpen(true)}
+            style={({ pressed }) => [
+              mainContent.iosCircleButton,
+              { opacity: pressed ? 0.68 : 1 },
             ]}
           >
             <MaterialCommunityIcons
-              name={isEditMode ? "check" : "plus"}
-              size={18}
-              color={getContrastColor(theme.colors.primary)}
+              name="trash-can-outline"
+              size={23}
+              color={theme.colors.error}
             />
-            <Text
+          </Pressable>
+        ) : (
+          <View style={mainContent.iosTopSpacer} />
+        )}
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          mainContent.iosCard,
+          {
+            opacity: cardEntrance,
+            transform: [
+              {
+                translateY: cardEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              },
+              {
+                scale: cardEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.97, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Animated.View
+          style={[
+            mainContent.iosAccountRow,
+            sectionEntranceStyle(cardSectionEntrances[0]),
+          ]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Select category"
+            onPress={() => {
+              Keyboard.dismiss();
+              setCategoryPickerOpen(true);
+            }}
+            style={({ pressed }) => [
+              mainContent.iosCategoryPill,
+              { opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <View
               style={[
-                mainContent.submitButtonText,
-                {
-                  ...typography.editorial.sectionLabel,
-                  color: getContrastColor(theme.colors.primary),
-                  letterSpacing: 1.2,
-                },
+                mainContent.iosCategoryIcon,
+                { backgroundColor: selectedCategoryColor },
               ]}
             >
-              {isEditMode
-                ? "SAVE CHANGES"
-                : isExpense
-                  ? "SAVE EXPENSE"
-                  : "SAVE INCOME"}
+              <MaterialCommunityIcons
+                name={selectedCategoryIcon}
+                size={17}
+                color="#FFFFFF"
+              />
+            </View>
+            <Text numberOfLines={1} style={mainContent.iosCategoryText}>
+              {selectedCategory || "Category"}
             </Text>
+            <MaterialCommunityIcons
+              name="chevron-down"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
           </Pressable>
-        </View>
-      </KeyboardAwareScrollView>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Select account"
+            onPress={() => {
+              Keyboard.dismiss();
+              setAccountPickerOpen(true);
+            }}
+            style={({ pressed }) => [
+              mainContent.iosAccountPill,
+              { opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <View
+              style={[
+                mainContent.iosAccountIcon,
+                { backgroundColor: selectedAccountColor },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={selectedAccountIcon}
+                size={19}
+                color="#FFFFFF"
+              />
+            </View>
+            <View style={mainContent.iosAccountText}>
+              <Text numberOfLines={1} style={mainContent.iosAccountName}>
+                {selectedAccountValue}
+              </Text>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-down"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            mainContent.iosAmountWrap,
+            sectionEntranceStyle(cardSectionEntrances[1]),
+          ]}
+        >
+          <AnimatedAmountDisplay
+            currencySymbol={selectedCurrency.symbol}
+            value={amountString}
+            color={amountColor}
+            style={mainContent.iosAmount}
+            currencyControl={({ textStyle }) => (
+              <CurrencyPickerField
+                currency={selectedCurrency}
+                theme={theme}
+                onChange={(currency) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    currencyCode: currency.code,
+                    currencyName: currency.name,
+                    currencySymbol: currency.symbol,
+                  }))
+                }
+                renderTrigger={({ open }) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Change transaction currency"
+                    onPress={open}
+                    style={({ pressed }) => ({
+                      alignItems: "center",
+                      flexDirection: "row",
+                      gap: 2,
+                      opacity: pressed ? 0.62 : 1,
+                    })}
+                  >
+                    <Animated.Text style={[textStyle, { color: amountColor }]}>
+                      {selectedCurrency.symbol}
+                    </Animated.Text>
+                    <MaterialCommunityIcons
+                      name="chevron-down"
+                      size={16}
+                      color={amountColor}
+                    />
+                  </Pressable>
+                )}
+              />
+            )}
+          />
+          <Animated.View
+            style={[
+              mainContent.iosConvertedPill,
+              {
+                backgroundColor: "transparent",
+                width: noteWidthAnimation,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="note-edit"
+              size={14}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <DebouncedTextInput
+              ref={noteInputRef}
+              mode="flat"
+              dense
+              initialValue={formData.notes || ""}
+              onChangeText={(v) =>
+                setFormData((prev) => ({ ...prev, notes: v }))
+              }
+              onBlur={(v) => {
+                setFormData((prev) => ({ ...prev, notes: v }));
+                setNoteFocused(false);
+              }}
+              onFocus={() => setNoteFocused(true)}
+              placeholder="Add note"
+              style={mainContent.iosNotePillInput}
+              underlineColor="transparent"
+              activeUnderlineColor="transparent"
+              cursorColor={theme.colors.onSurface}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              contentStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
+            />
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            mainContent.iosUtilityRow,
+            sectionEntranceStyle(cardSectionEntrances[2]),
+          ]}
+        >
+          <DebouncedTextInput
+            ref={titleInputRef}
+            mode="outlined"
+            dense
+            initialValue={formData.title}
+            onChangeText={(v) => setFormData((prev) => ({ ...prev, title: v }))}
+            onBlur={(v) => {
+              setFormData((prev) => ({ ...prev, title: v }));
+              if (errors.title) {
+                setErrors((prev) => ({ ...prev, title: undefined }));
+              }
+              setTitleFocused(false);
+            }}
+            onFocus={() => setTitleFocused(true)}
+            left={<TextInput.Icon icon="pencil" color={theme.colors.primary} />}
+            placeholder="Enter Title ..."
+            style={mainContent.iosTitleInput}
+            outlineColor={theme.colors.outlineVariant}
+            activeOutlineColor={theme.colors.outline}
+            outlineStyle={mainContent.iosTitleOutline}
+            cursorColor={theme.colors.onSurface}
+            placeholderTextColor={withAlpha(theme.colors.onSurface, 0.4)}
+            // contentStyle={{ paddingHorizontal: 4, paddingVertical: 0 }}
+          />
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            mainContent.iosKeypad,
+            sectionEntranceStyle(cardSectionEntrances[3]),
+          ]}
+        >
+          {KEYPAD_ROWS.map((row, rowIndex) => (
+            <View key={rowIndex} style={mainContent.iosKeypadRow}>
+              {row.map((key) => {
+                const isBlank = key.startsWith("blank");
+                const iconName =
+                  key === "backspace" ? "backspace-outline" : null;
+                const isClear = key === "clear";
+                return (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="button"
+                    disabled={isBlank}
+                    accessibilityLabel={
+                      isBlank
+                        ? "Empty keypad cell"
+                        : isClear
+                          ? "Clear amount"
+                          : iconName
+                            ? key
+                            : `Enter ${key}`
+                    }
+                    onPress={() => handleKeypadPress(key)}
+                    style={({ pressed }) => [
+                      mainContent.iosKey,
+                      isBlank && mainContent.iosKeyBlank,
+                      isClear && mainContent.iosClearKey,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    {isClear ? (
+                      <Text style={mainContent.iosClearKeyText}>C</Text>
+                    ) : iconName ? (
+                      <MaterialCommunityIcons
+                        name={iconName}
+                        size={22}
+                        color={theme.colors.onSurface}
+                      />
+                    ) : isBlank ? null : (
+                      <Text style={mainContent.iosKeyText}>
+                        {key === "." ? "," : key}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            mainContent.iosBottomRow,
+            sectionEntranceStyle(cardSectionEntrances[4]),
+          ]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Change date"
+            onPress={() => {
+              Keyboard.dismiss();
+              setIsDatePickerOpen(true);
+            }}
+            style={({ pressed }) => [
+              mainContent.iosDatePill,
+              { opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="calendar-blank-outline"
+              size={18}
+              color={theme.colors.onSurface}
+            />
+            <Text style={mainContent.iosDateText}>{dateChipLabel}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save transaction"
+            onPress={handleSubmit}
+            style={({ pressed }) => [
+              mainContent.iosSaveButton,
+              { opacity: pressed ? 0.72 : 1 },
+            ]}
+          >
+            <Text style={mainContent.iosSaveButtonText}>Save</Text>
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
 
       <InlineDatePicker
         visible={isDatePickerOpen}
@@ -793,6 +1333,30 @@ export function TransactionModal({
         onMonthChange={setCalendarMonth}
         onYearChange={setCalendarYear}
       />
+      <AccountManagementModal
+        isOpen={accountPickerOpen}
+        onClose={() => setAccountPickerOpen(false)}
+        management={accountManagement}
+        selectedAccount={selectedAccountValue}
+        onSelectAccount={(account) => {
+          setFormData((prev) => ({ ...prev, account }));
+          setAccountPickerOpen(false);
+        }}
+      />
+      <CategoryManagementModal
+        isOpen={categoryPickerOpen}
+        onClose={() => setCategoryPickerOpen(false)}
+        management={categoryManagement}
+        pickerMode
+        selectedValue={selectedCategory}
+        onSelectCategory={(category) => {
+          setFormData((prev) => ({ ...prev, category }));
+          if (errors.category) {
+            setErrors((prev) => ({ ...prev, category: undefined }));
+          }
+          setCategoryPickerOpen(false);
+        }}
+      />
     </View>
   );
 
@@ -806,23 +1370,16 @@ export function TransactionModal({
           escapeEnabled={!isDatePickerOpen}
           zIndex={1000}
           style={modal.sheet}
-          keyboardAware
           contentContainerStyle={[
             modal.sheetContent,
             {
-              backgroundColor: theme.colors.background,
-              maxHeight: sheetMaxHeight,
+              backgroundColor: "transparent",
+              paddingBottom: 0,
+              width: "100%",
             },
           ]}
+          includeBottomInset={false}
         >
-          <View style={modal.sheetHandleZone}>
-            <View
-              style={[
-                modal.sheetHandle,
-                { backgroundColor: theme.colors.onSurfaceVariant },
-              ]}
-            />
-          </View>
           {content}
         </AnimatedPaperModal>
       ) : (
@@ -835,10 +1392,9 @@ export function TransactionModal({
           contentContainerStyle={[
             modal.modalContent,
             {
-              backgroundColor: theme.colors.elevation.level2,
+              backgroundColor: "transparent",
               borderColor: theme.colors.outlineVariant,
-              width: Math.min(560, width - 64),
-              maxHeight: webMaxHeight,
+              width: "100%",
               overflow: "visible",
             },
           ]}

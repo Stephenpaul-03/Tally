@@ -61,6 +61,7 @@ export function AccountCreateScreen({ navigation }: Props) {
         onboarding.addAccount({ name, icon, color });
         navigation.goBack();
       }}
+      presentation="modal"
       submitLabelCreate="Add account"
       theme={theme}
     />

@@ -193,10 +193,15 @@ function TrendRow({
   );
 }
 
-export function TrendsCard() {
+export function TrendsCard({
+  selectedMonthKey,
+}: {
+  selectedMonthKey: string;
+}) {
   const theme = useTheme();
   const c = theme.colors;
-  const { rows, monthLabels, minimalIconsEnabled } = useCategoryTrendInsights();
+  const { rows, monthLabels, minimalIconsEnabled } =
+    useCategoryTrendInsights(selectedMonthKey);
   const visibleRows = rows.slice(0, VISIBLE_TREND_ROWS);
 
   return (
@@ -208,12 +213,6 @@ export function TrendsCard() {
             style={[insightStyles.title, { color: c.onSurface }]}
           >
             Trends
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={[insightStyles.subtitle, { color: c.onSurfaceVariant }]}
-          >
-            Category spend over the last 6 months
           </Text>
         </View>
         <View

@@ -1,0 +1,74 @@
+{
+  "colors": [
+    "#EF4444", "#FF6B6B", "#F97316", "#F59E0B", "#EAB308",
+    "#84CC16", "#22C55E", "#10B981", "#14B8A6", "#06B6D4",
+    "#3B82F6", "#6366F1", "#8B5CF6", "#A855F7", "#D946EF",
+    "#EC4899", "#F43F5E", "#64748B", "#78716C", "#1D4ED8",
+    "#047857", "#B45309", "#7C3AED", "#DB2777", "#0E7490", "#065F46"
+  ],
+  "accountIcons": [
+    "credit-card-outline", "cash", "bank-outline", "wallet-outline",
+    "bank-transfer", "bank-transfer-in", "bank-transfer-out", "cellphone-nfc",
+    "qrcode-scan", "cash-multiple", "piggy-bank-outline", "safe-square-outline",
+    "wallet-plus-outline", "wallet-membership", "briefcase-outline",
+    "storefront-outline", "truck-delivery-outline", "account-cash-outline"
+  ],
+  "categoryIcons": [
+    "cash", "cash-plus", "cash-minus", "cash-refund", "credit-card-outline",
+    "bank-outline", "wallet-outline", "wallet-plus-outline", "currency-usd",
+    "chart-line", "chart-line-variant", "chart-bar", "trending-up", "trending-down",
+    "percent-outline", "bank-transfer-in", "briefcase-outline", "briefcase-check-outline",
+    "laptop-account", "office-building-outline", "account-cash-outline", "gift-outline",
+    "food-outline", "silverware-fork-knife", "coffee-outline", "cup-water",
+    "cake-variant-outline", "ice-cream", "beer-outline", "car-outline", "bus",
+    "train", "airplane", "bicycle", "bike", "motorbike", "taxi", "gas-station-outline",
+    "truck-delivery-outline", "shopping-outline", "shopping-search-outline", "cart-outline",
+    "cart-variant", "tshirt-crew-outline", "hanger", "receipt-text-outline",
+    "home-outline", "sofa-outline", "lightbulb-outline", "lightning-bolt-outline",
+    "water-outline", "wifi", "washing-machine", "broom", "tools", "wrench-outline",
+    "movie-outline", "movie-open-outline", "ticket-outline", "music-note", "music-note-outline",
+    "television", "television-play", "gamepad-variant-outline", "controller-classic-outline",
+    "book-open-outline", "book-open-page-variant-outline", "headphones", "microphone-outline",
+    "laptop", "cellphone", "tablet", "printer-outline", "router-wireless", "cloud-outline",
+    "medical-bag", "hospital-box-outline", "pill", "run", "dumbbell", "weight-lifter",
+    "yoga", "meditation", "school-outline", "account-group-outline", "human-male-female",
+    "baby-face-outline", "dog-side", "cat", "paw-outline", "tag-outline", "star-outline",
+    "heart-outline", "heart-pulse", "gift-open-outline", "alarm-outline", "clipboard-list-outline",
+    "calendar-outline", "calendar-month-outline", "map-marker-outline", "leaf", "leaf-outline",
+    "sprout-outline", "flower-outline", "recycle", "fire", "snowflake", "weather-sunny",
+    "camera-outline", "palette-outline", "brush-outline", "earth", "shield-outline",
+    "lock-outline", "key-outline", "rocket-launch-outline", "package-variant-closed",
+    "safe-square-outline", "storefront-outline", "basket-outline"
+  ],
+  "defaultCategoryIcons": {
+    "income": {
+      "salary": "briefcase-outline",
+      "freelance": "laptop-account",
+      "investments": "chart-line-variant",
+      "gifts": "gift-outline",
+      "refunds": "cash-refund",
+      "other income": "wallet-plus-outline"
+    },
+    "expense": {
+      "food & dining": "silverware-fork-knife",
+      "transportation": "car-outline",
+      "shopping": "cart-outline",
+      "bills & utilities": "lightning-bolt-outline",
+      "entertainment": "movie-outline",
+      "healthcare": "medical-bag",
+      "education": "school-outline",
+      "travel": "airplane",
+      "other expense": "wallet-outline"
+    }
+  },
+  "defaultAccountIcons": {
+    "card": "credit-card-outline",
+    "cash": "cash",
+    "upi": "bank-outline"
+  },
+  "defaultAccountColors": {
+    "card": "#6366F1",
+    "cash": "#22C55E",
+    "upi": "#06B6D4"
+  }
+}

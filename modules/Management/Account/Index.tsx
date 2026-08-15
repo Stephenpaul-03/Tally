@@ -89,7 +89,7 @@ export function AccountManagementModal({
         </View>
       )}
 
-      {screen === "list" ? (
+      {screen === "list" && (
         <AccountListScreen
           management={management}
           selectedAccount={selectedAccount}
@@ -100,47 +100,48 @@ export function AccountManagementModal({
           theme={theme}
           useSettingsHeader={Boolean(onSelectAccount)}
         />
-      ) : (
+      )}
+
+      {screen === "edit" ? (
         <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {screen === "edit" && (
-            <AccountEditScreen
-              management={management}
-              localName={localName}
-              localIcon={localIcon}
-              localColor={localColor}
-              allColors={allColors}
-              allIcons={allIcons}
-              iconGrid={iconGrid}
-              canSubmitEdit={canSubmitEdit}
-              onChangeName={setLocalName}
-              onChangeIcon={setLocalIcon}
-              onChangeColor={setLocalColor}
-              onSubmit={handleSubmit}
-              onBack={handleBack}
-              onClose={handleClose}
-              theme={theme}
-              background={c.background}
-            />
-          )}
-
-          {screen === "delete" && (
-            <AccountDeleteScreen
-              management={management}
-              deletingName={deletingName}
-              deleteDestinations={deleteDestinations}
-              localDest={localDest}
-              canConfirmDelete={canConfirmDelete}
-              onSelectDest={setLocalDest}
-              onConfirmDelete={handleConfirmDelete}
-              onBack={handleBack}
-              onClose={handleClose}
-              theme={theme}
-            />
-          )}
+          <AccountEditScreen
+            visible
+            management={management}
+            localName={localName}
+            localIcon={localIcon}
+            localColor={localColor}
+            allColors={allColors}
+            allIcons={allIcons}
+            iconGrid={iconGrid}
+            canSubmitEdit={canSubmitEdit}
+            onChangeName={setLocalName}
+            onChangeIcon={setLocalIcon}
+            onChangeColor={setLocalColor}
+            onSubmit={handleSubmit}
+            onBack={handleBack}
+            onClose={handleClose}
+            theme={theme}
+            background={c.background}
+          />
         </KeyboardAwareScrollView>
+      ) : null}
+
+      {screen === "delete" && (
+        <AccountDeleteScreen
+          management={management}
+          deletingName={deletingName}
+          deleteDestinations={deleteDestinations}
+          localDest={localDest}
+          canConfirmDelete={canConfirmDelete}
+          onSelectDest={setLocalDest}
+          onConfirmDelete={handleConfirmDelete}
+          onBack={handleBack}
+          onClose={handleClose}
+          theme={theme}
+        />
       )}
     </AnimatedPaperModal>
   );

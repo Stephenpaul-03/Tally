@@ -22,6 +22,8 @@ type Props = {
   onSubmit: () => void;
   onBack: () => void;
   footer?: React.ReactNode;
+  presentation?: "screen" | "modal";
+  visible?: boolean;
 };
 
 export function CategoryEditScreen({
@@ -41,19 +43,45 @@ export function CategoryEditScreen({
   onSubmit,
   onBack,
   footer,
+  presentation = "screen",
+  visible = true,
 }: Props) {
   const c = theme.colors;
-  const isEditing = !!management.editingCategory;
-  const editType = management.editingCategory?.type ?? management.selectedType;
+  const wasEditingRef = React.useRef(false);
+  const lastEditTypeRef = React.useRef(management.selectedType);
+  const lastActivityCountRef = React.useRef(0);
+  const canDeleteRef = React.useRef(false);
+  if (management.editingCategory) {
+    wasEditingRef.current = true;
+    lastEditTypeRef.current = management.editingCategory.type;
+    lastActivityCountRef.current =
+      management.categoryStatsByType[management.editingCategory.type][
+        management.editingCategory.name
+      ]?.count ?? 0;
+    const currentType = management.editingCategory.type;
+    const fallbackName =
+      currentType === "income" ? "Other Income" : "Other Expense";
+    canDeleteRef.current = management.editingCategory.name !== fallbackName;
+  }
+  const isEditing =
+    Boolean(management.editingCategory) || (!visible && wasEditingRef.current);
+  const editType =
+    management.editingCategory?.type ??
+    lastEditTypeRef.current ??
+    management.selectedType;
   const editFallbackName =
     editType === "income" ? "Other Income" : "Other Expense";
   const activityCount = isEditing
-    ? (management.categoryStatsByType[editType][
-        management.editingCategory!.name
-      ]?.count ?? 0)
+    ? management.editingCategory
+      ? (management.categoryStatsByType[editType][
+          management.editingCategory.name
+        ]?.count ?? 0)
+      : lastActivityCountRef.current
     : 0;
   const canDelete =
-    isEditing && management.editingCategory!.name !== editFallbackName;
+    management.editingCategory
+      ? management.editingCategory.name !== editFallbackName
+      : !visible && canDeleteRef.current;
 
   const deleteAccessory = canDelete ? (
     <TouchableRipple
@@ -98,9 +126,11 @@ export function CategoryEditScreen({
       onChangeIcon={setLocalIcon}
       onChangeName={setLocalName}
       onSubmit={onSubmit}
+      presentation={presentation}
       submitLabelCreate="Add category"
       submitLabelEdit="Save changes"
       theme={theme}
+      visible={visible}
     />
   );
 }

@@ -3,6 +3,8 @@
  * Formatting and utility functions for transactions
  */
 
+import options from "@/data/management-options.json";
+
 import {
     DEFAULT_ACCOUNTS,
     DEFAULT_EXPENSE_CATEGORIES,
@@ -13,174 +15,17 @@ import {
     TransactionType,
 } from "./Types";
 
-const INCOME_CATEGORY_ICON_MAP: Record<string, string> = {
-  salary: "briefcase-outline",
-  freelance: "laptop-account",
-  investments: "chart-line-variant",
-  gifts: "gift-outline",
-  refunds: "cash-refund",
-  "other income": "wallet-plus-outline",
-};
+const INCOME_CATEGORY_ICON_MAP: Record<string, string> =
+  options.defaultCategoryIcons.income;
+const EXPENSE_CATEGORY_ICON_MAP: Record<string, string> =
+  options.defaultCategoryIcons.expense;
+const INCOME_FALLBACK_ICONS = options.categoryIcons;
+const EXPENSE_FALLBACK_ICONS = options.categoryIcons;
+const ACCOUNT_ICON_MAP: Record<string, string> = options.defaultAccountIcons;
+const ACCOUNT_COLOR_MAP: Record<string, string> = options.defaultAccountColors;
+const ACCOUNT_PICKER_ICONS = options.accountIcons;
 
-const EXPENSE_CATEGORY_ICON_MAP: Record<string, string> = {
-  "food & dining": "silverware-fork-knife",
-  transportation: "car-outline",
-  shopping: "cart-outline",
-  "bills & utilities": "lightning-bolt-outline",
-  entertainment: "movie-outline",
-  healthcare: "medical-bag",
-  education: "school-outline",
-  travel: "airplane",
-  "other expense": "wallet-outline",
-};
-
-const INCOME_FALLBACK_ICONS = [
-  "cash-plus",
-  "bank-transfer-in",
-  "wallet-plus-outline",
-  "chart-line",
-  "briefcase-check-outline",
-];
-
-const EXPENSE_FALLBACK_ICONS = [
-  "cash-minus",
-  "wallet-outline",
-  "credit-card-outline",
-  "clipboard-minus-outline",
-  "receipt-text-outline",
-];
-
-const INCOME_PICKER_ICONS = [
-  "briefcase-outline",
-  "cash-plus",
-  "bank-transfer-in",
-  "chart-line",
-  "chart-bar",
-  "bank-outline",
-  "wallet-plus-outline",
-  "cash-refund",
-  "gift-outline",
-  "laptop-account",
-  "office-building-outline",
-  "account-cash-outline",
-  "piggy-bank-outline",
-  "currency-usd",
-  "percent-outline",
-];
-
-const EXPENSE_PICKER_ICONS = [
-  "silverware-fork-knife",
-  "car-outline",
-  "bus",
-  "train",
-  "gas-station-outline",
-  "cart-outline",
-  "shopping-outline",
-  "receipt-text-outline",
-  "home-outline",
-  "lightning-bolt-outline",
-  "water-outline",
-  "wifi",
-  "cellphone",
-  "movie-open-outline",
-  "ticket-outline",
-  "music-note-outline",
-  "medical-bag",
-  "hospital-box-outline",
-  "pill",
-  "school-outline",
-  "book-open-page-variant-outline",
-  "airplane",
-  "dumbbell",
-  "wrench-outline",
-  "tools",
-  "credit-card-outline",
-  "cash-minus",
-];
-
-const SHARED_PICKER_ICONS = [
-  "tag-outline",
-  "wallet-outline",
-  "food-outline",
-  "coffee-outline",
-  "storefront-outline",
-  "basket-outline",
-  "cart-variant",
-  "truck-delivery-outline",
-  "package-variant-closed",
-  "calendar-month-outline",
-  "alarm-outline",
-  "map-marker-outline",
-  "star-outline",
-  "heart-outline",
-  "leaf",
-  "sprout-outline",
-  "paw-outline",
-  "baby-face-outline",
-  "bike",
-  "camera-outline",
-  "palette-outline",
-  "brush-outline",
-  "television",
-  "headphones",
-  "gamepad-variant-outline",
-  "controller-classic-outline",
-  "earth",
-  "shield-outline",
-  "lock-outline",
-  "key-outline",
-  "account-group-outline",
-  "rocket-launch-outline",
-  "gift-open-outline",
-];
-
-const ACCOUNT_ICON_MAP: Record<string, string> = {
-  card: "credit-card-outline",
-  cash: "cash",
-  upi: "bank-outline",
-};
-
-const ACCOUNT_COLOR_MAP: Record<string, string> = {
-  card: "#6366F1",
-  cash: "#22C55E",
-  upi: "#06B6D4",
-};
-
-const ACCOUNT_PICKER_ICONS = [
-  "credit-card-outline",
-  "cash",
-  "bank-outline",
-  "wallet-outline",
-  "bank-transfer",
-  "bank-transfer-in",
-  "bank-transfer-out",
-  "cellphone-nfc",
-  "qrcode-scan",
-  "cash-multiple",
-  "piggy-bank-outline",
-  "safe-square-outline",
-  "wallet-plus-outline",
-  "wallet-membership",
-  "account-cash-outline",
-];
-
-export const CATEGORY_COLOR_OPTIONS = [
-  "#FF6B6B",
-  "#F97316",
-  "#F59E0B",
-  "#EAB308",
-  "#84CC16",
-  "#22C55E",
-  "#14B8A6",
-  "#06B6D4",
-  "#3B82F6",
-  "#6366F1",
-  "#8B5CF6",
-  "#D946EF",
-  "#EC4899",
-  "#A855F7",
-  "#F43F5E",
-] as const;
+export const CATEGORY_COLOR_OPTIONS = options.colors;
 
 function hashString(value: string): number {
   let hash = 0;
@@ -192,7 +37,6 @@ function hashString(value: string): number {
 
   return Math.abs(hash);
 }
-
 export function getCategoryIconKey(
   type: TransactionType,
   category: string,
@@ -213,32 +57,11 @@ export function getAccountColorOptions(): string[] {
 }
 
 export function getAccountIconOptions(): string[] {
-  return [
-    ...new Set([...Object.values(ACCOUNT_ICON_MAP), ...ACCOUNT_PICKER_ICONS]),
-  ];
+  return [...new Set([...Object.values(ACCOUNT_ICON_MAP), ...options.accountIcons])];
 }
 
-export function getCategoryIconOptions(type: TransactionType): string[] {
-  const typeOptions =
-    type === "income" ? INCOME_PICKER_ICONS : EXPENSE_PICKER_ICONS;
-  const mappedIcons = Object.values(
-    type === "income" ? INCOME_CATEGORY_ICON_MAP : EXPENSE_CATEGORY_ICON_MAP,
-  );
-  const fallbackIcons =
-    type === "income" ? INCOME_FALLBACK_ICONS : EXPENSE_FALLBACK_ICONS;
-  const heuristicIcons = [
-    "home-lightning-bolt-outline",
-    "file-document-outline",
-  ];
-  return [
-    ...new Set([
-      ...typeOptions,
-      ...mappedIcons,
-      ...fallbackIcons,
-      ...SHARED_PICKER_ICONS,
-      ...heuristicIcons,
-    ]),
-  ];
+export function getCategoryIconOptions(_type: TransactionType): string[] {
+  return options.categoryIcons;
 }
 
 /**
@@ -844,6 +667,6 @@ export function getCurrentMonthTransactions(
 
   return transactions.filter((t) => {
     const [year, month] = t.date.split("-").map(Number);
-    return year === currentYear && month === currentMonth;
-  });
+  return year === currentYear && month === currentMonth;
+});
 }

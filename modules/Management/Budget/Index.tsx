@@ -1,5 +1,5 @@
 import { useStagger } from "@/components/animations/UseStagger";
-import { AnimatedPaperModal } from "@/components/modal/modal";
+import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useAppSelector } from "@/hooks/Redux";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
@@ -17,47 +17,43 @@ import { BudgetDetailsSheet } from "./Components/BudgetDetailsSheet";
 import { formatInr, useBudgetManagement } from "./Hooks";
 import { budgetStyles } from "./Styles";
 
-type BudgetSortMode =
-  | "budgetDesc"
-  | "spentDesc"
-  | "remainingAsc"
-  | "nameAsc"
-  | "usageDesc";
+type BudgetSortField = "budget" | "spent" | "remaining" | "name" | "usage";
+type BudgetSortDirection = "asc" | "desc";
 
 const BUDGET_SORT_OPTIONS: {
-  id: BudgetSortMode;
+  id: BudgetSortField;
   label: string;
   description: string;
   icon: string;
 }[] = [
   {
-    id: "budgetDesc",
-    label: "Highest budget",
-    description: "Largest category budgets first",
+    id: "budget",
+    label: "Budget",
+    description: "Sort by budget amount",
     icon: "cash-multiple",
   },
   {
-    id: "spentDesc",
-    label: "Most spent",
-    description: "Highest spending this month",
+    id: "spent",
+    label: "Spent",
+    description: "Sort by spending this month",
     icon: "chart-bar",
   },
   {
-    id: "remainingAsc",
-    label: "Closest to limit",
-    description: "Lowest remaining balance first",
+    id: "remaining",
+    label: "Remaining",
+    description: "Sort by remaining balance",
     icon: "progress-alert",
   },
   {
-    id: "nameAsc",
-    label: "Name A-Z",
-    description: "Alphabetical by category",
+    id: "name",
+    label: "Name",
+    description: "Sort category names",
     icon: "sort-alphabetical-ascending",
   },
   {
-    id: "usageDesc",
-    label: "Percent used",
-    description: "Highest budget usage first",
+    id: "usage",
+    label: "Usage",
+    description: "Sort by percent used",
     icon: "percent-outline",
   },
 ];
@@ -65,42 +61,48 @@ const BUDGET_SORT_OPTIONS: {
 type BudgetCategoryEntry = ReturnType<
   typeof useBudgetManagement
 >["categoryEntries"][number];
-type BudgetStatusGroupId = "empty" | "overbudget" | "nearlyEmpty" | "safe";
+type BudgetStatusGroupId =
+  | "overbudget"
+  | "empty"
+  | "nearlyEmpty"
+  | "safe"
+  | "unbudgeted";
 
 const BUDGET_STATUS_GROUPS: {
   id: BudgetStatusGroupId;
   title: string;
   icon: string;
-  emptyText: string;
   color: string;
 }[] = [
   {
     id: "safe",
     title: "Safe",
     icon: "shield-check-outline",
-    emptyText: "No safe categories",
     color: "#2E7D32",
   },
   {
     id: "nearlyEmpty",
     title: "Nearly empty",
     icon: "progress-alert",
-    emptyText: "No nearly empty categories",
     color: "#C77700",
   },
   {
     id: "empty",
     title: "Budget used up",
     icon: "playlist-remove",
-    emptyText: "No used up budgets",
     color: "#5E6AD2",
   },
   {
     id: "overbudget",
     title: "Over budget",
     icon: "alert-circle-outline",
-    emptyText: "No over budget categories",
     color: "#B3261E",
+  },
+  {
+    id: "unbudgeted",
+    title: "No Budget set",
+    icon: "shape-outline",
+    color: "#5E6AD2",
   },
 ];
 
@@ -131,7 +133,12 @@ export function BudgetScreen() {
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
-  const [sortMode, setSortMode] = React.useState<BudgetSortMode>("budgetDesc");
+  const [sortField, setSortField] = React.useState<BudgetSortField>("budget");
+  const [sortDirection, setSortDirection] =
+    React.useState<BudgetSortDirection>("desc");
+  const [collapsedSections, setCollapsedSections] = React.useState<
+    Partial<Record<BudgetStatusGroupId, boolean>>
+  >({});
   const animatedOnceRef = React.useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -162,28 +169,46 @@ export function BudgetScreen() {
   const sortedCategoryEntries = React.useMemo(
     () =>
       [...visibleCategoryEntries].sort((a, b) => {
-        if (sortMode === "spentDesc") return b.spent - a.spent;
-        if (sortMode === "remainingAsc") {
-          const aRemaining =
-            a.budget > 0 ? a.budget - a.spent : Number.MAX_SAFE_INTEGER;
-          const bRemaining =
-            b.budget > 0 ? b.budget - b.spent : Number.MAX_SAFE_INTEGER;
-          return aRemaining - bRemaining;
+        let result: number;
+        if (sortField === "name") result = a.name.localeCompare(b.name);
+        else {
+          const aValue =
+            sortField === "spent"
+              ? a.spent
+              : sortField === "remaining"
+                ? a.budget > 0
+                  ? a.budget - a.spent
+                  : Number.MAX_SAFE_INTEGER
+                : sortField === "usage"
+                  ? a.budget > 0
+                    ? a.spent / a.budget
+                    : 0
+                  : a.budget;
+          const bValue =
+            sortField === "spent"
+              ? b.spent
+              : sortField === "remaining"
+                ? b.budget > 0
+                  ? b.budget - b.spent
+                  : Number.MAX_SAFE_INTEGER
+                : sortField === "usage"
+                  ? b.budget > 0
+                    ? b.spent / b.budget
+                    : 0
+                  : b.budget;
+          result = aValue - bValue;
         }
-        if (sortMode === "nameAsc") return a.name.localeCompare(b.name);
-        if (sortMode === "usageDesc") {
-          const aUsage = a.budget > 0 ? a.spent / a.budget : 0;
-          const bUsage = b.budget > 0 ? b.spent / b.budget : 0;
-          return bUsage - aUsage;
-        }
-        if (b.budget !== a.budget) return b.budget - a.budget;
-        return b.spent - a.spent;
+        return sortDirection === "asc" ? result : -result;
       }),
-    [sortMode, visibleCategoryEntries],
+    [sortDirection, sortField, visibleCategoryEntries],
   );
   const workspaceDefaults = getWorkspaceDefaults(
     activeWorkspace?.id ?? "personal",
   );
+  React.useEffect(() => {
+    setSortField(workspaceDefaults.budgetSortField);
+    setSortDirection(workspaceDefaults.budgetSortDirection);
+  }, [workspaceDefaults.budgetSortDirection, workspaceDefaults.budgetSortField]);
   const safeBelowPercent = Math.max(
     0,
     Math.min(100, Math.round(workspaceDefaults.budgetSafeBelowPercent)),
@@ -194,10 +219,11 @@ export function BudgetScreen() {
   );
   const groupedCategoryEntries = React.useMemo(() => {
     const groups: Record<BudgetStatusGroupId, BudgetCategoryEntry[]> = {
-      empty: [],
       overbudget: [],
+      empty: [],
       nearlyEmpty: [],
       safe: [],
+      unbudgeted: [],
     };
 
     sortedCategoryEntries.forEach((category) => {
@@ -207,9 +233,11 @@ export function BudgetScreen() {
         : 0;
 
       if (!hasBudget) {
-        groups.empty.push(category);
+        groups.unbudgeted.push(category);
       } else if (percentUsed > 100) {
         groups.overbudget.push(category);
+      } else if (percentUsed >= 100) {
+        groups.empty.push(category);
       } else if (percentUsed >= nearlyEmptyFromPercent) {
         groups.nearlyEmpty.push(category);
       } else if (percentUsed < safeBelowPercent) {
@@ -228,9 +256,12 @@ export function BudgetScreen() {
       ),
     [sortedCategoryEntries],
   );
-  const anyCategoryHasBudget = React.useMemo(
-    () => categoryEntries.some((category) => category.budget > 0),
-    [categoryEntries],
+  const visibleGroups = React.useMemo(
+    () =>
+      BUDGET_STATUS_GROUPS.filter(
+        (group) => groupedCategoryEntries[group.id].length > 0,
+      ),
+    [groupedCategoryEntries],
   );
   const { getAnimStyle } = useStagger({
     count: sortedCategoryEntries.length,
@@ -250,6 +281,12 @@ export function BudgetScreen() {
     setSelectedCategoryName(category.name);
     setDetailsOpen(true);
   };
+  const toggleSection = React.useCallback((groupId: BudgetStatusGroupId) => {
+    setCollapsedSections((previous) => ({
+      ...previous,
+      [groupId]: !previous[groupId],
+    }));
+  }, []);
   const sortAccessory = (
     <Pressable
       onPress={() => setSortOpen(true)}
@@ -261,10 +298,9 @@ export function BudgetScreen() {
           borderRadius: 99,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor:
-            sortMode !== "budgetDesc" ? c.primaryContainer : c.surface,
+          backgroundColor: c.surface,
           borderWidth: 1,
-          borderColor: sortMode !== "budgetDesc" ? c.primary : c.outlineVariant,
+          borderColor: c.outlineVariant,
         },
       ]}
       accessibilityRole="button"
@@ -273,7 +309,7 @@ export function BudgetScreen() {
       <MaterialCommunityIcons
         name="sort"
         size={20}
-        color={sortMode !== "budgetDesc" ? c.primary : c.onSurfaceVariant}
+        color={c.onSurfaceVariant}
       />
     </Pressable>
   );
@@ -300,18 +336,19 @@ export function BudgetScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {sortedCategoryEntries.length > 0 ? (
-          BUDGET_STATUS_GROUPS.map((group) => (
+        {visibleGroups.length > 0 ? (
+          visibleGroups.map((group) => (
             <BudgetStatusSection
               key={group.id}
+              collapsed={Boolean(collapsedSections[group.id])}
               color={group.color}
               entries={groupedCategoryEntries[group.id]}
-              expanded={anyCategoryHasBudget}
+              expanded
               getAnimStyle={getAnimStyle}
               icon={group.icon}
-              emptyText={group.emptyText}
               indexByName={animationIndexByName}
               onOpenCategory={handleOpenCategory}
+              onToggle={() => toggleSection(group.id)}
               theme={theme}
               title={group.title}
             />
@@ -351,6 +388,7 @@ export function BudgetScreen() {
           icon={currentCategory.icon}
           color={currentCategory.color}
           budget={currentCategory.budget}
+          last30DaysSpent={currentCategory.last30DaysSpent}
           onRemoveBudget={async () => {
             await clearCategory(currentCategory.name);
             setDetailsOpen(false);
@@ -361,122 +399,44 @@ export function BudgetScreen() {
           }}
         />
       ) : null}
-      <AnimatedPaperModal
+      <SortOptionSheet
         visible={sortOpen}
         onDismiss={() => setSortOpen(false)}
-        dismissable
-        presentation="sheet"
-        contentContainerStyle={{
-          backgroundColor: c.background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          padding: 16,
-        }}
-      >
-        <View
-          style={{
-            alignSelf: "center",
-            width: 38,
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: theme.colors.outlineVariant,
-          }}
-        />
-        <View style={budgetStyles.sortSheetHeader}>
-          <Text style={[budgetStyles.sortSheetTitle, { color: c.onSurface }]}>
-            Sort budgets
-          </Text>
-          <Text
-            style={[
-              budgetStyles.sortSheetSubtitle,
-              { color: c.onSurfaceVariant },
-            ]}
-          >
-            Choose how category budgets are ordered.
-          </Text>
-        </View>
-        {BUDGET_SORT_OPTIONS.map(({ id, label, description, icon }) => {
-          const selected = sortMode === id;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => {
-                setSortMode(id);
-                setSortOpen(false);
-              }}
-              style={({ pressed }) => [
-                budgetStyles.sortOption,
-                {
-                  backgroundColor: selected
-                    ? c.primaryContainer
-                    : "transparent",
-                  opacity: pressed ? 0.65 : 1,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  budgetStyles.sortOptionIcon,
-                  {
-                    backgroundColor: selected ? c.surface : c.elevation.level1,
-                    borderColor: selected ? c.primary : c.outlineVariant,
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={icon as any}
-                  size={18}
-                  color={selected ? c.primary : c.onSurfaceVariant}
-                />
-              </View>
-              <View style={budgetStyles.sortOptionBody}>
-                <Text
-                  style={[budgetStyles.sortOptionTitle, { color: c.onSurface }]}
-                >
-                  {label}
-                </Text>
-                <Text
-                  style={[
-                    budgetStyles.sortOptionDescription,
-                    { color: c.onSurfaceVariant },
-                  ]}
-                >
-                  {description}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name={selected ? "radiobox-marked" : "radiobox-blank"}
-                size={20}
-                color={selected ? c.primary : c.onSurfaceVariant}
-              />
-            </Pressable>
-          );
-        })}
-      </AnimatedPaperModal>
+        title="Sort budgets"
+        subtitle="Choose how category budgets are ordered."
+        options={BUDGET_SORT_OPTIONS}
+        value={sortField}
+        direction={sortDirection}
+        resetDirection="desc"
+        onChange={(value) => setSortField(value as BudgetSortField)}
+        onDirectionChange={(direction) => setSortDirection(direction)}
+      />
     </SafeAreaView>
   );
 }
 
 function BudgetStatusSection({
+  collapsed,
   color,
-  emptyText,
   entries,
   expanded,
   getAnimStyle,
   icon,
   indexByName,
   onOpenCategory,
+  onToggle,
   theme,
   title,
 }: {
+  collapsed: boolean;
   color: string;
-  emptyText: string;
   entries: BudgetCategoryEntry[];
   expanded: boolean;
   getAnimStyle: (index: number) => Record<string, unknown>;
   icon: string;
   indexByName: Record<string, number>;
   onOpenCategory: (category: BudgetCategoryEntry) => void;
+  onToggle: () => void;
   theme: MD3Theme;
   title: string;
 }) {
@@ -490,7 +450,15 @@ function BudgetStatusSection({
 
   return (
     <View style={budgetStyles.budgetSection}>
-      <View style={budgetStyles.budgetSectionHeader}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          budgetStyles.budgetSectionHeader,
+          { opacity: pressed ? 0.7 : 1 },
+        ]}
+      >
         <View
           style={[
             budgetStyles.budgetSectionIcon,
@@ -510,8 +478,13 @@ function BudgetStatusSection({
         >
           {entries.length}
         </Text>
-      </View>
-      {entries.length > 0 ? (
+        <MaterialCommunityIcons
+          name={collapsed ? "chevron-down" : "chevron-up"}
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
+      </Pressable>
+      {!collapsed ? (
         <View style={budgetStyles.categoryList}>
           {rows.map((row, rowIndex) => (
             <View key={rowIndex} style={budgetStyles.categoryGridRow}>
@@ -537,28 +510,7 @@ function BudgetStatusSection({
             </View>
           ))}
         </View>
-      ) : (
-        <View
-          style={[
-            budgetStyles.budgetSectionEmpty,
-            { backgroundColor: theme.colors.elevation.level1 },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={icon as any}
-            size={18}
-            color={color}
-          />
-          <Text
-            style={[
-              budgetStyles.budgetSectionEmptyText,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            {emptyText}
-          </Text>
-        </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -573,6 +525,7 @@ function BudgetCategoryRow({
     name: string;
     budget: number;
     spent: number;
+    last30DaysSpent: number;
     icon: string;
     color: string;
   };
@@ -587,13 +540,10 @@ function BudgetCategoryRow({
   const progress = hasBudget
     ? Math.min(1, category.spent / category.budget)
     : 0;
-  const remaining = Math.max(0, category.budget - category.spent);
   const overBy = Math.max(0, category.spent - category.budget);
   const isOverBudget = hasBudget && overBy > 0;
   const statusColor = isOverBudget ? theme.colors.error : category.color;
-  const subtitle = hasBudget
-    ? `${formatInr(category.spent)} / ${formatInr(category.budget)}`
-    : "No budget yet";
+  const subtitle = `${formatInr(category.spent)} / ${formatInr(category.budget)}`;
 
   return (
     <Pressable
@@ -635,7 +585,7 @@ function BudgetCategoryRow({
             >
               {category.name}
             </Text>
-            {expanded ? (
+            {expanded && hasBudget ? (
               <Text
                 style={[
                   budgetStyles.accountLikeSubtitle,
@@ -662,7 +612,7 @@ function BudgetCategoryRow({
         />
       </View>
 
-      {expanded ? (
+      {expanded && hasBudget ? (
         <View
           style={[
             budgetStyles.accountLikeProgressTrack,
@@ -683,13 +633,8 @@ function BudgetCategoryRow({
         </View>
       ) : null}
 
-      {expanded ? (
-        <View
-          style={[
-            budgetStyles.accountLikeBottomRow,
-            !hasBudget && { justifyContent: "center" },
-          ]}
-        >
+      {expanded && hasBudget ? (
+        <View style={budgetStyles.accountLikeBottomRow}>
           <Text
             style={[
               budgetStyles.accountLikeMeta,
@@ -700,25 +645,8 @@ function BudgetCategoryRow({
               },
             ]}
           >
-            {hasBudget ? `${Math.max(0, rawPercent)}% used` : "No limit yet"}
+            {`${Math.max(0, rawPercent)}% used`}
           </Text>
-          {hasBudget ? (
-            <Text
-              numberOfLines={1}
-              style={[
-                budgetStyles.accountLikeMeta,
-                {
-                  color: isOverBudget
-                    ? theme.colors.error
-                    : theme.colors.onSurfaceVariant,
-                },
-              ]}
-            >
-              {isOverBudget
-                ? `${formatInr(overBy)} over`
-                : `${formatInr(remaining)} left`}
-            </Text>
-          ) : null}
         </View>
       ) : null}
     </Pressable>

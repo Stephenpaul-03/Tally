@@ -1,3 +1,4 @@
+import options from "@/data/management-options.json";
 import { BackButton } from "@/components/backbutton/BackButton";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
@@ -16,114 +17,6 @@ import { ListScreen } from "./Screens/ListScreen";
 import { CategoryManagementStyles } from "./Styles";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const EXTRA_COLORS = [
-  "#EF4444",
-  "#F97316",
-  "#F59E0B",
-  "#EAB308",
-  "#84CC16",
-  "#22C55E",
-  "#10B981",
-  "#14B8A6",
-  "#06B6D4",
-  "#3B82F6",
-  "#6366F1",
-  "#8B5CF6",
-  "#A855F7",
-  "#EC4899",
-  "#F43F5E",
-  "#64748B",
-  "#78716C",
-  "#1D4ED8",
-  "#047857",
-  "#B45309",
-  "#7C3AED",
-  "#DB2777",
-  "#0E7490",
-  "#065F46",
-];
-
-const EXTRA_ICONS = [
-  "cash",
-  "credit-card-outline",
-  "bank-outline",
-  "wallet-outline",
-  "currency-usd",
-  "chart-line",
-  "trending-up",
-  "trending-down",
-  "piggy-bank-outline",
-  "safe-square-outline",
-  "food-outline",
-  "coffee-outline",
-  "beer-outline",
-  "pizza",
-  "silverware-fork-knife",
-  "cup-water",
-  "cake-variant-outline",
-  "ice-cream",
-  "car-outline",
-  "bus",
-  "train",
-  "airplane",
-  "bicycle",
-  "motorbike",
-  "taxi",
-  "gas-station-outline",
-  "shopping-outline",
-  "shopping-search-outline",
-  "cart-outline",
-  "tshirt-crew-outline",
-  "hanger",
-  "heart-pulse",
-  "hospital-box-outline",
-  "pill",
-  "run",
-  "weight-lifter",
-  "yoga",
-  "meditation",
-  "home-outline",
-  "sofa-outline",
-  "lightbulb-outline",
-  "water-outline",
-  "washing-machine",
-  "broom",
-  "tools",
-  "music-note",
-  "television-play",
-  "gamepad-variant-outline",
-  "movie-open-outline",
-  "book-open-outline",
-  "headphones",
-  "microphone-outline",
-  "laptop",
-  "cellphone",
-  "tablet",
-  "printer-outline",
-  "router-wireless",
-  "cloud-outline",
-  "account-group-outline",
-  "human-male-female",
-  "baby-face-outline",
-  "dog-side",
-  "cat",
-  "tag-outline",
-  "star-outline",
-  "gift-outline",
-  "alarm-outline",
-  "clipboard-list-outline",
-  "calendar-outline",
-  "map-marker-outline",
-  "school-outline",
-  "briefcase-outline",
-  "leaf-outline",
-  "flower-outline",
-  "recycle",
-  "fire",
-  "snowflake",
-  "weather-sunny",
-];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -148,14 +41,16 @@ export function CategoryManagementModal({
 }: Props) {
   const theme = useTheme();
   const { height, width, isMobileLayout: isMobile } = useBreakpoint();
+  const allColors = options.colors;
+  const allIcons = options.categoryIcons;
 
   const [screen, setScreen] = useState<Screen>("list");
   const [localName, setLocalName] = useState("");
   const [localIcon, setLocalIcon] = useState(
-    management.iconOptions[0] || "tag-outline",
+    allIcons[0] || "tag-outline",
   );
   const [localColor, setLocalColor] = useState(
-    management.colorOptions[0] || "#3B82F6",
+    allColors[0] || "#3B82F6",
   );
   const [localDest, setLocalDest] = useState("");
   const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
@@ -163,24 +58,6 @@ export function CategoryManagementModal({
   const c = theme.colors;
   const bg = c.background;
   const divider = c.outlineVariant;
-
-  const allColors = useMemo(() => {
-    const base = management.colorOptions ?? [];
-    const merged = [...base];
-    for (const color of EXTRA_COLORS) {
-      if (!merged.includes(color)) merged.push(color);
-    }
-    return merged;
-  }, [management.colorOptions]);
-
-  const allIcons = useMemo(() => {
-    const base = management.iconOptions ?? [];
-    const merged = [...base];
-    for (const icon of EXTRA_ICONS) {
-      if (!merged.includes(icon)) merged.push(icon);
-    }
-    return merged;
-  }, [management.iconOptions]);
 
   useEffect(() => {
     if (!management.isEditOpen) return;
@@ -485,25 +362,6 @@ export function CategoryManagementModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-          {screen === "edit" && (
-            <EditScreen
-              management={management}
-              localName={localName}
-              setLocalName={setLocalName}
-              localIcon={localIcon}
-              setLocalIcon={setLocalIcon}
-              localColor={localColor}
-              setLocalColor={setLocalColor}
-              allColors={allColors}
-              allIcons={allIcons}
-              iconGrid={iconGrid}
-              canSubmitEdit={canSubmitEdit}
-              bg={bg}
-              theme={theme}
-              onSubmit={handleSubmit}
-              onBack={handleBack}
-            />
-          )}
           {screen === "delete" && (
             <DeleteScreen
               management={management}
@@ -520,6 +378,26 @@ export function CategoryManagementModal({
           )}
           </KeyboardAwareScrollView>
         )}
+
+        <EditScreen
+          visible={screen === "edit"}
+          management={management}
+          localName={localName}
+          setLocalName={setLocalName}
+          localIcon={localIcon}
+          setLocalIcon={setLocalIcon}
+          localColor={localColor}
+          setLocalColor={setLocalColor}
+          allColors={allColors}
+          allIcons={allIcons}
+          iconGrid={iconGrid}
+          canSubmitEdit={canSubmitEdit}
+          bg={bg}
+          theme={theme}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+          presentation="modal"
+        />
       </AnimatedPaperModal>
     </>
   );

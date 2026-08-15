@@ -1,0 +1,549 @@
+{
+  "gentle": [
+    {
+      "title": "Hey, got a sec?",
+      "body": "Today's spending would love a quick look before you unwind."
+    },
+    {
+      "title": "No pressure, but...",
+      "body": "Tally's here whenever you want to jot down today's expenses."
+    },
+    {
+      "title": "Just checking in",
+      "body": "How'd today go, money-wise? Log it whenever it suits you."
+    },
+    {
+      "title": "Take your time",
+      "body": "Today's expenses aren't going anywhere, but a quick note helps."
+    },
+    {
+      "title": "A small ask",
+      "body": "Mind logging what you spent today? Two minutes, tops."
+    },
+    {
+      "title": "Whenever you're ready",
+      "body": "Your ledger's open and waiting. No rush at all."
+    },
+    {
+      "title": "Just a thought",
+      "body": "Today might be a good day to jot down your spending."
+    },
+    {
+      "title": "Hey, it's Tally",
+      "body": "Wanted to check if today's expenses need a quick update."
+    },
+    {
+      "title": "One small favor",
+      "body": "Could you log today's spending before you call it a night?"
+    },
+    {
+      "title": "Gentle nudge here",
+      "body": "Your money notes are a little lighter without today's update."
+    },
+    {
+      "title": "How was today?",
+      "body": "If anything came out of your pocket, give it a home in Tally."
+    },
+    {
+      "title": "Quick one before bed",
+      "body": "A minute with today's expenses, then you're free."
+    },
+    {
+      "title": "Not urgent, just here",
+      "body": "Your spending log missed you a little today."
+    },
+    {
+      "title": "Thinking of your budget",
+      "body": "If you've got a moment, today's numbers would appreciate it."
+    },
+    {
+      "title": "A soft check-in",
+      "body": "Was today a spending kind of day? Worth a quick note."
+    },
+    {
+      "title": "You don't have to, but...",
+      "body": "Logging today's expenses now means less digging later."
+    },
+    {
+      "title": "Just so you know",
+      "body": "Today's spending is sitting there, ready whenever you are."
+    },
+    {
+      "title": "A little favor for future-you",
+      "body": "They'll thank you for logging today while it's fresh."
+    },
+    {
+      "title": "Hey, no rush",
+      "body": "Whenever today winds down, Tally's ready for your notes."
+    },
+    {
+      "title": "Something small",
+      "body": "A quick log now saves a bigger memory hunt later."
+    },
+    {
+      "title": "Checking if you're free",
+      "body": "Even thirty seconds with today's spending helps a lot."
+    },
+    {
+      "title": "Just popping in",
+      "body": "Today's expenses would love a place to land."
+    },
+    {
+      "title": "A quiet ask",
+      "body": "Would you take a moment for today's money story?"
+    },
+    {
+      "title": "Here if you need it",
+      "body": "Your budget's easier to trust with today's details in it."
+    },
+    {
+      "title": "One more thing before bed",
+      "body": "A quick log, then the day's really done."
+    },
+    {
+      "title": "Thinking about today",
+      "body": "If you spent anything, it'd be nice to have it written down."
+    },
+    {
+      "title": "Not a big deal, just a nudge",
+      "body": "Today's numbers are waiting whenever you get a free minute."
+    },
+    {
+      "title": "Hey there",
+      "body": "Your ledger's a little quieter without today's update."
+    },
+    {
+      "title": "A small kindness to yourself",
+      "body": "Logging now means less guessing tomorrow."
+    },
+    {
+      "title": "Whenever works",
+      "body": "Today's spending is easy to lose track of — worth a quick note."
+    },
+    {
+      "title": "Just checking",
+      "body": "Did today involve any spending worth remembering?"
+    },
+    {
+      "title": "A moment, if you have one",
+      "body": "Your money story's missing today's chapter."
+    },
+    {
+      "title": "Hey, it's me again",
+      "body": "Just making sure today's expenses don't slip past unnoticed."
+    },
+    {
+      "title": "Something to consider",
+      "body": "A minute now keeps your budget honest without much effort."
+    },
+    {
+      "title": "You've got this",
+      "body": "Log today's spending and let the rest of the evening be yours."
+    },
+    {
+      "title": "A light reminder",
+      "body": "Today's numbers are easier to catch now than in a week."
+    },
+    {
+      "title": "Just wondering",
+      "body": "Anything from today worth adding to Tally?"
+    },
+    {
+      "title": "Here whenever",
+      "body": "No pressure — just wanted today's spending on your radar."
+    },
+    {
+      "title": "A small ask before sleep",
+      "body": "Give today's expenses a home, then rest easy."
+    },
+    {
+      "title": "Hey, quick thought",
+      "body": "Your future self will appreciate today's update more than you'd think."
+    },
+    {
+      "title": "Not asking for much",
+      "body": "Just today's numbers, whenever you get a spare minute."
+    },
+    {
+      "title": "A gentle heads-up",
+      "body": "It's easy to forget small purchases — worth jotting down now."
+    },
+    {
+      "title": "Checking on your day",
+      "body": "If money moved, Tally's a good place to remember it."
+    },
+    {
+      "title": "One thing before you go",
+      "body": "Today's spending, logged in a minute or two."
+    },
+    {
+      "title": "Here's a small idea",
+      "body": "Update Tally now so tomorrow starts a little clearer."
+    },
+    {
+      "title": "Just a friendly ping",
+      "body": "Your ledger's waiting on today, whenever you're up for it."
+    },
+    {
+      "title": "No rush, promise",
+      "body": "Today's expenses will keep, but sooner is easier than later."
+    },
+    {
+      "title": "A quiet reminder",
+      "body": "You've got a minute somewhere for today's spending, right?"
+    },
+    {
+      "title": "Hey, real quick",
+      "body": "How'd your spending look today? Worth a log."
+    },
+    {
+      "title": "Last thing, then you're done",
+      "body": "Add today's expenses and close the day out clean."
+    }
+  ],
+  "direct": [
+    {
+      "title": "Log today's expenses",
+      "body": "Open Tally and record what you spent."
+    },
+    {
+      "title": "Update your ledger",
+      "body": "Enter today's transactions now."
+    },
+    { "title": "Record today's spending", "body": "Two minutes. Do it now." },
+    { "title": "Add your expenses", "body": "Log everything from today." },
+    { "title": "Check your budget", "body": "Review today's numbers now." },
+    {
+      "title": "Enter today's purchases",
+      "body": "Keep your totals accurate."
+    },
+    {
+      "title": "Log it now",
+      "body": "Record today's spending before it's forgotten."
+    },
+    { "title": "Update Tally", "body": "Add today's transactions." },
+    { "title": "Track today's spending", "body": "Open the app and log it." },
+    {
+      "title": "Complete your expense log",
+      "body": "Enter today's purchases now."
+    },
+    { "title": "Finish today's entries", "body": "Add what you spent today." },
+    { "title": "Keep records current", "body": "Log today's expenses now." },
+    {
+      "title": "Review and log",
+      "body": "Check today's spending, then record it."
+    },
+    { "title": "Enter your transactions", "body": "Today's data goes in now." },
+    {
+      "title": "Update the numbers",
+      "body": "Record today's spending in Tally."
+    },
+    {
+      "title": "Log every purchase",
+      "body": "Add today's expenses to your ledger."
+    },
+    { "title": "Record it now", "body": "Today's spending needs an entry." },
+    { "title": "Add today's costs", "body": "Enter them into Tally." },
+    { "title": "Check the ledger", "body": "Update it with today's spending." },
+    { "title": "Track expenses", "body": "Log what you spent today." },
+    { "title": "Update your totals", "body": "Add today's transactions now." },
+    { "title": "Keep the log accurate", "body": "Enter today's spending." },
+    { "title": "Log today", "body": "Record it before you move on." },
+    { "title": "Enter expenses now", "body": "Today's data belongs in Tally." },
+    { "title": "Update the record", "body": "Add today's purchases." },
+    { "title": "Log your spending", "body": "Do it now, takes a minute." },
+    {
+      "title": "Review today's totals",
+      "body": "Then log any missing entries."
+    },
+    {
+      "title": "Finish the daily update",
+      "body": "Add today's expenses to Tally."
+    },
+    { "title": "Record purchases", "body": "Enter today's spending now." },
+    { "title": "Keep your budget accurate", "body": "Log today's numbers." },
+    { "title": "Update spending records", "body": "Add today's entries." },
+    { "title": "Log now", "body": "Today's expenses need to be recorded." },
+    {
+      "title": "Add transactions",
+      "body": "Enter today's spending into Tally."
+    },
+    { "title": "Complete today's log", "body": "Record every expense now." },
+    {
+      "title": "Track today's numbers",
+      "body": "Update Tally with what you spent."
+    },
+    { "title": "Enter the details", "body": "Log today's transactions now." },
+    { "title": "Update your Tally", "body": "Add today's spending data." },
+    { "title": "Log expenses now", "body": "Keep your records straight." },
+    { "title": "Check today's spending", "body": "Log it in Tally." },
+    { "title": "Record the day", "body": "Add today's purchases now." },
+    { "title": "Enter today's data", "body": "Update your ledger." },
+    { "title": "Update now", "body": "Today's expenses go into Tally." },
+    { "title": "Log purchases", "body": "Enter today's transactions." },
+    { "title": "Keep it current", "body": "Add today's spending to your log." },
+    { "title": "Track spending now", "body": "Record today's expenses." },
+    { "title": "Finish your log", "body": "Enter today's numbers." },
+    { "title": "Update the totals", "body": "Log today's spending now." },
+    {
+      "title": "Record transactions",
+      "body": "Add today's expenses to Tally."
+    },
+    { "title": "Log the day's spending", "body": "Do it now." },
+    {
+      "title": "Close out today",
+      "body": "Enter your expenses and update the ledger."
+    }
+  ],
+  "minimal": [
+    { "title": "Tally", "body": "Log today." },
+    { "title": "Tally", "body": "Update spending." },
+    { "title": "Tally", "body": "Check expenses." },
+    { "title": "Tally", "body": "Record today." },
+    { "title": "Tally", "body": "Log expenses." },
+    { "title": "Tally", "body": "Update your ledger." },
+    { "title": "Tally", "body": "Review today." },
+    { "title": "Tally", "body": "Track spending." },
+    { "title": "Tally", "body": "Add transactions." },
+    { "title": "Tally", "body": "Check your budget." },
+    { "title": "Tally", "body": "Keep records current." },
+    { "title": "Tally", "body": "Log a purchase." },
+    { "title": "Tally", "body": "Review expenses." },
+    { "title": "Tally", "body": "Record spending." },
+    { "title": "Tally", "body": "Update your totals." },
+    { "title": "Tally", "body": "Log the day." },
+    { "title": "Tally", "body": "Check your ledger." },
+    { "title": "Tally", "body": "Add today's costs." },
+    { "title": "Tally", "body": "Track today's money." },
+    { "title": "Tally", "body": "Review your tally." },
+    { "title": "Tally", "body": "Enter today's expenses." },
+    { "title": "Tally", "body": "Keep spending visible." },
+    { "title": "Tally", "body": "Update your records." },
+    { "title": "Tally", "body": "Log what changed." },
+    { "title": "Tally", "body": "Check today's numbers." },
+    { "title": "Tally", "body": "Add a transaction." },
+    { "title": "Tally", "body": "Review your budget." },
+    { "title": "Tally", "body": "Record the details." },
+    { "title": "Tally", "body": "Keep your log current." },
+    { "title": "Tally", "body": "Update today's total." },
+    { "title": "Tally", "body": "Log before you forget." },
+    { "title": "Tally", "body": "Check the day." },
+    { "title": "Tally", "body": "Add missing expenses." },
+    { "title": "Tally", "body": "Review the ledger." },
+    { "title": "Tally", "body": "Track today's entries." },
+    { "title": "Tally", "body": "Keep your budget updated." },
+    { "title": "Tally", "body": "Record a cost." },
+    { "title": "Tally", "body": "Check spending today." },
+    { "title": "Tally", "body": "Update your entries." },
+    { "title": "Tally", "body": "Log the latest." },
+    { "title": "Tally", "body": "Review money movement." },
+    { "title": "Tally", "body": "Add today's spending." },
+    { "title": "Tally", "body": "Keep the ledger fresh." },
+    { "title": "Tally", "body": "Check what you spent." },
+    { "title": "Tally", "body": "Record your day." },
+    { "title": "Tally", "body": "Update the log." },
+    { "title": "Tally", "body": "Review today's costs." },
+    { "title": "Tally", "body": "Track one more thing." },
+    { "title": "Tally", "body": "Complete today's record." },
+    { "title": "Tally", "body": "Keep it accurate." }
+  ],
+  "fun": [
+    {
+      "title": "Making cents of today",
+      "body": "Log your spending and let it all add up."
+    },
+    {
+      "title": "A penny for your Tally",
+      "body": "Drop today's expenses in before they get lost in the couch cushions."
+    },
+    {
+      "title": "Balance, party of one",
+      "body": "Your ledger's setting a table for today's transactions."
+    },
+    {
+      "title": "Don't lose interest now",
+      "body": "A quick log keeps your budget paying attention."
+    },
+    {
+      "title": "Cache flow check",
+      "body": "See where today's money actually went."
+    },
+    {
+      "title": "Count on it",
+      "body": "Log today's spending — every cent counts, literally."
+    },
+    { "title": "Tally-ho!", "body": "Charge ahead and log today's expenses." },
+    {
+      "title": "A taxing situation",
+      "body": "Nothing a quick expense log can't fix."
+    },
+    {
+      "title": "Change of plans",
+      "body": "Log today's spare change and everything else too."
+    },
+    {
+      "title": "Budgeting with interest",
+      "body": "Today's numbers are worth a quick look."
+    },
+    {
+      "title": "The plot thickens (financially)",
+      "body": "Add today's expenses to the ongoing money mystery."
+    },
+    {
+      "title": "Currency events",
+      "body": "Today's spending just happened — capture it before it's history."
+    },
+    {
+      "title": "Sum like it hot",
+      "body": "Log today's expenses while the numbers are fresh."
+    },
+    {
+      "title": "A wallet's tale",
+      "body": "Give today's spending its moment in the ledger."
+    },
+    {
+      "title": "Ledger, set, go",
+      "body": "Quick, log today's expenses before they get away."
+    },
+    {
+      "title": "Spending spree recap",
+      "body": "Even a quiet day deserves a log entry."
+    },
+    {
+      "title": "In it for the long haul",
+      "body": "Small logs today, big clarity tomorrow."
+    },
+    {
+      "title": "Cent-imental value",
+      "body": "Every expense today is worth remembering in Tally."
+    },
+    {
+      "title": "Adding it all up",
+      "body": "Today's spending is ready for its close-up in Tally."
+    },
+    {
+      "title": "Balance of power",
+      "body": "Give your ledger the update it's been asking for."
+    },
+    {
+      "title": "The interest is mutual",
+      "body": "Tally wants to know what today cost you."
+    },
+    {
+      "title": "Coin-cidence check",
+      "body": "See if today's spending matches what you remember."
+    },
+    {
+      "title": "Money on your mind?",
+      "body": "Get it out of your head and into Tally."
+    },
+    {
+      "title": "A little dough-cumentation",
+      "body": "Log today's spending before it goes stale."
+    },
+    {
+      "title": "Rounding up the day",
+      "body": "Add today's expenses and call it even."
+    },
+    {
+      "title": "Fiscal to a fault",
+      "body": "Today's numbers deserve a quick, responsible log."
+    },
+    {
+      "title": "Ka-ching, logged",
+      "body": "Every purchase today gets a spot in Tally."
+    },
+    {
+      "title": "The receipts are in",
+      "body": "Time to make them official in your ledger."
+    },
+    {
+      "title": "Penny for your spending",
+      "body": "Log today's transactions and keep the streak going."
+    },
+    {
+      "title": "Tally's got a bone to pick",
+      "body": "It wants today's expenses, and it wants them now."
+    },
+    {
+      "title": "A sum-thing to do",
+      "body": "Log today's spending real quick."
+    },
+    {
+      "title": "Cash flow, meet cash know",
+      "body": "A quick update turns guessing into knowing."
+    },
+    {
+      "title": "Expense-ive habits, tracked",
+      "body": "Keep them honest with a quick log."
+    },
+    {
+      "title": "Your money's calling",
+      "body": "Answer with a quick entry in Tally."
+    },
+    {
+      "title": "Making bank(able) progress",
+      "body": "Log today's spending and stay ahead of the curve."
+    },
+    {
+      "title": "The great budget bake-off",
+      "body": "Mix in today's expenses for a well-rounded ledger."
+    },
+    {
+      "title": "Spending, decoded",
+      "body": "Log today's purchases and crack the day's money mystery."
+    },
+    {
+      "title": "Currency events, logged",
+      "body": "Give today's transactions a permanent home."
+    },
+    {
+      "title": "Two cents and counting",
+      "body": "Add today's expenses, however small."
+    },
+    {
+      "title": "The ledger's got jokes",
+      "body": "But it's serious about wanting today's spending."
+    },
+    {
+      "title": "Fresh off the register",
+      "body": "Log today's purchases while the ink's still warm."
+    },
+    {
+      "title": "Budget with benefits",
+      "body": "A quick log now, a clearer picture later."
+    },
+    {
+      "title": "Tally's daily roll call",
+      "body": "Every expense today, present and accounted for."
+    },
+    {
+      "title": "Sense and dollar sense",
+      "body": "Log today's spending and keep both intact."
+    },
+    {
+      "title": "The interest rate of you",
+      "body": "High, if you keep logging like this."
+    },
+    {
+      "title": "Spending: the sequel",
+      "body": "Today's numbers deserve their own entry."
+    },
+    {
+      "title": "A well-balanced diet (of data)",
+      "body": "Feed your ledger today's expenses."
+    },
+    {
+      "title": "Cent me the details",
+      "body": "Log today's spending, down to the last cent."
+    },
+    {
+      "title": "The numbers game, won",
+      "body": "Log today's expenses and take the point."
+    },
+    {
+      "title": "Tallying up the wins",
+      "body": "Every logged expense is one for the budget."
+    }
+  ]
+}

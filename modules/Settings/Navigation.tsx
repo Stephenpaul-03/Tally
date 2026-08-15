@@ -1,4 +1,3 @@
-import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import { BudgetScreen } from "@/modules/Management/Budget/Index";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
@@ -13,7 +12,6 @@ import { DeveloperToolsScreen } from "./Screens/DeveloperToolsScreen";
 import { MainSettingsScreen } from "./Screens/MainSettingsScreen";
 import { NotificationsScreen } from "./Screens/NotificationsScreen";
 import { SecurityScreen } from "./Screens/SecurityScreen";
-import { WorkspaceEditScreen } from "./Screens/WorkspaceEditScreen";
 
 export type SettingsStackParamList = {
   SettingsHome: undefined;
@@ -29,7 +27,6 @@ export type SettingsStackParamList = {
   DeveloperTools: undefined;
   BackupExport: undefined;
   BackupImport: undefined;
-  WorkspaceEdit: { workspace?: Workspace };
 };
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
@@ -58,7 +55,6 @@ export function SettingsNavigator({
       <Stack.Screen name="DeveloperTools" component={DeveloperToolsScreen} />
       <Stack.Screen name="BackupExport" component={BackupExportScreen} />
       <Stack.Screen name="BackupImport" component={BackupImportScreen} />
-      <Stack.Screen name="WorkspaceEdit" component={WorkspaceEditScreen} />
     </Stack.Navigator>
   );
 }

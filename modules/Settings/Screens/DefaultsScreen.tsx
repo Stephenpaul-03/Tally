@@ -1,13 +1,19 @@
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { ActionRow } from "@/components/ActionRow";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
+import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import type {
+  AccountSortFieldDefault,
+  BudgetSortFieldDefault,
+  CategorySortFieldDefault,
+  SortDirectionDefault,
+  TransactionSortFieldDefault,
+} from "@/hooks/use-workspace-defaults";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
-import { AccountManagementModal } from "@/modules/Management/Account/Index";
-import { CategoryManagementModal } from "@/modules/Management/Category/Index";
 import {
   selectAccountColors,
   selectAccountIcons,
@@ -18,25 +24,168 @@ import {
   selectActiveWorkspace,
   updateWorkspaceAsync,
 } from "@/modules/Core/Slices/WorkspaceSlice";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Text, TextInput, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { AccountManagementModal } from "@/modules/Management/Account/Index";
+import { CategoryManagementModal } from "@/modules/Management/Category/Index";
+import { TransactionSortModal } from "@/modules/Management/Transaction/Index";
 import {
   getAccountColor,
   getAccountIconName,
   getCategoryColor,
   getCategoryIconName,
 } from "@/utils/Helpers";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React from "react";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { Text, TextInput, useTheme } from "react-native-paper";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsSearchHeader } from "../Components/SettingsSearchHeader";
 import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
 
 type PickerState = "account" | "income" | "expense" | null;
+type SortPicker = "transactions" | "accounts" | "categories" | "budget" | null;
+type BudgetThreshold = "safeBelow" | "nearlyEmptyFrom";
+
+const TRANSACTION_SORT_OPTIONS: {
+  id: TransactionSortFieldDefault;
+  label: string;
+  description: string;
+  icon: string;
+}[] = [
+  {
+    id: "date",
+    label: "Day",
+    description: "Transaction date",
+    icon: "calendar-month-outline",
+  },
+  {
+    id: "amount",
+    label: "Amount",
+    description: "Transaction amount",
+    icon: "cash",
+  },
+  {
+    id: "title",
+    label: "Title",
+    description: "Transaction title",
+    icon: "sort-alphabetical-ascending",
+  },
+  {
+    id: "category",
+    label: "Category",
+    description: "Transaction category",
+    icon: "tag-outline",
+  },
+  {
+    id: "account",
+    label: "Account",
+    description: "Payment source",
+    icon: "credit-card-outline",
+  },
+  {
+    id: "type",
+    label: "Type",
+    description: "Income or expense",
+    icon: "swap-vertical",
+  },
+];
+const SIMPLE_SORT_OPTIONS: {
+  id: AccountSortFieldDefault;
+  label: string;
+  description: string;
+  icon: string;
+}[] = [
+  {
+    id: "name",
+    label: "Name",
+    description: "Sort names",
+    icon: "sort-alphabetical-ascending",
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    description: "Sort by transaction count",
+    icon: "chart-bar",
+  },
+];
+const BUDGET_SORT_OPTIONS: {
+  id: BudgetSortFieldDefault;
+  label: string;
+  description: string;
+  icon: string;
+}[] = [
+  {
+    id: "budget",
+    label: "Budget",
+    description: "Sort by budget amount",
+    icon: "cash-multiple",
+  },
+  {
+    id: "spent",
+    label: "Spent",
+    description: "Sort by spending",
+    icon: "chart-bar",
+  },
+  {
+    id: "remaining",
+    label: "Remaining",
+    description: "Sort by remaining balance",
+    icon: "progress-alert",
+  },
+  {
+    id: "name",
+    label: "Name",
+    description: "Sort category names",
+    icon: "sort-alphabetical-ascending",
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    description: "Sort by percent used",
+    icon: "percent-outline",
+  },
+];
+
+function sortLabel(kind: Exclude<SortPicker, null>, value: string) {
+  const options =
+    kind === "transactions"
+      ? TRANSACTION_SORT_OPTIONS
+      : kind === "budget"
+        ? BUDGET_SORT_OPTIONS
+        : SIMPLE_SORT_OPTIONS;
+  return options.find((option) => option.id === value)?.label ?? value;
+}
+
+function sortColor(value: string) {
+  const colors: Record<string, string> = {
+    date: "#159ED9",
+    amount: "#079669",
+    title: "#7C3AED",
+    category: "#FF7417",
+    account: "#D98200",
+    type: "#0D9AB8",
+    name: "#4F46E5",
+    usage: "#0F9F6E",
+    budget: "#159ED9",
+    spent: "#D9485F",
+    remaining: "#2E9D59",
+  };
+  return colors[value] ?? "#64748B";
+}
 
 type WorkspaceCurrency = {
   code: string;
@@ -94,6 +243,9 @@ export function DefaultsScreen() {
   const categoryColors = useAppSelector(selectCategoryColors);
   const { getWorkspaceDefaults, setWorkspaceDefaults } = useWorkspaceDefaults();
   const [picker, setPicker] = React.useState<PickerState>(null);
+  const [sortPicker, setSortPicker] = React.useState<SortPicker>(null);
+  const [budgetThresholdOpen, setBudgetThresholdOpen] =
+    React.useState<BudgetThreshold | null>(null);
   const [currencyOpen, setCurrencyOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -143,11 +295,10 @@ export function DefaultsScreen() {
 
   const handleThresholdChange = (
     key: "budgetSafeBelowPercent" | "budgetNearlyEmptyFromPercent",
-    value: string,
+    value: number,
   ) => {
     if (!activeWorkspace) return;
-    const numeric = Number(value.replace(/\D/g, ""));
-    const nextValue = Number.isFinite(numeric) ? clampPercent(numeric) : 0;
+    const nextValue = clampPercent(value);
     const nextSafeBelow =
       key === "budgetSafeBelowPercent"
         ? nextValue
@@ -163,6 +314,36 @@ export function DefaultsScreen() {
     }
 
     setWorkspaceDefaults(activeWorkspace.id, { [key]: nextValue });
+  };
+
+  const handleSortChange = (
+    value: string,
+    direction: SortDirectionDefault = "asc",
+  ) => {
+    if (!activeWorkspace || !sortPicker) return;
+    if (sortPicker === "transactions") {
+      setWorkspaceDefaults(activeWorkspace.id, {
+        transactionSortField: value as TransactionSortFieldDefault,
+        transactionSortDirection: direction,
+      });
+    } else if (sortPicker === "accounts") {
+      setWorkspaceDefaults(activeWorkspace.id, {
+        accountSortField: value as AccountSortFieldDefault,
+        accountSortDirection: direction,
+      });
+    } else if (sortPicker === "categories") {
+      setWorkspaceDefaults(activeWorkspace.id, {
+        categorySortField: value as CategorySortFieldDefault,
+        categorySortDirection: direction,
+      });
+    } else {
+      setWorkspaceDefaults(activeWorkspace.id, {
+        budgetSortField: value as BudgetSortFieldDefault,
+        budgetSortDirection: direction,
+      });
+    }
+    setSortPicker(null);
+    toast.success("Sort default updated");
   };
 
   const accountValue = defaults.defaultAccount ?? "";
@@ -190,16 +371,21 @@ export function DefaultsScreen() {
   const nearlyEmptyFromPercent = clampPercent(
     defaults.budgetNearlyEmptyFromPercent,
   );
+  const transactionSortValue = sortLabel(
+    "transactions",
+    defaults.transactionSortField,
+  );
 
   const normalizedQuery = query.trim().toLowerCase();
   const rows = [
     {
       id: "currency",
-      section: "Workspace",
+      section: "Transactions",
       icon: "cash-multiple",
-      iconColor: theme.colors.primary,
+      iconText: currency.symbol,
+      iconColor: "#D4A72C",
       label: "Currency",
-      value: `${currency.symbol} ${currency.code}`,
+      value: currency.code,
       description: currency.name,
       search: `currency ${currency.code} ${currency.name}`,
       onPress: () => setCurrencyOpen(true),
@@ -244,32 +430,80 @@ export function DefaultsScreen() {
       onPress: () => setPicker("expense"),
     },
     {
+      id: "transaction-sort",
+      section: "Sort",
+      icon: "sort-calendar-ascending",
+      iconColor: sortColor(defaults.transactionSortField),
+      label: "Transactions",
+      value: transactionSortValue,
+      valueIcon:
+        defaults.transactionSortDirection === "desc"
+          ? "arrow-down"
+          : "arrow-up",
+      description: "Default order for the main transactions tab",
+      search: `sort transactions ${transactionSortValue}`,
+      onPress: () => setSortPicker("transactions"),
+    },
+    {
+      id: "account-sort",
+      section: "Sort",
+      icon: "wallet-outline",
+      iconColor: sortColor(defaults.accountSortField),
+      label: "Accounts",
+      value: sortLabel("accounts", defaults.accountSortField),
+      valueIcon:
+        defaults.accountSortDirection === "desc" ? "arrow-down" : "arrow-up",
+      description: "Default account list order",
+      search: `sort accounts ${defaults.accountSortField} ${defaults.accountSortDirection}`,
+      onPress: () => setSortPicker("accounts"),
+    },
+    {
+      id: "category-sort",
+      section: "Sort",
+      icon: "tag-outline",
+      iconColor: sortColor(defaults.categorySortField),
+      label: "Categories",
+      value: sortLabel("categories", defaults.categorySortField),
+      valueIcon:
+        defaults.categorySortDirection === "desc" ? "arrow-down" : "arrow-up",
+      description: "Default category grid order",
+      search: `sort categories ${defaults.categorySortField} ${defaults.categorySortDirection}`,
+      onPress: () => setSortPicker("categories"),
+    },
+    {
+      id: "budget-sort",
+      section: "Sort",
+      icon: "chart-box-outline",
+      iconColor: sortColor(defaults.budgetSortField),
+      label: "Budget",
+      value: sortLabel("budget", defaults.budgetSortField),
+      valueIcon:
+        defaults.budgetSortDirection === "desc" ? "arrow-down" : "arrow-up",
+      description: "Default budget order",
+      search: `sort budget ${defaults.budgetSortField} ${defaults.budgetSortDirection}`,
+      onPress: () => setSortPicker("budget"),
+    },
+    {
       id: "safe-budget",
       section: "Budget",
       icon: "shield-check-outline",
       iconColor: "#2E7D32",
       label: "Safe below",
       value: `${safeBelowPercent}%`,
-      description: "Categories below this stay in Safe",
+      description: "Categories below this stay Safe",
       search: `budget safe below ${safeBelowPercent}`,
-      onPress: undefined,
-      inputValue: String(safeBelowPercent),
-      onChangeText: (value: string) =>
-        handleThresholdChange("budgetSafeBelowPercent", value),
+      onPress: () => setBudgetThresholdOpen("safeBelow"),
     },
     {
       id: "nearly-empty-budget",
       section: "Budget",
       icon: "progress-alert",
       iconColor: "#C77700",
-      label: "Nearly empty from",
+      label: "Nearly empty",
       value: `${nearlyEmptyFromPercent}%`,
-      description: "Categories at this percent move to Nearly empty",
+      description: "Move categories here at this percent",
       search: `budget nearly empty from ${nearlyEmptyFromPercent}`,
-      onPress: undefined,
-      inputValue: String(nearlyEmptyFromPercent),
-      onChangeText: (value: string) =>
-        handleThresholdChange("budgetNearlyEmptyFromPercent", value),
+      onPress: () => setBudgetThresholdOpen("nearlyEmptyFrom"),
     },
   ].filter((row) =>
     normalizedQuery ? row.search.toLowerCase().includes(normalizedQuery) : true,
@@ -301,9 +535,7 @@ export function DefaultsScreen() {
             <SectionLabel label="Matching defaults" />
             <SheetCard theme={theme}>
               {rows.length > 0 ? (
-                rows.map((item) => (
-                  <DefaultOptionRow key={item.id} {...item} />
-                ))
+                rows.map((item) => <DefaultOptionRow key={item.id} {...item} />)
               ) : (
                 <View style={styles.emptyState}>
                   <MaterialCommunityIcons
@@ -325,32 +557,44 @@ export function DefaultsScreen() {
           </>
         ) : (
           <>
-            <SectionLabel label="Workspace" />
-            <SheetCard theme={theme}>
-              {rows
-                .filter((item) => item.section === "Workspace")
-                .map((item) => (
-                  <DefaultOptionRow key={item.id} {...item} />
-                ))}
-            </SheetCard>
-
             <SectionLabel label="Transactions" />
-            <SheetCard theme={theme}>
+            <View style={styles.grid}>
               {rows
                 .filter((item) => item.section === "Transactions")
-                .map((item) => (
-                  <DefaultOptionRow key={item.id} {...item} />
+                .map((item, index) => (
+                  <DefaultOptionTile
+                    key={item.id}
+                    {...item}
+                    animationIndex={index}
+                  />
                 ))}
-            </SheetCard>
+            </View>
 
             <SectionLabel label="Budget" />
-            <SheetCard theme={theme}>
+            <View style={styles.grid}>
               {rows
                 .filter((item) => item.section === "Budget")
-                .map((item) => (
-                  <DefaultOptionRow key={item.id} {...item} />
+                .map((item, index) => (
+                  <DefaultOptionTile
+                    key={item.id}
+                    {...item}
+                    animationIndex={index + 4}
+                  />
                 ))}
-            </SheetCard>
+            </View>
+
+            <SectionLabel label="Sort" />
+            <View style={styles.grid}>
+              {rows
+                .filter((item) => item.section === "Sort")
+                .map((item, index) => (
+                  <DefaultOptionTile
+                    key={item.id}
+                    {...item}
+                    animationIndex={index + 6}
+                  />
+                ))}
+            </View>
           </>
         )}
       </ScrollView>
@@ -376,6 +620,47 @@ export function DefaultsScreen() {
         selectedValue={defaults.defaultIncomeCategory ?? ""}
         onSelectCategory={handleSelect}
       />
+      <SortDefaultsModal
+        visible={sortPicker !== null}
+        kind={sortPicker}
+        selectedValue={
+          sortPicker === "transactions"
+            ? defaults.transactionSortField
+            : sortPicker === "accounts"
+              ? defaults.accountSortField
+              : sortPicker === "categories"
+                ? defaults.categorySortField
+                : defaults.budgetSortField
+        }
+        direction={
+          sortPicker === "transactions"
+            ? defaults.transactionSortDirection
+            : sortPicker === "accounts"
+              ? defaults.accountSortDirection
+              : sortPicker === "categories"
+                ? defaults.categorySortDirection
+                : defaults.budgetSortDirection
+        }
+        onDismiss={() => setSortPicker(null)}
+        onApply={handleSortChange}
+      />
+      <BudgetThresholdModal
+        visible={budgetThresholdOpen !== null}
+        threshold={budgetThresholdOpen}
+        safeBelowPercent={safeBelowPercent}
+        nearlyEmptyFromPercent={nearlyEmptyFromPercent}
+        onDismiss={() => setBudgetThresholdOpen(null)}
+        onSave={(threshold, value) => {
+          handleThresholdChange(
+            threshold === "safeBelow"
+              ? "budgetSafeBelowPercent"
+              : "budgetNearlyEmptyFromPercent",
+            value,
+          );
+          setBudgetThresholdOpen(null);
+          toast.success("Budget threshold updated");
+        }}
+      />
       <CategoryManagementModal
         isOpen={picker === "expense"}
         onClose={() => setPicker(null)}
@@ -385,6 +670,54 @@ export function DefaultsScreen() {
         onSelectCategory={handleSelect}
       />
     </SafeAreaView>
+  );
+}
+
+function SortDefaultsModal({
+  visible,
+  kind,
+  selectedValue,
+  direction,
+  onDismiss,
+  onApply,
+}: {
+  visible: boolean;
+  kind: SortPicker;
+  selectedValue: string;
+  direction: SortDirectionDefault;
+  onDismiss: () => void;
+  onApply: (value: string, direction?: SortDirectionDefault) => void;
+}) {
+  if (!kind) return null;
+  if (kind === "transactions") {
+    return (
+      <TransactionSortModal
+        visible={visible}
+        sortConfig={{
+          field: selectedValue as TransactionSortFieldDefault,
+          direction: direction,
+        }}
+        onChange={(next) => onApply(next.field, next.direction)}
+        onReset={() => undefined}
+        onDismiss={onDismiss}
+      />
+    );
+  }
+
+  return (
+    <SortOptionSheet
+      visible={visible}
+      title={`Default ${kind === "budget" ? "budget" : kind} sort`}
+      subtitle="Choose the order used when this section opens."
+      options={kind === "budget" ? BUDGET_SORT_OPTIONS : SIMPLE_SORT_OPTIONS}
+      value={selectedValue}
+      direction={direction}
+      resetDirection={kind === "budget" ? "desc" : "asc"}
+      onChange={(next) => onApply(next)}
+      onDismiss={onDismiss}
+      applyLabel="Save default"
+      onApply={(next, nextDirection) => onApply(next, nextDirection)}
+    />
   );
 }
 
@@ -555,9 +888,361 @@ function SheetHandle() {
   return (
     <View style={styles.handleWrap}>
       <View
-        style={[styles.handle, { backgroundColor: theme.colors.outlineVariant }]}
+        style={[
+          styles.handle,
+          { backgroundColor: theme.colors.outlineVariant },
+        ]}
       />
     </View>
+  );
+}
+
+function BudgetThresholdModal({
+  visible,
+  threshold,
+  safeBelowPercent,
+  nearlyEmptyFromPercent,
+  onDismiss,
+  onSave,
+}: {
+  visible: boolean;
+  threshold: BudgetThreshold | null;
+  safeBelowPercent: number;
+  nearlyEmptyFromPercent: number;
+  onDismiss: () => void;
+  onSave: (threshold: BudgetThreshold, value: number) => void;
+}) {
+  const theme = useTheme();
+  const { bottom } = useSafeAreaInsets();
+  const [safeBelow, setSafeBelow] = React.useState(safeBelowPercent);
+  const [nearlyEmptyFrom, setNearlyEmptyFrom] = React.useState(
+    nearlyEmptyFromPercent,
+  );
+  const wiggle = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      setSafeBelow(safeBelowPercent);
+      setNearlyEmptyFrom(nearlyEmptyFromPercent);
+    }
+  }, [nearlyEmptyFromPercent, safeBelowPercent, visible]);
+
+  const playWiggle = React.useCallback(() => {
+    wiggle.stopAnimation();
+    wiggle.setValue(0);
+    Animated.sequence([
+      Animated.timing(wiggle, {
+        toValue: 1,
+        duration: 55,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(wiggle, {
+        toValue: -1,
+        duration: 80,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(wiggle, {
+        toValue: 0,
+        duration: 65,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [wiggle]);
+
+  const wiggleStyle = {
+    transform: [
+      {
+        translateX: wiggle.interpolate({
+          inputRange: [-1, 0, 1],
+          outputRange: [-5, 0, 5],
+        }),
+      },
+    ],
+  };
+
+  const changeSafeBelow = (value: number) => {
+    const next = clampPercent(value);
+    if (next > nearlyEmptyFrom) {
+      setSafeBelow(nearlyEmptyFrom);
+      playWiggle();
+      return;
+    }
+    setSafeBelow(next);
+  };
+
+  const changeNearlyEmptyFrom = (value: number) => {
+    const next = clampPercent(value);
+    if (next < safeBelow) {
+      setNearlyEmptyFrom(safeBelow);
+      playWiggle();
+      return;
+    }
+    setNearlyEmptyFrom(next);
+  };
+
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onDismiss}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        paddingHorizontal: 20,
+        paddingBottom: Math.max(24, bottom + 24),
+      }}
+    >
+      <SheetHandle />
+      <View style={styles.modalHeader}>
+        <View>
+          <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
+            {threshold === "safeBelow" ? "Safe below" : "Nearly empty from"}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close budget thresholds"
+          onPress={onDismiss}
+          style={styles.modalClose}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={22}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </Pressable>
+      </View>
+
+      <View style={styles.thresholdSectionRow}>
+        <Text style={[styles.modalSectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+          THRESHOLD
+        </Text>
+        <Text
+          style={[
+            styles.thresholdSectionValue,
+            { color: theme.colors.onSurface },
+          ]}
+        >
+          {threshold === "safeBelow" ? safeBelow : nearlyEmptyFrom}%
+        </Text>
+      </View>
+      {threshold === "safeBelow" ? (
+        <ThresholdSlider
+          value={safeBelow}
+          accent="#2E7D32"
+          onChange={changeSafeBelow}
+          minimumValue={0}
+          maximumValue={nearlyEmptyFrom}
+          onSlidingComplete={() => {
+            if (safeBelow === nearlyEmptyFrom) playWiggle();
+          }}
+          wiggleStyle={wiggleStyle}
+        />
+      ) : (
+        <ThresholdSlider
+          value={nearlyEmptyFrom}
+          accent="#C77700"
+          onChange={changeNearlyEmptyFrom}
+          minimumValue={safeBelow}
+          maximumValue={100}
+          onSlidingComplete={() => {
+            if (nearlyEmptyFrom === safeBelow) playWiggle();
+          }}
+          wiggleStyle={wiggleStyle}
+        />
+      )}
+
+      <Text style={styles.thresholdHint}>
+        {threshold === "safeBelow"
+          ? "Allowed up to the lower limit of Nearly empty (" + nearlyEmptyFrom + "%)."
+          : "Allowed down to the upper limit of Safe (" + safeBelow + "%)."}
+      </Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Save budget thresholds"
+        onPress={() =>
+          onSave(
+            threshold ?? "safeBelow",
+            threshold === "safeBelow" ? safeBelow : nearlyEmptyFrom,
+          )
+        }
+        style={({ pressed }) => [
+          styles.saveButton,
+          {
+            backgroundColor: theme.colors.primary,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name="check"
+          size={22}
+          color={theme.colors.onPrimary}
+        />
+        <Text
+          style={[styles.saveButtonText, { color: theme.colors.onPrimary }]}
+        >
+          SAVE
+        </Text>
+      </Pressable>
+    </AnimatedPaperModal>
+  );
+}
+
+function ThresholdSlider({
+  value,
+  accent,
+  onChange,
+  minimumValue,
+  maximumValue,
+  onSlidingComplete,
+  wiggleStyle,
+}: {
+  value: number;
+  accent: string;
+  onChange: (value: number) => void;
+  minimumValue: number;
+  maximumValue: number;
+  onSlidingComplete: () => void;
+  wiggleStyle: object;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Animated.View
+      style={[
+        styles.thresholdSliderCard,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
+        wiggleStyle,
+      ]}
+    >
+      <Slider
+        minimumValue={minimumValue}
+        maximumValue={maximumValue}
+        step={1}
+        value={value}
+        onValueChange={onChange}
+        onSlidingComplete={onSlidingComplete}
+        minimumTrackTintColor={accent}
+        maximumTrackTintColor={theme.colors.outlineVariant}
+        thumbTintColor={accent}
+        style={styles.slider}
+      />
+    </Animated.View>
+  );
+}
+
+function DefaultOptionTile({
+  icon,
+  iconText,
+  iconColor,
+  label,
+  onPress,
+  value,
+  valueIcon,
+  animationIndex = 0,
+}: {
+  icon: string;
+  iconText?: string;
+  iconColor?: string;
+  label: string;
+  onPress: () => void;
+  value: string;
+  valueIcon?: string;
+  animationIndex?: number;
+}) {
+  const theme = useTheme();
+  const resolvedIconColor = iconColor ?? theme.colors.primary;
+  const entranceAnimation = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(entranceAnimation, {
+      toValue: 1,
+      delay: animationIndex * 55,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    return () => entranceAnimation.stopAnimation();
+  }, [animationIndex, entranceAnimation]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.tileAnimated,
+        {
+          opacity: entranceAnimation,
+          transform: [
+            {
+              translateY: entranceAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [12, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.optionTile,
+          {
+            backgroundColor: theme.colors.elevation.level1,
+            borderColor: theme.colors.outlineVariant,
+            opacity: pressed ? 0.72 : 1,
+          },
+        ]}
+      >
+      <View
+        style={[styles.tileIconWrap, { backgroundColor: resolvedIconColor }]}
+      >
+        {iconText ? (
+          <Text style={styles.tileIconText}>{iconText}</Text>
+        ) : (
+          <MaterialCommunityIcons name={icon as any} size={22} color="#FFFFFF" />
+        )}
+      </View>
+      <View style={styles.tileCopy}>
+        <Text
+          style={[styles.tileLabel, { color: theme.colors.onSurface }]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        <View style={styles.tileValueRow}>
+          <Text
+            style={[styles.tileValue, { color: theme.colors.onSurfaceVariant }]}
+            numberOfLines={1}
+          >
+            {value}
+          </Text>
+          {valueIcon ? (
+            <MaterialCommunityIcons
+              name={valueIcon as any}
+              size={12}
+              color={theme.colors.onSurfaceVariant}
+              style={styles.tileValueIcon}
+            />
+          ) : null}
+        </View>
+      </View>
+      <MaterialCommunityIcons
+        name="chevron-right"
+        size={18}
+        color={theme.colors.onSurfaceVariant}
+        style={styles.tileChevron}
+      />
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -664,6 +1349,149 @@ function DefaultOptionRow({
 }
 
 const styles = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 15,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  optionTile: {
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    minHeight: 60,
+    padding: 10,
+    flex: 1,
+  },
+  tileAnimated: {
+    width: "47%",
+  },
+  tileIconWrap: {
+    alignItems: "center",
+    borderRadius: 13,
+    height: 36,
+    justifyContent: "center",
+    marginRight: 9,
+    width: 36,
+  },
+  tileIconText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  tileLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+  tileValue: {
+    fontSize: 11,
+    fontWeight: "500",
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  tileValueRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    minWidth: 0,
+  },
+  tileValueIcon: {
+    marginTop: 1,
+  },
+  tileCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tileChevron: {
+    marginLeft: 6,
+  },
+  modalHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  modalSectionLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 7,
+    marginTop: 4,
+  },
+  thresholdSectionRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  thresholdSectionValue: {
+    fontSize: 17,
+    fontWeight: "500",
+    marginBottom: 7,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    lineHeight: 28,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  modalClose: {
+    alignItems: "center",
+    borderRadius: 22,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  thresholdSliderCard: {
+    borderRadius: 18,
+    marginBottom: 8,
+    padding: 8,
+  },
+  slider: {
+    height: 32,
+    marginHorizontal: -5,
+    marginTop: 2,
+  },
+  thresholdHint: {
+    color: "#85858D",
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  thresholdTooltip: {
+    alignItems: "flex-start",
+    borderRadius: 11,
+    flexDirection: "row",
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  thresholdTooltipText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  saveButton: {
+    alignItems: "center",
+    borderRadius: 20,
+    flexDirection: "row",
+    gap: 9,
+    justifyContent: "center",
+    marginTop: 6,
+    minHeight: 50,
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
   currencyCard: {
     alignItems: "center",
     borderRadius: 16,

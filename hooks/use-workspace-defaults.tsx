@@ -8,7 +8,33 @@ export type WorkspaceDefaults = {
   paydayDay: number | null;
   budgetSafeBelowPercent: number;
   budgetNearlyEmptyFromPercent: number;
+  transactionSortField: TransactionSortFieldDefault;
+  transactionSortDirection: TransactionSortDirectionDefault;
+  accountSortField: AccountSortFieldDefault;
+  accountSortDirection: SortDirectionDefault;
+  categorySortField: CategorySortFieldDefault;
+  categorySortDirection: SortDirectionDefault;
+  budgetSortField: BudgetSortFieldDefault;
+  budgetSortDirection: SortDirectionDefault;
 };
+
+export type TransactionSortFieldDefault =
+  | "date"
+  | "amount"
+  | "title"
+  | "category"
+  | "account"
+  | "type";
+export type TransactionSortDirectionDefault = "asc" | "desc";
+export type SortDirectionDefault = "asc" | "desc";
+export type AccountSortFieldDefault = "name" | "usage";
+export type CategorySortFieldDefault = "name" | "usage";
+export type BudgetSortFieldDefault =
+  | "budget"
+  | "spent"
+  | "remaining"
+  | "name"
+  | "usage";
 
 type WorkspaceDefaultsContextValue = {
   defaultsByWorkspace: Record<string, WorkspaceDefaults>;
@@ -30,14 +56,49 @@ const EMPTY_DEFAULTS: WorkspaceDefaults = {
   paydayDay: null,
   budgetSafeBelowPercent: 70,
   budgetNearlyEmptyFromPercent: 70,
+  transactionSortField: "date",
+  transactionSortDirection: "desc",
+  accountSortField: "name",
+  accountSortDirection: "asc",
+  categorySortField: "name",
+  categorySortDirection: "asc",
+  budgetSortField: "budget",
+  budgetSortDirection: "desc",
 };
+
+const isOneOf = <T extends string>(value: unknown, values: readonly T[]) =>
+  typeof value === "string" && values.includes(value as T)
+    ? (value as T)
+    : null;
+
+const TRANSACTION_SORT_FIELDS = [
+  "date",
+  "amount",
+  "title",
+  "category",
+  "account",
+  "type",
+] as const;
+const SORT_DIRECTIONS = ["asc", "desc"] as const;
+const ACCOUNT_SORT_FIELDS = ["name", "usage"] as const;
+const BUDGET_SORT_FIELDS = [
+  "budget",
+  "spent",
+  "remaining",
+  "name",
+  "usage",
+] as const;
 
 const WorkspaceDefaultsContext =
   React.createContext<WorkspaceDefaultsContextValue | null>(null);
 
 function normalizeDefaults(value: unknown): WorkspaceDefaults {
   if (!value || typeof value !== "object") return EMPTY_DEFAULTS;
-  const maybe = value as Partial<WorkspaceDefaults>;
+  const maybe = value as Partial<WorkspaceDefaults> & {
+    accountSortMode?: string;
+    categorySortMode?: string;
+    budgetSortMode?: string;
+  };
   const safeBelow =
     typeof maybe.budgetSafeBelowPercent === "number" &&
     Number.isFinite(maybe.budgetSafeBelowPercent)
@@ -72,7 +133,53 @@ function normalizeDefaults(value: unknown): WorkspaceDefaults {
         : null,
     budgetSafeBelowPercent: safeBelow,
     budgetNearlyEmptyFromPercent: nearlyFrom,
+    transactionSortField:
+      isOneOf(maybe.transactionSortField, TRANSACTION_SORT_FIELDS) ??
+      EMPTY_DEFAULTS.transactionSortField,
+    transactionSortDirection:
+      isOneOf(maybe.transactionSortDirection, SORT_DIRECTIONS) ??
+      EMPTY_DEFAULTS.transactionSortDirection,
+    accountSortField:
+      isOneOf(maybe.accountSortField, ACCOUNT_SORT_FIELDS) ??
+      migrateSimpleSortField(maybe.accountSortMode).field,
+    accountSortDirection:
+      isOneOf(maybe.accountSortDirection, SORT_DIRECTIONS) ??
+      migrateSimpleSortField(maybe.accountSortMode).direction,
+    categorySortField:
+      isOneOf(maybe.categorySortField, ACCOUNT_SORT_FIELDS) ??
+      migrateSimpleSortField(maybe.categorySortMode).field,
+    categorySortDirection:
+      isOneOf(maybe.categorySortDirection, SORT_DIRECTIONS) ??
+      migrateSimpleSortField(maybe.categorySortMode).direction,
+    budgetSortField:
+      isOneOf(maybe.budgetSortField, BUDGET_SORT_FIELDS) ??
+      migrateBudgetSortField(maybe.budgetSortMode).field,
+    budgetSortDirection:
+      isOneOf(maybe.budgetSortDirection, SORT_DIRECTIONS) ??
+      migrateBudgetSortField(maybe.budgetSortMode).direction,
   };
+}
+
+function migrateSimpleSortField(value: unknown): {
+  field: AccountSortFieldDefault;
+  direction: SortDirectionDefault;
+} {
+  if (value === "usageDesc") return { field: "usage", direction: "desc" };
+  if (value === "nameDesc") return { field: "name", direction: "desc" };
+  return { field: "name", direction: "asc" };
+}
+
+function migrateBudgetSortField(value: unknown): {
+  field: BudgetSortFieldDefault;
+  direction: SortDirectionDefault;
+} {
+  if (value === "spentDesc") return { field: "spent", direction: "desc" };
+  if (value === "remainingAsc") {
+    return { field: "remaining", direction: "asc" };
+  }
+  if (value === "nameAsc") return { field: "name", direction: "asc" };
+  if (value === "usageDesc") return { field: "usage", direction: "desc" };
+  return { field: "budget", direction: "desc" };
 }
 
 function normalizeDefaultsByWorkspace(

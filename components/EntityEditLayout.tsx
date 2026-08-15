@@ -3,7 +3,9 @@ import {
   type WorkspaceCurrency,
 } from "@/components/CurrencyPickerField";
 import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -61,6 +63,9 @@ export type EntityEditLayoutProps = {
   showHeader?: boolean;
   showPreview?: boolean;
   showPreviewName?: boolean;
+  presentation?: "screen" | "modal";
+  visible?: boolean;
+  dismissable?: boolean;
 
   // Submit
   canSubmit: boolean;
@@ -121,6 +126,9 @@ export function EntityEditLayout({
   showHeader = true,
   showPreview = true,
   showPreviewName = true,
+  presentation = "modal",
+  visible = true,
+  dismissable = true,
   canSubmit,
   isEditing,
   submitLabelCreate = "Add",
@@ -142,7 +150,9 @@ export function EntityEditLayout({
   const previewColor = minimalIconsEnabled
     ? c.primary
     : localColor || c.primary;
-  const visiblePickerRows = 3;
+  const visiblePickerRows = 2;
+  const uniqueIcons = [...new Set(allIcons)];
+  const uniqueColors = [...new Set(allColors)];
   const iconItemSize = 44;
   const iconGap = 10;
   const colorItemSize = 36;
@@ -157,21 +167,18 @@ export function EntityEditLayout({
     1,
     Math.floor((width - 40 + colorGap) / (colorItemSize + colorGap)),
   );
-  const iconHasMore = allIcons.length > iconGrid.columns * visiblePickerRows;
-  const colorHasMore = allColors.length > colorColumns * visiblePickerRows;
+  const iconHasMore = uniqueIcons.length > iconGrid.columns * visiblePickerRows;
+  const colorHasMore = uniqueColors.length > colorColumns * visiblePickerRows;
   const outerScrollEnabled = outerContentHeight > outerViewportHeight + 1;
-  const scrollPickerByRow = React.useCallback(
-    (picker: "icons" | "colors") => {
-      const rowHeight =
-        picker === "icons" ? iconItemSize + iconGap : colorItemSize + colorGap;
-      const scrollRef = picker === "icons" ? iconScrollRef : colorScrollRef;
-      const yRef = picker === "icons" ? iconScrollYRef : colorScrollYRef;
-      const nextY = yRef.current + rowHeight;
-      yRef.current = nextY;
-      scrollRef.current?.scrollTo({ y: nextY, animated: true });
-    },
-    [],
-  );
+  const scrollPickerByRow = React.useCallback((picker: "icons" | "colors") => {
+    const rowHeight =
+      picker === "icons" ? iconItemSize + iconGap : colorItemSize + colorGap;
+    const scrollRef = picker === "icons" ? iconScrollRef : colorScrollRef;
+    const yRef = picker === "icons" ? iconScrollYRef : colorScrollYRef;
+    const nextY = yRef.current + rowHeight;
+    yRef.current = nextY;
+    scrollRef.current?.scrollTo({ y: nextY, animated: true });
+  }, []);
   const previewBlock = (
     <View
       style={{
@@ -246,7 +253,7 @@ export function EntityEditLayout({
     };
   }, [background, previewColor, showHeader]);
 
-  return (
+  const content = (
     <>
       {showHeader ? (
         <View
@@ -265,7 +272,9 @@ export function EntityEditLayout({
       <KeyboardAwareScrollView
         bounces={outerScrollEnabled}
         bottomOffset={bottom + 50}
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{
+          flexGrow: presentation === "screen" ? 1 : 0,
+        }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={(_contentWidth, contentHeight) =>
           setOuterContentHeight(contentHeight)
@@ -276,7 +285,10 @@ export function EntityEditLayout({
         overScrollMode={outerScrollEnabled ? "auto" : "never"}
         scrollEnabled={outerScrollEnabled}
         showsVerticalScrollIndicator={false}
-        style={{ flex: 1, backgroundColor: background }}
+        style={{
+          ...(presentation === "screen" ? { flex: 1 } : {}),
+          backgroundColor: background,
+        }}
       >
         <View style={{ flex: 1, justifyContent: "flex-start" }}>
           {showHeader ? (
@@ -431,7 +443,7 @@ export function EntityEditLayout({
                   iconScrollYRef.current = event.nativeEvent.contentOffset.y;
                 }}
                 scrollEventThrottle={16}
-                style={{ maxHeight: 152 }}
+                style={{ maxHeight: 98 }}
                 contentContainerStyle={{
                   flexDirection: "row",
                   flexWrap: "wrap",
@@ -439,7 +451,7 @@ export function EntityEditLayout({
                   paddingBottom: 2,
                 }}
               >
-                {allIcons.map((icon) => {
+                {uniqueIcons.map((icon) => {
                   const selected = icon === localIcon;
                   return (
                     <Pressable
@@ -515,7 +527,7 @@ export function EntityEditLayout({
                   colorScrollYRef.current = event.nativeEvent.contentOffset.y;
                 }}
                 scrollEventThrottle={16}
-                style={{ maxHeight: 128 }}
+                style={{ maxHeight: 82 }}
                 contentContainerStyle={{
                   flexDirection: "row",
                   flexWrap: "wrap",
@@ -523,7 +535,7 @@ export function EntityEditLayout({
                   paddingBottom: 2,
                 }}
               >
-                {allColors.map((color) => {
+                {uniqueColors.map((color) => {
                   const selected = color === localColor;
                   return (
                     <Pressable
@@ -679,7 +691,7 @@ export function EntityEditLayout({
                   })}
                 >
                   <MaterialCommunityIcons
-                    color={c.onPrimary}
+                    color={palette.white}
                     name={isEditing ? "content-save-outline" : "plus"}
                     size={18}
                   />
@@ -687,7 +699,7 @@ export function EntityEditLayout({
                     style={{
                       ...typography.editorial.sectionLabel,
                       fontSize: 14,
-                      color: c.onPrimary,
+                      color: palette.white,
                     }}
                   >
                     {isEditing ? submitLabelEdit : submitLabelCreate}
@@ -700,4 +712,46 @@ export function EntityEditLayout({
       </KeyboardAwareScrollView>
     </>
   );
+
+  if (presentation === "modal") {
+    return (
+      <AnimatedPaperModal
+        contentContainerStyle={{
+          backgroundColor: background,
+          borderTopLeftRadius: 40,
+          borderTopRightRadius: 40,
+          maxHeight: "94%",
+          overflow: "hidden",
+          width: "100%",
+        }}
+        dismissable={dismissable}
+        onDismiss={onBack}
+        presentation="sheet"
+        visible={visible}
+      >
+        <View
+          accessibilityLabel="Drag handle"
+          style={{
+            alignItems: "center",
+            backgroundColor: background,
+            paddingBottom: 6,
+            paddingTop: 10,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: c.onSurfaceVariant,
+              borderRadius: 3,
+              height: 5,
+              opacity: 0.55,
+              width: 42,
+            }}
+          />
+        </View>
+        {content}
+      </AnimatedPaperModal>
+    );
+  }
+
+  return content;
 }

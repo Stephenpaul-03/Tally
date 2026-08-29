@@ -1,38 +1,31 @@
 import { ActionRow } from "@/components/ActionRow";
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
-import { toast } from "@/components/toast/ToastProvider";
 import { useAppSelector } from "@/hooks/Redux";
 import { useAbstractSearch } from "@/hooks/use-abstract-search";
 import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import Constants from "expo-constants";
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Text, TextInput, useTheme } from "react-native-paper";
+import { ScrollView, View } from "react-native";
+import { useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { SectionLabel } from "../Components/SectionLabel";
 import {
   BetaContactModal,
   type BetaContactScenario,
-} from "../Components/BetaContactModal";
-import { SettingsHeader } from "../Components/SettingsHeader";
+} from "../Modals/BetaContactModal";
+import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsSearchHeader } from "../Components/SettingsSearchHeader";
-import {
-  DEV_TOOLS_PASSCODE,
-  isDeveloperToolsUnlockedForSession,
-  unlockDeveloperToolsForSession,
-  useDeveloperToolsUnlockedForSession,
-} from "../DeveloperToolsSession";
+import { AppearanceModal } from "../Modals/AppearanceModal";
+import { AboutModal } from "../Modals/AboutModal";
+import { BackupExportModal } from "../Modals/ExportModal";
+import { BackupImportModal } from "../Modals/ImportModal";
+import { InterfaceModal } from "../Modals/InterfaceModal";
+import { NotificationsModal } from "../Modals/NotificationsModal";
+import { SecurityModal } from "../Modals/SecurityModal";
+import { WorkspaceModal } from "../Modals/WorkspaceModal";
 import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
-import { NotificationsModal } from "./NotificationsScreen";
-import { AppearanceModal, InterfaceModal } from "./AppearanceScreen";
-import { SecurityModal } from "./SecurityScreen";
-import { WorkspacesModal } from "./WorkspacesScreen";
-import { WorkspaceEditScreen } from "./WorkspaceEditScreen";
 
 function formatLastBackupDescription(workspace: Workspace | null) {
   if (!workspace?.lastBackupAt) return "Last backup: No backup yet";
@@ -64,10 +57,7 @@ type SettingsSearchItem = {
   onPress: () => void;
 };
 
-type SearchableSettingsScreen = Exclude<
-  keyof SettingsStackParamList,
-  never
->;
+type SearchableSettingsScreen = Exclude<keyof SettingsStackParamList, never>;
 
 export function MainSettingsScreen() {
   const theme = useTheme();
@@ -80,17 +70,12 @@ export function MainSettingsScreen() {
   const [appearanceOpen, setAppearanceOpen] = React.useState(false);
   const [interfaceOpen, setInterfaceOpen] = React.useState(false);
   const [workspacesOpen, setWorkspacesOpen] = React.useState(false);
-  const [workspaceEditOpen, setWorkspaceEditOpen] = React.useState(false);
-  const [workspaceToEdit, setWorkspaceToEdit] = React.useState<Workspace>();
+  const [backupExportOpen, setBackupExportOpen] = React.useState(false);
+  const [backupImportOpen, setBackupImportOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
   const [securityOpen, setSecurityOpen] = React.useState(false);
   const [betaContactScenario, setBetaContactScenario] =
     React.useState<BetaContactScenario | null>(null);
-  const [passcodeOpen, setPasscodeOpen] = React.useState(false);
-  const [passcode, setPasscode] = React.useState("");
-  const devTapCountRef = React.useRef(0);
-  const appVersion = Constants.expoConfig?.version ?? "0.1.0";
-  const developerToolsUnlocked = useDeveloperToolsUnlockedForSession();
   const closeSearch = React.useCallback(() => {
     setQuery("");
     setSearchOpen(false);
@@ -111,10 +96,6 @@ export function MainSettingsScreen() {
   );
   const closeBetaContactModal = React.useCallback(() => {
     setBetaContactScenario(null);
-  }, []);
-  const openAboutBetaContactModal = React.useCallback(() => {
-    setAboutOpen(false);
-    setBetaContactScenario("about");
   }, []);
   const openAboutModal = React.useCallback(() => {
     closeSearch();
@@ -140,44 +121,17 @@ export function MainSettingsScreen() {
     closeSearch();
     setSecurityOpen(true);
   }, [closeSearch]);
-  const openWorkspaceEditFromModal = React.useCallback(
-    (workspace?: Workspace) => {
-      setWorkspacesOpen(false);
-      setWorkspaceToEdit(workspace);
-      setWorkspaceEditOpen(true);
-    },
-    [],
-  );
+  const openBackupExportModal = React.useCallback(() => {
+    closeSearch();
+    setBackupExportOpen(true);
+  }, [closeSearch]);
+  const openBackupImportModal = React.useCallback(() => {
+    closeSearch();
+    setBackupImportOpen(true);
+  }, [closeSearch]);
   const closeAboutModal = React.useCallback(() => {
     setAboutOpen(false);
   }, []);
-
-  const handleDeveloperTap = React.useCallback(() => {
-    const next = devTapCountRef.current + 1;
-    devTapCountRef.current = next;
-
-    if (next >= 7) {
-      devTapCountRef.current = 0;
-      if (isDeveloperToolsUnlockedForSession()) {
-        toast.info("Developer tools are already on for this app session");
-        return;
-      }
-      setPasscodeOpen(true);
-    }
-  }, []);
-  const handleUnlockDeveloperTools = React.useCallback(() => {
-    if (passcode !== DEV_TOOLS_PASSCODE) {
-      toast.error("Incorrect developer code");
-      setPasscode("");
-      return;
-    }
-
-    unlockDeveloperToolsForSession();
-    setPasscode("");
-    setPasscodeOpen(false);
-    toast.success("Developer tools are on for this app session");
-  }, [passcode]);
-
   const settingsItems = React.useMemo<SettingsSearchItem[]>(
     () => [
       {
@@ -250,7 +204,13 @@ export function MainSettingsScreen() {
         icon: "shield-lock-outline",
         label: "Security",
         description: "Protect Tally with biometric lock",
-        keywords: ["preferences", "biometric", "face id", "fingerprint", "lock"],
+        keywords: [
+          "preferences",
+          "biometric",
+          "face id",
+          "fingerprint",
+          "lock",
+        ],
         onPress: openSecurityModal,
       },
       {
@@ -259,7 +219,7 @@ export function MainSettingsScreen() {
         label: "Backup Export",
         description: "Export your Tally data into a backup file",
         keywords: ["data", "backup", "share", "export"],
-        onPress: () => navigateToScreen("BackupExport"),
+        onPress: openBackupExportModal,
       },
       {
         id: "backup-import",
@@ -267,7 +227,7 @@ export function MainSettingsScreen() {
         label: "Backup Import",
         description: "Restore transactions and settings from a backup",
         keywords: ["data", "backup", "restore", "import"],
-        onPress: () => navigateToScreen("BackupImport"),
+        onPress: openBackupImportModal,
       },
       {
         id: "create-backup",
@@ -439,72 +399,14 @@ export function MainSettingsScreen() {
         keywords: ["about", "build", "version", "app"],
         onPress: openAboutModal,
       },
-      ...(developerToolsUnlocked
-        ? [
-            {
-              id: "developer-tools",
-              icon: "hammer-wrench",
-              label: "Developer Tools",
-              description: "Unlocked for this app session until the app closes",
-              keywords: [
-                "developer",
-                "dev",
-                "debug",
-                "notifications",
-                "seed",
-                "data",
-              ],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-            {
-              id: "notification-status",
-              icon: "bell-check-outline",
-              label: "Notification Status",
-              description: "Check notification permission from Developer Tools",
-              keywords: ["developer", "notifications", "permission", "status"],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-            {
-              id: "open-notification-settings",
-              icon: "cog-outline",
-              label: "Open Notification Settings",
-              description: "Jump to system settings if notifications are off",
-              keywords: ["developer", "notifications", "settings", "system"],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-            {
-              id: "test-daily-reminder",
-              icon: "calendar-clock-outline",
-              label: "Test Daily Reminder",
-              description: "Check reminder copy, channel, and tap routing",
-              keywords: ["developer", "notifications", "test", "reminder"],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-            {
-              id: "test-monthly-insight",
-              icon: "chart-line",
-              label: "Test Monthly Insight",
-              description: "Check insights prompt copy and navigation",
-              keywords: ["developer", "notifications", "test", "insight"],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-            {
-              id: "seed-data",
-              icon: "database-plus-outline",
-              label: "Seed Data",
-              description: "Populate the app with sample transactions",
-              keywords: ["developer", "seed", "sample", "data"],
-              onPress: () => navigateToScreen("DeveloperTools"),
-            } satisfies SettingsSearchItem,
-          ]
-        : []),
     ],
     [
-      developerToolsUnlocked,
       navigateToScreen,
       openBetaContactModal,
       openAboutModal,
       openAppearanceModal,
+      openBackupExportModal,
+      openBackupImportModal,
       openInterfaceModal,
       openNotificationsModal,
       openSecurityModal,
@@ -591,11 +493,6 @@ export function MainSettingsScreen() {
                 onPress={openWorkspacesModal}
                 theme={theme}
                 iconColor={activeWorkspace?.color ?? theme.colors.primary}
-                iconBackgroundColor={
-                  activeWorkspace?.color
-                    ? `${activeWorkspace.color}22`
-                    : theme.colors.primaryContainer
-                }
               />
             </SheetCard>
 
@@ -700,15 +597,6 @@ export function MainSettingsScreen() {
 
             <SectionLabel label="Others" />
             <SheetCard theme={theme}>
-              {developerToolsUnlocked ? (
-                <ActionRow
-                  icon="hammer-wrench"
-                  label="Developer Tools"
-                  description="Unlocked for this app session until the app closes"
-                  onPress={() => navigation.navigate("DeveloperTools")}
-                  theme={theme}
-                />
-              ) : null}
               <ActionRow
                 icon="information-outline"
                 label="About"
@@ -721,22 +609,19 @@ export function MainSettingsScreen() {
         )}
       </ScrollView>
 
-      <WorkspacesModal
+      <WorkspaceModal
         visible={workspacesOpen}
         onDismiss={() => setWorkspacesOpen(false)}
-        onOpenWorkspaceEdit={openWorkspaceEditFromModal}
       />
 
-      <WorkspaceEditScreen
-        modal
-        workspace={workspaceToEdit}
-        onBack={() => {
-          setWorkspaceEditOpen(false);
-          setWorkspaceToEdit(undefined);
-          setWorkspacesOpen(true);
-        }}
-        theme={theme}
-        visible={workspaceEditOpen}
+      <BackupExportModal
+        visible={backupExportOpen}
+        onDismiss={() => setBackupExportOpen(false)}
+      />
+
+      <BackupImportModal
+        visible={backupImportOpen}
+        onDismiss={() => setBackupImportOpen(false)}
       />
 
       <AppearanceModal
@@ -759,191 +644,13 @@ export function MainSettingsScreen() {
         onDismiss={() => setSecurityOpen(false)}
       />
 
+      <AboutModal visible={aboutOpen} onDismiss={closeAboutModal} />
+
       <BetaContactModal
         visible={betaContactScenario !== null}
         scenario={betaContactScenario ?? "support"}
         onDismiss={closeBetaContactModal}
       />
-
-      <AnimatedPaperModal
-        visible={aboutOpen}
-        onDismiss={closeAboutModal}
-        presentation="sheet"
-        contentContainerStyle={{
-          backgroundColor: theme.colors.background,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          maxHeight: "92%",
-        }}
-      >
-        <View style={styles.handleWrap}>
-          <View
-            style={[
-              styles.handle,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-        </View>
-        <SettingsHeader title="About" onBack={closeAboutModal} />
-        <ScrollView
-          contentContainerStyle={SettingsStyles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <SectionLabel label="Info" />
-          <SheetCard theme={theme}>
-            <ActionRow
-              icon="cellphone-information"
-              label="About App"
-              description="More details about Tally"
-              onPress={openAboutBetaContactModal}
-              theme={theme}
-              showChevron
-            />
-            <ActionRow
-              icon="account-hard-hat-outline"
-              label="About Dev"
-              description="More details about the developer"
-              onPress={openAboutBetaContactModal}
-              theme={theme}
-              showChevron
-            />
-          </SheetCard>
-
-          <SectionLabel label="Legal" />
-          <SheetCard theme={theme}>
-            <ActionRow
-              icon="shield-check-outline"
-              label="Privacy Policy"
-              description="How your data is handled"
-              onPress={openAboutBetaContactModal}
-              theme={theme}
-              showChevron
-            />
-            <ActionRow
-              icon="file-document-outline"
-              label="Open Source Licenses"
-              description="Third-party acknowledgements"
-              onPress={openAboutBetaContactModal}
-              theme={theme}
-              showChevron
-            />
-          </SheetCard>
-
-          <SectionLabel label="Version" />
-          <SheetCard theme={theme}>
-            <ActionRow
-              icon="information-outline"
-              label="Version"
-              description="Installed app build"
-              onPress={handleDeveloperTap}
-              theme={theme}
-              showChevron={false}
-              rightElement={
-                <Text
-                  style={{
-                    color: theme.colors.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  {appVersion}
-                </Text>
-              }
-            />
-          </SheetCard>
-        </ScrollView>
-      </AnimatedPaperModal>
-
-      <AnimatedPaperModal
-        visible={passcodeOpen}
-        onDismiss={() => {
-          setPasscodeOpen(false);
-          setPasscode("");
-        }}
-        presentation="sheet"
-        keyboardAware
-        contentContainerStyle={{
-          justifyContent: "flex-end",
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: theme.colors.background,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingTop: 12,
-            paddingHorizontal: 20,
-            paddingBottom: 24,
-          }}
-        >
-          <View
-            style={{
-              alignSelf: "center",
-              width: 42,
-              height: 4,
-              borderRadius: 999,
-              backgroundColor: theme.colors.outlineVariant,
-              marginBottom: 14,
-            }}
-          />
-
-          <View style={{ paddingHorizontal: 4, gap: 14 }}>
-            <View style={{ gap: 4 }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  color: theme.colors.onSurface,
-                }}
-              >
-                Enter Developer Code
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  lineHeight: 18,
-                  color: theme.colors.onSurfaceVariant,
-                }}
-              >
-                Unlock developer tools for this app session.
-              </Text>
-            </View>
-
-            <TextInput
-              mode="outlined"
-              label="Passcode"
-              value={passcode}
-              onChangeText={(value) =>
-                setPasscode(value.replace(/[^0-9]/g, "").slice(0, 4))
-              }
-              keyboardType="number-pad"
-              secureTextEntry={false}
-              maxLength={4}
-              autoFocus
-            />
-
-            <Button
-              mode="contained"
-              onPress={handleUnlockDeveloperTools}
-              disabled={passcode.length !== 4}
-            >
-              Unlock
-            </Button>
-          </View>
-        </View>
-      </AnimatedPaperModal>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  handle: {
-    borderRadius: 999,
-    height: 4,
-    width: 42,
-  },
-  handleWrap: {
-    alignItems: "center",
-    paddingTop: 10,
-  },
-});

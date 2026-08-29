@@ -2,7 +2,7 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text, TextInput, useTheme } from "react-native-paper";
 
 type PromptMode = "set" | "unlock";
@@ -21,6 +21,8 @@ export function usePasswordPrompt() {
   const [confirm, setConfirm] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
+  const [promptVisible, setPromptVisible] = React.useState(false);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeResolverRef = React.useRef<PasswordPromptState["resolve"] | null>(
     null,
   );
@@ -32,10 +34,12 @@ export function usePasswordPrompt() {
       mode: PromptMode = "unlock",
     ): Promise<string | null> => {
       return new Promise((resolve) => {
+        if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
         setPassword("");
         setConfirm("");
         setShowPassword(false);
         setShowConfirm(false);
+        setPromptVisible(true);
         setPrompt({ title, message, mode, resolve });
       });
     },
@@ -43,10 +47,17 @@ export function usePasswordPrompt() {
   );
 
   const closePrompt = React.useCallback((value: string | null) => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     setPrompt((current) => {
       current?.resolve(value);
-      return null;
+      activeResolverRef.current = null;
+      return current;
     });
+    setPromptVisible(false);
+    closeTimerRef.current = setTimeout(() => {
+      setPrompt(null);
+      closeTimerRef.current = null;
+    }, 320);
     setPassword("");
     setConfirm("");
     setShowPassword(false);
@@ -59,6 +70,7 @@ export function usePasswordPrompt() {
 
   React.useEffect(() => {
     return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       activeResolverRef.current?.(null);
     };
   }, []);
@@ -73,22 +85,27 @@ export function usePasswordPrompt() {
 
   const PasswordPromptModal = prompt ? (
     <AnimatedPaperModal
-      visible
+      visible={promptVisible}
       onDismiss={() => closePrompt(null)}
       presentation="sheet"
       keyboardAware
       contentContainerStyle={{
         paddingTop: 12,
-        backgroundColor: theme.colors.elevation.level2,
+        backgroundColor: theme.colors.background,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
+        maxHeight: "92%",
+        overflow: "hidden",
       }}
     >
-      <View
-        style={{
+      <ScrollView
+        style={styles.promptScroll}
+        contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: 20,
         }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View
           style={{
@@ -298,7 +315,7 @@ export function usePasswordPrompt() {
             {isSetMode ? "Set password" : "Unlock"}
           </Button>
         </View>
-      </View>
+      </ScrollView>
     </AnimatedPaperModal>
   ) : null;
 
@@ -306,6 +323,9 @@ export function usePasswordPrompt() {
 }
 
 const styles = StyleSheet.create({
+  promptScroll: {
+    flexGrow: 0,
+  },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",

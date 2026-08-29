@@ -1,4 +1,5 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -44,6 +45,7 @@ export function BudgetDetailsSheet({
   muted,
 }: Props) {
   const theme = useTheme();
+  const { minimalIconsEnabled } = useAddonPrefs();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const currencySymbol = activeWorkspace?.currencySymbol ?? "₹";
   const background = bg ?? theme.colors.background;
@@ -135,13 +137,19 @@ export function BudgetDetailsSheet({
                 borderRadius: 14,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: `${color}22`,
+                backgroundColor: minimalIconsEnabled
+                  ? theme.colors.background
+                  : `${color}22`,
+                borderColor: minimalIconsEnabled
+                  ? theme.colors.elevation.level1
+                  : "transparent",
+                borderWidth: minimalIconsEnabled ? 1 : 0,
               }}
             >
               <MaterialCommunityIcons
                 name={icon as any}
                 size={22}
-                color={color}
+                color={minimalIconsEnabled ? theme.colors.primary : color}
               />
             </View>
             <View style={{ flex: 1, gap: 4 }}>

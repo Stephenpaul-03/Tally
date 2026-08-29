@@ -17,6 +17,7 @@ interface AccountModalHeaderProps {
   onBack: () => void;
   onClose: () => void;
   theme: MD3Theme;
+  modal?: boolean;
 }
 
 export function AccountModalHeader({
@@ -30,6 +31,7 @@ export function AccountModalHeader({
   onBack,
   onClose,
   theme,
+  modal = false,
 }: AccountModalHeaderProps) {
   const c = theme.colors;
   const divider = c.outlineVariant;
@@ -39,7 +41,26 @@ export function AccountModalHeader({
       style={[CategoryManagementStyles.header, { borderBottomColor: divider }]}
     >
       {showBack ? (
-        <BackButton onPress={onBack} theme={theme} size={34} />
+        modal ? (
+          <TouchableRipple
+            onPress={onBack}
+            borderless
+            style={[
+              CategoryManagementStyles.headerBtn,
+              CategoryManagementStyles.headerBtnRound,
+              { backgroundColor: c.elevation.level1, borderColor: divider },
+            ]}
+            accessibilityLabel="Close"
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={20}
+              color={c.onSurfaceVariant}
+            />
+          </TouchableRipple>
+        ) : (
+          <BackButton onPress={onBack} theme={theme} size={34} />
+        )
       ) : (
         <View
           style={[
@@ -85,7 +106,7 @@ export function AccountModalHeader({
 
       {rightAccessory ?? null}
 
-      {!hideCloseButton ? (
+      {!hideCloseButton && !modal ? (
         <TouchableRipple
           onPress={onClose}
           borderless

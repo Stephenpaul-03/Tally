@@ -3,7 +3,6 @@ import {
   ToastProvider,
   pushOffsetAnimValue,
 } from "@/components/toast/ToastProvider";
-import { useAppDispatch } from "@/hooks/Redux";
 import { AddonPrefsProvider } from "@/hooks/use-addon-prefs";
 import { AppThemeProvider, useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -13,11 +12,6 @@ import {
 import { ThemeModeProvider, useThemeMode } from "@/hooks/use-theme-mode";
 import { TransactionUiPrefsProvider } from "@/hooks/use-transaction-ui-prefs";
 import { WorkspaceDefaultsProvider } from "@/hooks/use-workspace-defaults";
-import {
-  fetchAccounts,
-  fetchCategories,
-  fetchTransactions,
-} from "@/modules/Core/Slices/TransactionSlice";
 import { store } from "@/modules/Core/Store";
 import { AppNavigator } from "@/navigation/AppNavigator";
 import {
@@ -41,7 +35,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider as ReduxProvider } from "react-redux";
 import { TabBarModePreferenceProvider } from "./components/tabbar/TabBarModePreference";
 import "./global";
-import { BiometricLockScreen } from "./modules/Settings/Screens/BiometricLockScreen";
+import { BiometricLockOverlay } from "./overlays/BiometricLockOverlay";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -61,15 +55,6 @@ function AppInner() {
   const { mode } = themeMode;
   const { themeId, trueBlack } = useAppTheme();
   const biometricLock = useBiomettricLock();
-  const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    dispatch(fetchTransactions());
-    dispatch(fetchCategories("income"));
-    dispatch(fetchCategories("expense"));
-    dispatch(fetchAccounts());
-  }, [dispatch]);
-
   useEffect(() => {
     void notificationService.initializeAsync();
     const detach = notificationService.attachListeners();
@@ -102,7 +87,7 @@ function AppInner() {
                   <PushedAppContent>
                     <AppNavigator />
                     {biometricLock.isLocked ? (
-                      <BiometricLockScreen
+                      <BiometricLockOverlay
                         isAuthenticating={biometricLock.isAuthenticating}
                         onUnlock={() => {
                           void biometricLock.unlock();

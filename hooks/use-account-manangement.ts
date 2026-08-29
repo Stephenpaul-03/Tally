@@ -204,6 +204,22 @@ export function useAccountManagement() {
 
   const colorOptions = useMemo(() => getAccountColorOptions(), []);
 
+  const usedIcons = useMemo(
+    () =>
+      activeAccounts
+        .filter((account) => account !== editingAccount?.name)
+        .map((account) => getAccountIcon(account)),
+    [activeAccounts, editingAccount, getAccountIcon],
+  );
+
+  const usedColors = useMemo(
+    () =>
+      activeAccounts
+        .filter((account) => account !== editingAccount?.name)
+        .map((account) => getAccountColorForName(account)),
+    [activeAccounts, editingAccount, getAccountColorForName],
+  );
+
   const handleReorderAccounts = (newOrder: string[]) => {
     dispatch(updateAccountOrderAsync(newOrder));
   };
@@ -220,6 +236,8 @@ export function useAccountManagement() {
     getAccountColor: getAccountColorForName,
     iconOptions,
     colorOptions,
+    usedIcons,
+    usedColors,
     isDeleteOpen: pendingDelete !== null,
     deletingAccount: pendingDelete,
     deleteAffectCount,

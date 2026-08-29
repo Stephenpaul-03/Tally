@@ -52,6 +52,8 @@ export type EntityEditLayoutProps = {
   // Options
   allColors: string[];
   allIcons: string[];
+  usedColors?: string[];
+  usedIcons?: string[];
   iconGrid: IconGrid;
 
   // Labels / copy
@@ -119,6 +121,8 @@ export function EntityEditLayout({
   onChangeCurrency,
   allColors,
   allIcons,
+  usedColors = [],
+  usedIcons = [],
   iconGrid,
   namePlaceholder = "Enter a name",
   emptyPreviewLabel = "Name",
@@ -151,11 +155,22 @@ export function EntityEditLayout({
     ? c.primary
     : localColor || c.primary;
   const visiblePickerRows = 2;
-  const uniqueIcons = [...new Set(allIcons)];
   const uniqueColors = [...new Set(allColors)];
-  const iconItemSize = 44;
+  const usedIconSet = new Set(usedIcons);
+  const usedColorSet = new Set(usedColors);
+  const orderedIcons = React.useMemo(() => {
+    const icons = [...new Set(allIcons)];
+    const used = new Set(usedIcons);
+    return [
+      ...icons.filter((icon) => !used.has(icon)),
+      ...icons.filter((icon) => used.has(icon)),
+    ];
+  }, [allIcons, usedIcons]);
+  const orderedColors = [
+    ...uniqueColors.filter((color) => !usedColorSet.has(color)),
+    ...uniqueColors.filter((color) => usedColorSet.has(color)),
+  ];
   const iconGap = 10;
-  const colorItemSize = 36;
   const colorGap = 10;
   const iconScrollRef = React.useRef<ScrollView>(null);
   const colorScrollRef = React.useRef<ScrollView>(null);
@@ -163,22 +178,69 @@ export function EntityEditLayout({
   const colorScrollYRef = React.useRef(0);
   const [outerViewportHeight, setOuterViewportHeight] = React.useState(0);
   const [outerContentHeight, setOuterContentHeight] = React.useState(0);
+  const [pickerWidth, setPickerWidth] = React.useState(0);
+  const [iconSearchOpen, setIconSearchOpen] = React.useState(false);
+  const [iconQuery, setIconQuery] = React.useState("");
+  const availablePickerWidth = pickerWidth || Math.max(0, width - 40);
+  const iconColumns = Math.max(
+    1,
+    iconGrid.columns >= 8
+      ? iconGrid.columns
+      : Math.floor((availablePickerWidth + iconGap) / (44 + iconGap)),
+  );
+  const iconItemSize = Math.max(
+    30,
+    Math.floor(
+      (availablePickerWidth - iconGap * (iconColumns - 1)) / iconColumns,
+    ),
+  );
+  const iconSize = Math.max(16, Math.floor(iconItemSize * 0.46));
   const colorColumns = Math.max(
     1,
-    Math.floor((width - 40 + colorGap) / (colorItemSize + colorGap)),
+    Math.floor((availablePickerWidth + colorGap) / (36 + colorGap)),
   );
-  const iconHasMore = uniqueIcons.length > iconGrid.columns * visiblePickerRows;
-  const colorHasMore = uniqueColors.length > colorColumns * visiblePickerRows;
+  const colorItemSize = Math.min(
+    44,
+    Math.max(
+      30,
+      Math.floor(
+        (availablePickerWidth - colorGap * (colorColumns - 1)) / colorColumns,
+      ),
+    ),
+  );
+  const iconSearchMatches = React.useMemo(() => {
+    const query = iconQuery.trim().toLowerCase();
+    return query
+      ? orderedIcons.filter((icon) => icon.toLowerCase().includes(query))
+      : orderedIcons;
+  }, [iconQuery, orderedIcons]);
+  const iconSearchRemainder = React.useMemo(() => {
+    const query = iconQuery.trim().toLowerCase();
+    return query
+      ? orderedIcons.filter((icon) => !icon.toLowerCase().includes(query))
+      : [];
+  }, [iconQuery, orderedIcons]);
+  const iconHasMore = orderedIcons.length > iconColumns * visiblePickerRows;
+  const colorHasMore = orderedColors.length > colorColumns * visiblePickerRows;
   const outerScrollEnabled = outerContentHeight > outerViewportHeight + 1;
-  const scrollPickerByRow = React.useCallback((picker: "icons" | "colors") => {
-    const rowHeight =
-      picker === "icons" ? iconItemSize + iconGap : colorItemSize + colorGap;
-    const scrollRef = picker === "icons" ? iconScrollRef : colorScrollRef;
-    const yRef = picker === "icons" ? iconScrollYRef : colorScrollYRef;
-    const nextY = yRef.current + rowHeight;
-    yRef.current = nextY;
-    scrollRef.current?.scrollTo({ y: nextY, animated: true });
-  }, []);
+  const scrollPickerByRow = React.useCallback(
+    (picker: "icons" | "colors") => {
+      const rowHeight =
+        picker === "icons" ? iconItemSize + iconGap : colorItemSize + colorGap;
+      const scrollRef = picker === "icons" ? iconScrollRef : colorScrollRef;
+      const yRef = picker === "icons" ? iconScrollYRef : colorScrollYRef;
+      const nextY = yRef.current + rowHeight;
+      yRef.current = nextY;
+      scrollRef.current?.scrollTo({ y: nextY, animated: true });
+    },
+    [colorItemSize, iconItemSize],
+  );
+
+  React.useEffect(() => {
+    iconScrollYRef.current = 0;
+    iconScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [iconQuery]);
+
   const previewBlock = (
     <View
       style={{
@@ -253,6 +315,35 @@ export function EntityEditLayout({
     };
   }, [background, previewColor, showHeader]);
 
+  const renderIconButton = (icon: string) => {
+    const selected = icon === localIcon;
+    const disabled = usedIconSet.has(icon) && !selected;
+    return (
+      <Pressable
+        disabled={disabled}
+        key={icon}
+        onPress={() => onChangeIcon(icon)}
+        style={({ pressed }) => ({
+          width: iconItemSize,
+          height: iconItemSize,
+          borderRadius: 12,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: c.background,
+          borderWidth: selected ? 2 : 1,
+          borderColor: selected ? previewColor : c.outlineVariant,
+          opacity: disabled ? 0.3 : pressed ? 0.7 : 1,
+        })}
+      >
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={iconSize}
+          color={selected ? previewColor : c.onSurfaceVariant}
+        />
+      </Pressable>
+    );
+  };
+
   const content = (
     <>
       {showHeader ? (
@@ -307,7 +398,9 @@ export function EntityEditLayout({
                 }}
               >
                 <Pressable
-                  accessibilityLabel="Go back"
+                  accessibilityLabel={
+                    presentation === "modal" ? "Close" : "Go back"
+                  }
                   hitSlop={12}
                   onPress={onBack}
                   style={({ pressed }) => ({
@@ -321,7 +414,7 @@ export function EntityEditLayout({
                   })}
                 >
                   <MaterialCommunityIcons
-                    name="chevron-left"
+                    name={presentation === "modal" ? "close" : "chevron-left"}
                     size={24}
                     color={c.onSurface}
                   />
@@ -344,7 +437,12 @@ export function EntityEditLayout({
             </View>
           ) : null}
 
-          <View style={{ paddingHorizontal: 20 }}>
+          <View
+            onLayout={(event) =>
+              setPickerWidth(event.nativeEvent.layout.width - 40)
+            }
+            style={{ paddingHorizontal: 20 }}
+          >
             {/* Name */}
             <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
               <Text
@@ -430,10 +528,59 @@ export function EntityEditLayout({
                     fontSize: 14,
                     letterSpacing: 0.6,
                     color: c.onSurface,
+                    minWidth: iconSearchOpen ? 48 : undefined,
                   }}
                 >
                   Icons
                 </Text>
+                {iconSearchOpen ? (
+                  <RNTextInput
+                    autoFocus
+                    onChangeText={setIconQuery}
+                    placeholder="Search icons"
+                    placeholderTextColor={c.onSurfaceVariant}
+                    style={{
+                      backgroundColor: c.surfaceVariant,
+                      borderRadius: 12,
+                      color: c.onSurface,
+                      flex: 1,
+                      fontSize: 14,
+                      height: 32,
+                      marginLeft: 12,
+                      marginRight: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 0,
+                    }}
+                    value={iconQuery}
+                  />
+                ) : (
+                  <View style={{ flex: 1 }} />
+                )}
+                <Pressable
+                  accessibilityLabel={
+                    iconSearchOpen ? "Close icon search" : "Search icons"
+                  }
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => {
+                    setIconSearchOpen((open) => !open);
+                    if (iconSearchOpen) setIconQuery("");
+                  }}
+                  style={({ pressed }) => ({
+                    alignItems: "center",
+                    borderRadius: 16,
+                    height: 32,
+                    justifyContent: "center",
+                    opacity: pressed ? 0.6 : 1,
+                    width: 32,
+                  })}
+                >
+                  <MaterialCommunityIcons
+                    name={iconSearchOpen ? "close" : "magnify"}
+                    size={20}
+                    color={c.onSurfaceVariant}
+                  />
+                </Pressable>
               </View>
               <ScrollView
                 ref={iconScrollRef}
@@ -443,40 +590,67 @@ export function EntityEditLayout({
                   iconScrollYRef.current = event.nativeEvent.contentOffset.y;
                 }}
                 scrollEventThrottle={16}
-                style={{ maxHeight: 98 }}
+                style={{ maxHeight: iconItemSize * 2 + iconGap }}
                 contentContainerStyle={{
                   flexDirection: "row",
                   flexWrap: "wrap",
-                  gap: 10,
+                  columnGap: iconGap,
+                  rowGap: iconGap,
                   paddingBottom: 2,
                 }}
               >
-                {uniqueIcons.map((icon) => {
-                  const selected = icon === localIcon;
-                  return (
-                    <Pressable
-                      key={icon}
-                      onPress={() => onChangeIcon(icon)}
-                      style={({ pressed }) => ({
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    columnGap: iconGap,
+                    rowGap: iconGap,
+                    width: "100%",
+                  }}
+                >
+                  {iconQuery.trim() && iconSearchMatches.length === 0 ? (
+                    <View
+                      style={{
                         alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: c.background,
-                        borderWidth: selected ? 2 : 1,
-                        borderColor: selected ? previewColor : c.outlineVariant,
-                        opacity: pressed ? 0.7 : 1,
-                      })}
+                        paddingVertical: 10,
+                        width: "100%",
+                      }}
                     >
-                      <MaterialCommunityIcons
-                        name={icon as any}
-                        size={22}
-                        color={selected ? previewColor : c.onSurfaceVariant}
-                      />
-                    </Pressable>
-                  );
-                })}
+                      <Text
+                        style={{
+                          color: c.onSurfaceVariant,
+                          fontSize: 12,
+                        }}
+                      >
+                        No icons Matched
+                      </Text>
+                    </View>
+                  ) : null}
+                  {iconSearchMatches.map(renderIconButton)}
+                </View>
+                {iconQuery.trim() && iconSearchRemainder.length > 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: c.outlineVariant,
+                      height: 1,
+                      marginVertical: 8,
+                      width: "100%",
+                    }}
+                  />
+                ) : null}
+                {iconQuery.trim() ? (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      columnGap: iconGap,
+                      rowGap: iconGap,
+                      width: "100%",
+                    }}
+                  >
+                    {iconSearchRemainder.map(renderIconButton)}
+                  </View>
+                ) : null}
               </ScrollView>
               {iconHasMore ? (
                 <Pressable
@@ -531,26 +705,29 @@ export function EntityEditLayout({
                 contentContainerStyle={{
                   flexDirection: "row",
                   flexWrap: "wrap",
-                  gap: 10,
+                  columnGap: colorGap,
+                  rowGap: colorGap,
                   paddingBottom: 2,
                 }}
               >
-                {uniqueColors.map((color) => {
+                {orderedColors.map((color) => {
                   const selected = color === localColor;
+                  const disabled = usedColorSet.has(color) && !selected;
                   return (
                     <Pressable
+                      disabled={disabled}
                       key={color}
                       onPress={() => onChangeColor(color)}
                       style={({ pressed }) => ({
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
+                        width: colorItemSize,
+                        height: colorItemSize,
+                        borderRadius: colorItemSize / 2,
                         alignItems: "center",
                         justifyContent: "center",
                         backgroundColor: color,
                         borderWidth: selected ? 2.5 : 0,
                         borderColor: c.onSurface,
-                        opacity: pressed ? 0.8 : 1,
+                        opacity: disabled ? 0.3 : pressed ? 0.8 : 1,
                       })}
                     >
                       {selected && (
@@ -720,6 +897,7 @@ export function EntityEditLayout({
           backgroundColor: background,
           borderTopLeftRadius: 40,
           borderTopRightRadius: 40,
+          justifyContent: "flex-start",
           maxHeight: "94%",
           overflow: "hidden",
           width: "100%",

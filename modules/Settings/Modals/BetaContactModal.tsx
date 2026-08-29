@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
-import { SettingsHeader } from "./SettingsHeader";
+import { SettingsHeader } from "../Components/SettingsHeader";
 
 export type BetaContactScenario = "support" | "report" | "request" | "about";
 
@@ -45,7 +45,19 @@ const SCENARIO_COPY: Record<
 
 export function BetaContactModal({ visible, scenario, onDismiss }: Props) {
   const theme = useTheme();
-  const copy = SCENARIO_COPY[scenario];
+  const [lastVisibleScenario, setLastVisibleScenario] =
+    React.useState<BetaContactScenario>(scenario);
+
+  React.useEffect(() => {
+    if (visible) {
+      setLastVisibleScenario(scenario);
+    }
+  }, [scenario, visible]);
+
+  // Keep the previous content during the dismiss animation. The parent clears
+  // its scenario state on close, which otherwise falls back to "support" for
+  // one frame before the modal finishes disappearing.
+  const copy = SCENARIO_COPY[visible ? scenario : lastVisibleScenario];
 
   return (
     <AnimatedPaperModal

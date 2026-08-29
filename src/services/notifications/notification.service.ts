@@ -426,26 +426,6 @@ class NotificationService {
     );
   }
 
-  async sendTestMonthlyInsightPromptAsync() {
-    const permission = await this.ensurePermissionsAsync({
-      openSettingsOnDeny: true,
-      promptIfNeeded: true,
-    });
-
-    if (permission.status !== NotificationPermissionStatus.Granted) {
-      return null;
-    }
-
-    return scheduleNotificationAsync(
-      buildMonthlyInsightContent(new Date(), MonthlyInsightTiming.EndOfMonth),
-      {
-        channelId: NotificationChannelId.Insights,
-        kind: "seconds",
-        seconds: 2,
-      },
-    );
-  }
-
   async scheduleDailyFinanceReminder(
     config: DailyFinanceReminderConfig,
     options?: {

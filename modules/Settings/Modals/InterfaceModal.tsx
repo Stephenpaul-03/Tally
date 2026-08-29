@@ -2,18 +2,12 @@ import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { AppearanceSection } from "../Components/AppearanceSection";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
-import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
 
 type SheetProps = {
@@ -21,18 +15,11 @@ type SheetProps = {
   onDismiss: () => void;
 };
 
-type ContentProps = {
-  modal?: boolean;
-  onBack: () => void;
-};
-
 function SheetShell({
   children,
   onDismiss,
   visible,
-}: SheetProps & {
-  children: React.ReactNode;
-}) {
+}: SheetProps & { children: React.ReactNode }) {
   const theme = useTheme();
 
   return (
@@ -62,39 +49,7 @@ function SheetShell({
   );
 }
 
-function AppearanceContent({ modal = false, onBack }: ContentProps) {
-  const {
-    activeModeId,
-    handleModeSelect,
-    setThemeId,
-    setTrueBlack,
-    themeId,
-    themeOptions,
-    trueBlack,
-  } = useSettings();
-
-  return (
-    <>
-      <SettingsHeader title="Appearance" onBack={onBack} modal={modal} />
-      <ScrollView
-        contentContainerStyle={SettingsStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <AppearanceSection
-          activeModeId={activeModeId}
-          onModeSelect={handleModeSelect}
-          themeId={themeId}
-          onThemeSelect={setThemeId}
-          themeOptions={themeOptions}
-          trueBlack={trueBlack}
-          onTrueBlackChange={setTrueBlack}
-        />
-      </ScrollView>
-    </>
-  );
-}
-
-function InterfaceContent({ modal = false, onBack }: ContentProps) {
+function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const { tabBarEnabled, setTabBarEnabled } = useTabBarModePreference();
   const {
@@ -106,7 +61,7 @@ function InterfaceContent({ modal = false, onBack }: ContentProps) {
 
   return (
     <>
-      <SettingsHeader title="Interface" onBack={onBack} modal={modal} />
+      <SettingsHeader title="Interface" onBack={onBack} modal />
       <ScrollView
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -121,19 +76,19 @@ function InterfaceContent({ modal = false, onBack }: ContentProps) {
             theme={theme}
             showChevron={false}
             rightElement={
-              <Pressable
-                onPress={() => handleMinimalIconsToggle(!minimalIconsEnabled)}
-              >
-                <MaterialCommunityIcons
-                  name={minimalIconsEnabled ? "check-circle" : "circle-outline"}
-                  size={18}
-                  color={
-                    minimalIconsEnabled
-                      ? theme.colors.primary
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              </Pressable>
+              <Switch
+                value={minimalIconsEnabled}
+                onValueChange={handleMinimalIconsToggle}
+                trackColor={{
+                  false: theme.colors.outlineVariant,
+                  true: theme.colors.primary,
+                }}
+                thumbColor={
+                  minimalIconsEnabled
+                    ? theme.colors.onPrimary
+                    : theme.colors.surface
+                }
+              />
             }
           />
           <ActionRow
@@ -188,36 +143,11 @@ function InterfaceContent({ modal = false, onBack }: ContentProps) {
   );
 }
 
-export function AppearanceModal({ visible, onDismiss }: SheetProps) {
-  return (
-    <SheetShell visible={visible} onDismiss={onDismiss}>
-      <AppearanceContent modal onBack={onDismiss} />
-    </SheetShell>
-  );
-}
-
 export function InterfaceModal({ visible, onDismiss }: SheetProps) {
   return (
     <SheetShell visible={visible} onDismiss={onDismiss}>
-      <InterfaceContent modal onBack={onDismiss} />
+      <InterfaceContent onBack={onDismiss} />
     </SheetShell>
-  );
-}
-
-export function AppearanceScreen() {
-  const theme = useTheme();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
-
-  return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
-      <AppearanceContent onBack={() => navigation.goBack()} />
-    </SafeAreaView>
   );
 }
 

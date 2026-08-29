@@ -229,6 +229,46 @@ export function useCategoryManagement(activeTab: TransactionType) {
 
   const colorOptions = useMemo(() => getCategoryColorOptions(), []);
 
+  const usedIcons = useMemo(() => {
+    const entries = [
+      ...incomeCategories.map((name) => ({ name, type: "income" as const })),
+      ...expenseCategories.map((name) => ({ name, type: "expense" as const })),
+    ];
+    return [
+      ...new Set(
+        entries
+          .filter(
+            ({ name, type }) =>
+              !(
+                editingCategory?.name === name &&
+                editingCategory.type === type
+              ),
+          )
+          .map(({ name, type }) => getCategoryIcon(name, type)),
+      ),
+    ];
+  }, [editingCategory, expenseCategories, getCategoryIcon, incomeCategories]);
+
+  const usedColors = useMemo(() => {
+    const entries = [
+      ...incomeCategories.map((name) => ({ name, type: "income" as const })),
+      ...expenseCategories.map((name) => ({ name, type: "expense" as const })),
+    ];
+    return [
+      ...new Set(
+        entries
+          .filter(
+            ({ name, type }) =>
+              !(
+                editingCategory?.name === name &&
+                editingCategory.type === type
+              ),
+          )
+          .map(({ name, type }) => getCategoryColorForType(name, type)),
+      ),
+    ];
+  }, [editingCategory, expenseCategories, getCategoryColorForType, incomeCategories]);
+
   const handleSelectType = (type: TransactionType) => {
     setSelectedType(type);
     handleCloseEdit();
@@ -252,6 +292,8 @@ export function useCategoryManagement(activeTab: TransactionType) {
     getCategoryColor: getCategoryColorForType,
     iconOptions,
     colorOptions,
+    usedIcons,
+    usedColors,
     isDeleteOpen: pendingDelete !== null,
     deletingCategory: pendingDelete,
     deleteAffectCount,

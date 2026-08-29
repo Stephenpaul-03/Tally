@@ -3,92 +3,18 @@ import { useAppDispatch } from "@/hooks/Redux";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemeMode } from "@/hooks/use-theme-mode";
+import { clearAllTransactionsAsync } from "@/modules/Core/Slices/TransactionSlice";
 import {
-    clearAllTransactionsAsync,
-} from "@/modules/Core/Slices/TransactionSlice";
-import {
-    DailyFinanceReminderFrequency,
-    DailyFinanceReminderTone,
-    MonthlyInsightTiming,
-    NotificationPermissionStatus,
-    useNotifications,
+  DailyFinanceReminderFrequency,
+  DailyFinanceReminderTone,
+  MonthlyInsightTiming,
+  NotificationPermissionStatus,
+  useNotifications,
 } from "@/src/services/notifications";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import type { ModeOption } from "./Constants";
-
-export function useDevTools() {
-  const notifications = useNotifications();
-
-  const triggerTestNotification = async (
-    label: string,
-    action: () => Promise<string | null>,
-  ) => {
-    try {
-      const notificationId = await action();
-      if (!notificationId) {
-        toast.info(
-          "Notifications are off. Tally can open system settings if you'd like to enable them.",
-        );
-        return;
-      }
-      toast.success(`${label}. A test notification should appear in a moment.`);
-    } catch {
-      toast.error("Couldn't send test notification");
-    }
-  };
-
-  const notificationPermissionLabel =
-    notifications.permission.status === NotificationPermissionStatus.Granted
-      ? "Allowed"
-      : notifications.permission.status === NotificationPermissionStatus.Denied
-        ? "Denied"
-        : "Not asked yet";
-
-  const handleRefreshNotificationPermission = async () => {
-    try {
-      const permission = await notifications.refreshPermissionStatus();
-      const statusLabel =
-        permission.status === NotificationPermissionStatus.Granted
-          ? "allowed"
-          : permission.status === NotificationPermissionStatus.Denied
-            ? "denied"
-            : "not asked yet";
-      toast.info(`Notification permission is ${statusLabel}`);
-    } catch {
-      toast.error("Couldn't refresh notification permission");
-    }
-  };
-
-  const handleOpenNotificationSettings = async () => {
-    try {
-      await notifications.openSystemSettings();
-    } catch {
-      toast.error("Couldn't open system settings");
-    }
-  };
-
-  const handleTestDailyReminder = async () => {
-    await triggerTestNotification("Testing daily reminder", () =>
-      notifications.sendTestDailyFinanceReminder(),
-    );
-  };
-
-  const handleTestMonthlyInsight = async () => {
-    await triggerTestNotification("Testing monthly insight", () =>
-      notifications.sendTestMonthlyInsightPrompt(),
-    );
-  };
-
-  return {
-    notificationPermissionLabel,
-    handleRefreshNotificationPermission,
-    handleOpenNotificationSettings,
-    handleTestDailyReminder,
-    handleTestMonthlyInsight,
-  };
-}
+import type { ModeOption } from "./Modals/AppearanceModal";
 
 export function useSettings() {
   const dispatch = useAppDispatch();
@@ -213,10 +139,13 @@ export function useSettings() {
     }
   };
 
-  const handleDailyReminderTimeChange = async (time: {
-    hour: number;
-    minute: number;
-  }, index = 0) => {
+  const handleDailyReminderTimeChange = async (
+    time: {
+      hour: number;
+      minute: number;
+    },
+    index = 0,
+  ) => {
     try {
       await notifications.setDailyReminderTime(time, index);
       toast.success("Reminder time updated");
@@ -355,7 +284,9 @@ export function useSettings() {
 
   const handleNotificationPermissionPress = async () => {
     try {
-      if (notifications.permission.status === NotificationPermissionStatus.Granted) {
+      if (
+        notifications.permission.status === NotificationPermissionStatus.Granted
+      ) {
         await notifications.refreshPermissionStatus();
         toast.info("Notifications are allowed");
         return;
@@ -363,7 +294,8 @@ export function useSettings() {
 
       const permission = await notifications.ensurePermissions({
         openSettingsOnDeny:
-          notifications.permission.status === NotificationPermissionStatus.Denied,
+          notifications.permission.status ===
+          NotificationPermissionStatus.Denied,
         promptIfNeeded: true,
       });
 

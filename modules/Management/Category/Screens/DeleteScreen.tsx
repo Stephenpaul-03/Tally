@@ -1,8 +1,10 @@
 // from categoryManagement Screen
 import { useStagger } from "@/components/animations/UseStagger";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -10,7 +12,7 @@ import { Animated, Pressable, ScrollView, View } from "react-native";
 import { Text, type MD3Theme } from "react-native-paper";
 import { CategoryTile } from "../Components/CategoryTile";
 
-type DeleteScreenProps = {
+type CategoryDeleteContentProps = {
   management: ReturnType<typeof useCategoryManagement>;
   deletingName: string;
   deletingType: "income" | "expense";
@@ -21,7 +23,8 @@ type DeleteScreenProps = {
   theme: MD3Theme;
   onConfirmDelete: () => void;
   footer?: React.ReactNode;
-  renderHeader: (opts: {
+  modal?: boolean;
+  renderHeader?: (opts: {
     title: string;
     subtitle?: string;
     showBack?: boolean;
@@ -31,7 +34,7 @@ type DeleteScreenProps = {
   }) => React.ReactNode;
 };
 
-export function DeleteScreen({
+function CategoryDeleteContent({
   management,
   deletingName,
   deletingType,
@@ -43,7 +46,8 @@ export function DeleteScreen({
   onConfirmDelete,
   footer,
   renderHeader,
-}: DeleteScreenProps) {
+  modal = false,
+}: CategoryDeleteContentProps) {
   const c = theme.colors;
   const divider = c.outlineVariant;
   const { minimalIconsEnabled } = useAddonPrefs();
@@ -63,7 +67,7 @@ export function DeleteScreen({
 
   return (
     <>
-      {renderHeader({
+      {renderHeader?.({
         title: "Delete category",
         subtitle: "Cannot be undone",
         showBack: true,
@@ -145,7 +149,13 @@ export function DeleteScreen({
       {deleteDestinations.length > 0 && (
         <>
           <SectionLabel label="Move transactions to"/>
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
+          <View
+            style={{
+              flex: modal ? 0 : 1,
+              marginHorizontal: 12,
+              maxHeight: modal ? 280 : undefined,
+            }}
+          >
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
@@ -200,7 +210,7 @@ export function DeleteScreen({
           style={{
             flexDirection: "row",
             margin: 12,
-            marginTop: "auto",
+            marginTop: modal ? 0 : "auto",
           }}
         >
           <Pressable
@@ -238,5 +248,77 @@ export function DeleteScreen({
         </View>
       )}
     </>
+  );
+}
+
+type CategoryDeleteScreenProps = Omit<
+  CategoryDeleteContentProps,
+  "renderHeader"
+> & {
+  onBack: () => void;
+};
+
+type CategoryDeleteModalProps = Omit<
+  CategoryDeleteContentProps,
+  "renderHeader"
+> & {
+  onBack: () => void;
+  visible?: boolean;
+  embedded?: boolean;
+};
+
+export function CategoryDeleteScreen({
+  onBack,
+  ...props
+}: CategoryDeleteScreenProps) {
+  return (
+    <>
+      <SettingsHeader title="Delete category" onBack={onBack} />
+      <CategoryDeleteContent {...props} />
+    </>
+  );
+}
+
+export function CategoryDeleteModal({
+  onBack,
+  visible = true,
+  embedded = false,
+  ...props
+}: CategoryDeleteModalProps) {
+  const content = (
+    <>
+      <SettingsHeader title="Delete category" onBack={onBack} modal />
+      <CategoryDeleteContent {...props} modal />
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onBack}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: props.theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        justifyContent: "flex-start",
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+    >
+      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
+        <View
+          style={{
+            backgroundColor: props.theme.colors.outlineVariant,
+            borderRadius: 999,
+            height: 4,
+            width: 42,
+          }}
+        />
+      </View>
+      {content}
+    </AnimatedPaperModal>
   );
 }

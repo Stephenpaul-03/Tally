@@ -61,7 +61,6 @@ export interface FinanceRepository {
     type: "income" | "expense",
   ): Promise<void>;
   softDeleteCategory(id: number): Promise<void>;
-  deleteUnusedCategories(): Promise<{ income: number; expense: number }>;
 
   // Account methods
   getAccounts(): Promise<Account[]>;
@@ -76,7 +75,6 @@ export interface FinanceRepository {
   reassignAccountTransactions(fromName: string, toName: string): Promise<void>;
   softDeleteAccount(id: number): Promise<void>;
   updateAccountOrder(names: string[]): Promise<void>;
-  deleteUnusedAccounts(): Promise<number>;
 
   // Budget methods
   getBudget(): Promise<BudgetSettings>;

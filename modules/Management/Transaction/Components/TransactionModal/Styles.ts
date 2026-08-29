@@ -321,7 +321,8 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
     iosAmountWrap: {
       alignItems: "center",
       gap: 2,
-      paddingVertical: 30,
+      paddingTop: 15,
+      paddingBottom: 15,
     },
     iosAmount: {
       color: colors.onSurface,

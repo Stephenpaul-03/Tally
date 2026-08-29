@@ -1,12 +1,10 @@
-/* eslint-disable react/no-unescaped-entities */
 import { AlertModal } from "@/components/alert/AlertModal";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { usePasswordPrompt } from "@/components/PasswordPrompt";
 import { toast } from "@/components/toast/ToastProvider";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
 import type { ImportPreview } from "@/hooks/use-import-export";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import {
   Animated,
@@ -16,13 +14,8 @@ import {
   View,
 } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import type { SettingsStackParamList } from "../Navigation";
-import { SettingsStyles } from "../Styles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,8 +24,6 @@ type Transaction = { date: string; amount: number; type?: string };
 // ─── Summary helpers ──────────────────────────────────────────────────────────
 
 function buildSummary(transactions: Transaction[]) {
-  let totalIncome = 0;
-  let totalExpense = 0;
   const monthSet = new Set<string>();
 
   for (const tx of transactions) {
@@ -44,85 +35,52 @@ function buildSummary(transactions: Transaction[]) {
         );
       }
     }
-    const amt = typeof tx.amount === "number" ? Math.abs(tx.amount) : 0;
-    const txType = tx.type?.toLowerCase();
-    const isExpense =
-      txType === "expense" ||
-      txType === "debit" ||
-      (txType == null && tx.amount < 0);
-    if (isExpense) totalExpense += amt;
-    else totalIncome += amt;
   }
 
   const months = Array.from(monthSet).sort(
     (a, b) => new Date(a).getTime() - new Date(b).getTime(),
   );
 
-  return { totalIncome, totalExpense, months };
+  return { months };
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-// ─── Animated stat box ────────────────────────────────────────────────────────
-
-function StatBox({
+function SummaryRow({
   label,
   value,
-  color,
   icon,
 }: {
   label: string;
   value: string;
-  color: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }) {
   const theme = useTheme();
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(8)).current;
-
-  React.useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 320,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
 
   return (
-    <Animated.View
-      style={[
-        styles.statBox,
-        {
-          backgroundColor: theme.colors.elevation.level2,
-          borderColor: theme.colors.outlineVariant,
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={[styles.statIconWrap, { backgroundColor: `${color}18` }]}>
-        <MaterialCommunityIcons name={icon} size={16} color={color} />
+    <View style={styles.summaryRow}>
+      <View
+        style={[
+          styles.summaryRowIcon,
+          { backgroundColor: theme.colors.primaryContainer },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={17}
+          color={theme.colors.onPrimaryContainer}
+        />
       </View>
       <Text
-        style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+        style={[
+          styles.summaryRowLabel,
+          { color: theme.colors.onSurfaceVariant },
+        ]}
       >
         {label}
       </Text>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-    </Animated.View>
+      <Text style={[styles.summaryRowValue, { color: theme.colors.onSurface }]}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -171,7 +129,7 @@ function EmptyState({
           borderColor: isLoading
             ? theme.colors.primary
             : theme.colors.outlineVariant,
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: theme.colors.surface,
           opacity: pressed ? 0.85 : 1,
         },
       ]}
@@ -253,17 +211,12 @@ function FilePreviewCard({
     }).start();
   }, [fadeAnim]);
 
-  const fileSizeText =
-    typeof preview.fileSize === "number"
-      ? `${Math.max(1, Math.round(preview.fileSize / 1024))} KB`
-      : null;
-
   return (
     <Animated.View
       style={[
         styles.fileCard,
         {
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: theme.colors.surface,
           borderColor: theme.colors.primary,
           opacity: fadeAnim,
         },
@@ -292,38 +245,6 @@ function FilePreviewCard({
             {preview.fileName}
           </Text>
           <View style={styles.fileCardPills}>
-            <View
-              style={[
-                styles.metaPill,
-                { backgroundColor: theme.colors.elevation.level3 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.metaPillText,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
-              >
-                {preview.transactionCount} transactions
-              </Text>
-            </View>
-            {fileSizeText ? (
-              <View
-                style={[
-                  styles.metaPill,
-                  { backgroundColor: theme.colors.elevation.level3 },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.metaPillText,
-                    { color: theme.colors.onSurfaceVariant },
-                  ]}
-                >
-                  {fileSizeText}
-                </Text>
-              </View>
-            ) : null}
             {preview.wasEncrypted ? (
               <View
                 style={[
@@ -386,30 +307,47 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
       style={[
         styles.summaryCard,
         {
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outlineVariant,
         },
       ]}
     >
-      <Text
-        style={[styles.summaryCardTitle, { color: theme.colors.onSurface }]}
+      <View
+        style={[
+          styles.summaryRows,
+          { backgroundColor: theme.colors.surfaceVariant },
+        ]}
       >
-        What's inside
-      </Text>
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <StatBox
-          label="Income"
-          value={`+${formatCurrency(summary.totalIncome)}`}
-          color="#4ADE80"
-          icon="trending-up"
+        <SummaryRow
+          label="Transactions"
+          value={preview.transactionCount.toLocaleString()}
+          icon="swap-vertical"
         />
-        <StatBox
-          label="Expenses"
-          value={`-${formatCurrency(summary.totalExpense)}`}
-          color="#F87171"
-          icon="trending-down"
+        <View
+          style={[
+            styles.summaryDivider,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+        <SummaryRow
+          label="File size"
+          value={
+            typeof preview.fileSize === "number"
+              ? `${Math.max(1, Math.round(preview.fileSize / 1024))} KB`
+              : "—"
+          }
+          icon="file-document-outline"
+        />
+        <View
+          style={[
+            styles.summaryDivider,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+        <SummaryRow
+          label="Months covered"
+          value={summary.months.length ? `${summary.months.length}` : "—"}
+          icon="calendar-month-outline"
         />
       </View>
 
@@ -428,8 +366,7 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
                 { color: theme.colors.onSurfaceVariant },
               ]}
             >
-              {summary.months.length}{" "}
-              {summary.months.length === 1 ? "month" : "months"} covered
+              Dates included
             </Text>
           </View>
           <ScrollView
@@ -443,7 +380,7 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
                 style={[
                   styles.monthChip,
                   {
-                    backgroundColor: theme.colors.elevation.level2,
+                    backgroundColor: theme.colors.surfaceVariant,
                     borderColor: theme.colors.outlineVariant,
                   },
                 ]}
@@ -463,15 +400,7 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
       ) : null}
 
       {/* Safe-to-import notice */}
-      <View
-        style={[
-          styles.safeNotice,
-          {
-            backgroundColor: theme.colors.elevation.level2,
-            borderColor: theme.colors.outlineVariant,
-          },
-        ]}
-      >
+      <View style={[styles.safeNotice]}>
         <MaterialCommunityIcons
           name="shield-check-outline"
           size={14}
@@ -483,20 +412,24 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
             { color: theme.colors.onSurfaceVariant },
           ]}
         >
-          Importing adds data — nothing in your account will be removed
+          Importing adds data - nothing will be removed
         </Text>
       </View>
     </View>
   );
 }
 
-// ─── BackupImportScreen ───────────────────────────────────────────────────────
+type BackupImportModalProps = {
+  visible: boolean;
+  onDismiss: () => void;
+};
 
-export function BackupImportScreen() {
+export function BackupImportModal({
+  visible,
+  onDismiss,
+}: BackupImportModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
 
   const { promptPassword, PasswordPromptModal } = usePasswordPrompt();
   const dataTransfer = useDataTransferControls(undefined, { promptPassword });
@@ -505,6 +438,21 @@ export function BackupImportScreen() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isPickingFile, setIsPickingFile] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
+
+  const handleDismiss = React.useCallback(() => {
+    // A preview is temporary. Closing the sheet without importing must not
+    // leave the previously selected backup attached when it is reopened.
+    setConfirmOpen(false);
+    setPreview(null);
+    onDismiss();
+  }, [onDismiss]);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setConfirmOpen(false);
+      setPreview(null);
+    }
+  }, [visible]);
 
   const handleSelectFile = React.useCallback(async () => {
     if (isPickingFile) return;
@@ -531,7 +479,7 @@ export function BackupImportScreen() {
       await dataTransfer.confirmImportPreview(preview.normalizedTransactions);
       setConfirmOpen(false);
       setPreview(null);
-      navigation.goBack();
+      handleDismiss();
       return true;
     } catch (e) {
       console.error("Import failed:", e);
@@ -540,20 +488,32 @@ export function BackupImportScreen() {
     } finally {
       setIsImporting(false);
     }
-  }, [dataTransfer, isImporting, navigation, preview]);
+  }, [dataTransfer, handleDismiss, isImporting, preview]);
 
   return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
-      ]}
-      edges={["top", "left", "right"]}
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={handleDismiss}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+      keyboardAware
+      includeBottomInset={false}
     >
-      <SettingsHeader
-        title="Restore Backup"
-        onBack={() => navigation.goBack()}
-      />
+      <View style={styles.handleWrap}>
+        <View
+          style={[
+            styles.handle,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+      </View>
+      <SettingsHeader title="Restore Backup" onBack={handleDismiss} modal />
 
       <ScrollView
         contentContainerStyle={[
@@ -578,15 +538,7 @@ export function BackupImportScreen() {
         {preview ? (
           <SummaryCard preview={preview} />
         ) : (
-          <View
-            style={[
-              styles.hintsCard,
-              {
-                backgroundColor: theme.colors.elevation.level1,
-                borderColor: theme.colors.outlineVariant,
-              },
-            ]}
-          >
+          <View style={styles.hintsCard}>
             {[
               {
                 icon: "eye-outline" as const,
@@ -667,17 +619,25 @@ export function BackupImportScreen() {
         confirmDisabled={!preview || isImporting}
         icon="file-import-outline"
       />
-    </SafeAreaView>
+    </AnimatedPaperModal>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  handle: {
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 10,
+  },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 12,
+    paddingHorizontal: 20,
+    gap: 10,
   },
 
   // Step indicator
@@ -771,10 +731,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: -0.1,
+    textAlign: "center",
   },
   fileCardPills: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "center",
     gap: 5,
   },
   metaPill: {
@@ -800,45 +762,65 @@ const styles = StyleSheet.create({
 
   // Summary card
   summaryCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
-    gap: 14,
+    padding: 20,
+    gap: 20,
+    marginBottom: 5,
   },
   summaryCardTitle: {
     fontSize: 14,
     fontWeight: "700",
     letterSpacing: 0.1,
   },
-  statsRow: {
+  summaryCardSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  summaryHeader: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
-  statBox: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    gap: 4,
+  summaryHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statIconWrap: {
+  summaryHeaderText: {
+    flex: 1,
+  },
+  summaryRows: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  summaryRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  summaryRowIcon: {
     width: 28,
     height: 28,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 2,
   },
-  statLabel: {
-    fontSize: 11,
+  summaryRowLabel: {
+    flex: 1,
+    fontSize: 13,
     fontWeight: "600",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
   },
-  statValue: {
-    fontSize: 16,
+  summaryRowValue: {
+    fontSize: 14,
     fontWeight: "700",
-    letterSpacing: -0.3,
+  },
+  summaryDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 38,
   },
 
   // Months
@@ -875,12 +857,9 @@ const styles = StyleSheet.create({
   // Safe notice
   safeNotice: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 20,
   },
   safeNoticeText: {
     flex: 1,
@@ -891,7 +870,6 @@ const styles = StyleSheet.create({
   // Hints card (empty state)
   hintsCard: {
     borderRadius: 16,
-    borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 12,

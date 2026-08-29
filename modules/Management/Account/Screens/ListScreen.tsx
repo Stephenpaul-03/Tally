@@ -19,7 +19,7 @@ import { Text, TouchableRipple } from "react-native-paper";
 import { AccountModalHeader } from "../Components/ModalHeader";
 import { PROTECTED_ACCOUNTS } from "../Constants";
 
-interface AccountListScreenProps {
+interface AccountListContentProps {
   management: ReturnType<typeof useAccountManagement>;
   selectedAccount?: string;
   onSelectAccount?: (account: string) => void;
@@ -29,7 +29,7 @@ interface AccountListScreenProps {
   onBack: () => void;
   onClose: () => void;
   theme: MD3Theme;
-  useSettingsHeader?: boolean;
+  useSettingsHeader: boolean;
 }
 
 type AccountSortField = "name" | "usage";
@@ -55,7 +55,7 @@ const ACCOUNT_SORT_OPTIONS: {
   },
 ];
 
-export function AccountListScreen({
+function AccountListContent({
   management,
   selectedAccount,
   onSelectAccount,
@@ -65,8 +65,8 @@ export function AccountListScreen({
   onBack,
   onClose,
   theme,
-  useSettingsHeader = false,
-}: AccountListScreenProps) {
+  useSettingsHeader,
+}: AccountListContentProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
@@ -384,5 +384,25 @@ export function AccountListScreen({
         onDirectionChange={(direction) => setSortDirection(direction)}
       />
     </View>
+  );
+}
+
+type AccountListScreenProps = Omit<
+  AccountListContentProps,
+  "useSettingsHeader" | "showBack" | "hideCloseButton"
+>;
+
+type AccountListModalProps = Omit<AccountListContentProps, "useSettingsHeader">;
+
+export function AccountListScreen(props: AccountListScreenProps) {
+  return <AccountListContent {...props} useSettingsHeader />;
+}
+
+export function AccountListModal(props: AccountListModalProps) {
+  return (
+    <AccountListContent
+      {...props}
+      useSettingsHeader={Boolean(props.onSelectAccount)}
+    />
   );
 }

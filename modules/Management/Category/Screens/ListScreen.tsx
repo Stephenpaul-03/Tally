@@ -8,6 +8,8 @@ import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { CategoryManagementStyles } from "../Styles";
+import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
 import type { TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,6 +19,23 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TouchableRipple, type MD3Theme } from "react-native-paper";
 import { CategoryTile } from "../Components/CategoryTile";
 
+type CategoryListHeaderOptions = {
+  title: string;
+  subtitle?: string;
+  showBack?: boolean;
+  accentColor?: string;
+  iconName?: string;
+  rightAccessory?: React.ReactNode;
+  rightAccessoryBeforeSearch?: React.ReactNode;
+  centerContent?: React.ReactNode;
+  hideBack?: boolean;
+  searchOpen?: boolean;
+  query?: string;
+  onQueryChange?: (value: string) => void;
+  onSearchOpenChange?: (value: boolean) => void;
+  searchPlaceholder?: string;
+};
+
 type ListScreenProps = {
   management: ReturnType<typeof useCategoryManagement>;
   listHeight: number;
@@ -25,22 +44,7 @@ type ListScreenProps = {
   useSettingsHeader?: boolean;
   selectedValue?: string;
   onSelectCategory?: (name: string) => void;
-  renderHeader: (opts: {
-    title: string;
-    subtitle?: string;
-    showBack?: boolean;
-    accentColor?: string;
-    iconName?: string;
-    rightAccessory?: React.ReactNode;
-    rightAccessoryBeforeSearch?: React.ReactNode;
-    centerContent?: React.ReactNode;
-    hideBack?: boolean;
-    searchOpen?: boolean;
-    query?: string;
-    onQueryChange?: (value: string) => void;
-    onSearchOpenChange?: (value: boolean) => void;
-    searchPlaceholder?: string;
-  }) => React.ReactNode;
+  renderHeader: (opts: CategoryListHeaderOptions) => React.ReactNode;
 };
 
 type CategorySortField = "name" | "usage";
@@ -66,7 +70,7 @@ const CATEGORY_SORT_OPTIONS: {
   },
 ];
 
-export function ListScreen({
+function CategoryListContent({
   management,
   listHeight,
   theme,
@@ -427,6 +431,130 @@ export function ListScreen({
         onDirectionChange={(direction) => setSortDirection(direction)}
       />
     </View>
+  );
+}
+
+type CategoryListProps = Omit<
+  ListScreenProps,
+  "renderHeader" | "useSettingsHeader"
+>;
+
+export function CategoryListScreen({
+  onBack,
+  ...props
+}: CategoryListProps & { onBack: () => void }) {
+  return (
+    <CategoryListContent
+      {...props}
+      pickerMode={false}
+      useSettingsHeader
+      renderHeader={(options) => (
+        <SettingsHeader
+          title={options.title}
+          onBack={onBack}
+          searchOpen={options.searchOpen}
+          query={options.query}
+          onQueryChange={options.onQueryChange}
+          onSearchOpenChange={options.onSearchOpenChange}
+          searchPlaceholder={options.searchPlaceholder}
+          rightAccessory={options.rightAccessory}
+          rightAccessoryBeforeSearch={options.rightAccessoryBeforeSearch}
+        />
+      )}
+    />
+  );
+}
+
+export function CategoryListModal({
+  onBack,
+  onClose,
+  pickerMode = false,
+  ...props
+}: CategoryListProps & {
+  onBack: () => void;
+  onClose: () => void;
+  pickerMode?: boolean;
+}) {
+  return (
+    <CategoryListContent
+      {...props}
+      pickerMode={pickerMode}
+      useSettingsHeader={pickerMode}
+      renderHeader={(options) =>
+        pickerMode ? (
+          <SettingsHeader
+            title={options.title}
+            onBack={onBack}
+            searchOpen={options.searchOpen}
+            query={options.query}
+            onQueryChange={options.onQueryChange}
+            onSearchOpenChange={options.onSearchOpenChange}
+            searchPlaceholder={options.searchPlaceholder}
+            rightAccessory={options.rightAccessory}
+            rightAccessoryBeforeSearch={options.rightAccessoryBeforeSearch}
+            modal
+          />
+        ) : (
+          <View
+            style={[
+              CategoryManagementStyles.header,
+              { borderBottomColor: props.theme.colors.outlineVariant },
+            ]}
+          >
+            <View
+              style={[
+                CategoryManagementStyles.headerIconBadge,
+                { backgroundColor: props.theme.colors.elevation.level1 },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="tag-multiple-outline"
+                size={17}
+                color={props.theme.colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  CategoryManagementStyles.headerTitle,
+                  { color: props.theme.colors.onSurface },
+                ]}
+                numberOfLines={1}
+              >
+                {options.title}
+              </Text>
+              <Text
+                style={[
+                  CategoryManagementStyles.headerSubtitle,
+                  { color: props.theme.colors.onSurfaceVariant },
+                ]}
+              >
+                {options.subtitle}
+              </Text>
+            </View>
+            {options.rightAccessory}
+            <TouchableRipple
+              onPress={onClose}
+              borderless
+              style={[
+                CategoryManagementStyles.headerBtn,
+                CategoryManagementStyles.headerBtnRound,
+                {
+                  backgroundColor: props.theme.colors.elevation.level1,
+                  borderColor: props.theme.colors.outlineVariant,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={17}
+                color={props.theme.colors.onSurfaceVariant}
+              />
+            </TouchableRipple>
+          </View>
+        )
+      }
+    />
   );
 }
 

@@ -15,6 +15,8 @@ type Props = {
   setLocalColor: (v: string) => void;
   allColors: string[];
   allIcons: string[];
+  usedColors?: string[];
+  usedIcons?: string[];
   iconGrid: IconGrid;
   canSubmitEdit: boolean;
   bg: string;
@@ -26,7 +28,7 @@ type Props = {
   visible?: boolean;
 };
 
-export function CategoryEditScreen({
+function CategoryEditContent({
   management,
   localName,
   setLocalName,
@@ -36,6 +38,8 @@ export function CategoryEditScreen({
   setLocalColor,
   allColors,
   allIcons,
+  usedColors,
+  usedIcons,
   iconGrid,
   canSubmitEdit,
   bg,
@@ -108,6 +112,8 @@ export function CategoryEditScreen({
     <EntityEditLayout
       allColors={allColors}
       allIcons={allIcons}
+      usedColors={usedColors}
+      usedIcons={usedIcons}
       background={bg}
       canSubmit={canSubmitEdit}
       deleteAccessory={deleteAccessory}
@@ -130,6 +136,31 @@ export function CategoryEditScreen({
       submitLabelCreate="Add category"
       submitLabelEdit="Save changes"
       theme={theme}
+      visible={visible}
+    />
+  );
+}
+
+type CategoryEditScreenProps = Omit<Props, "presentation" | "visible">;
+type CategoryEditModalProps = Omit<Props, "presentation"> & {
+  embedded?: boolean;
+};
+
+export function CategoryEditScreen(props: CategoryEditScreenProps) {
+  return (
+    <CategoryEditContent {...props} presentation="screen" visible />
+  );
+}
+
+export function CategoryEditModal({
+  visible = true,
+  embedded = false,
+  ...props
+}: CategoryEditModalProps) {
+  return (
+    <CategoryEditContent
+      {...props}
+      presentation={embedded ? "screen" : "modal"}
       visible={visible}
     />
   );

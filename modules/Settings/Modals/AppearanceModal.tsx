@@ -1,18 +1,38 @@
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
 import type { THEME_PRESETS, ThemeId } from "@/theme/presets";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Switch, Text, useTheme } from "react-native-paper";
-import { MODE_OPTIONS, type ModeOption } from "../Constants";
+import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Text, useTheme } from "react-native-paper";
+import { SectionLabel } from "../Components/SectionLabel";
+import { SettingsHeader } from "../Components/SettingsHeader";
+import { useSettings } from "../hooks";
 import { SettingsStyles } from "../Styles";
-import { SectionLabel } from "./SectionLabel";
+
+export type ModeOption = "light" | "dark" | "system";
+
+const MODE_OPTIONS: { id: ModeOption; label: string; icon: string }[] = [
+  { id: "light", label: "Light", icon: "weather-sunny" },
+  { id: "dark", label: "Dark", icon: "weather-night" },
+  { id: "system", label: "System", icon: "cellphone-cog" },
+];
+
+type SheetProps = {
+  visible: boolean;
+  onDismiss: () => void;
+};
+
+type ContentProps = {
+  modal?: boolean;
+  onBack: () => void;
+};
 
 type ThemeOption = [ThemeId, (typeof THEME_PRESETS)[ThemeId]];
 const ACCENT_GAP = 8;
 const ACCENT_COLS = 3;
 
-type Props = {
+type AppearanceSectionProps = {
   activeModeId: ModeOption;
   onModeSelect: (id: ModeOption) => void;
   themeId: ThemeId;
@@ -22,7 +42,7 @@ type Props = {
   onTrueBlackChange: (enabled: boolean) => void;
 };
 
-export function AppearanceSection({
+function AppearanceSection({
   activeModeId,
   onModeSelect,
   themeId,
@@ -30,7 +50,7 @@ export function AppearanceSection({
   themeOptions,
   trueBlack,
   onTrueBlackChange,
-}: Props) {
+}: AppearanceSectionProps) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = React.useState(0);
   const cardWidth =
@@ -42,7 +62,7 @@ export function AppearanceSection({
   return (
     <>
       <SectionLabel label="Main theme" />
-      <SheetCard theme={theme} style={local.cardContent}>
+      <SheetCard theme={theme} style={appearanceStyles.cardContent}>
         <View style={SettingsStyles.segRow}>
           {MODE_OPTIONS.map((opt) => {
             const active = activeModeId === opt.id;
@@ -88,7 +108,7 @@ export function AppearanceSection({
         </View>
         <View
           style={[
-            local.cardDivider,
+            appearanceStyles.cardDivider,
             { backgroundColor: theme.colors.outlineVariant },
           ]}
         />
@@ -96,7 +116,7 @@ export function AppearanceSection({
           onPress={() => onTrueBlackChange(!trueBlack)}
           style={({ pressed }) => [
             SettingsStyles.row,
-            local.amoledRow,
+            appearanceStyles.amoledRow,
             { opacity: pressed ? 0.65 : 1 },
           ]}
         >
@@ -112,10 +132,7 @@ export function AppearanceSection({
               <Text
                 style={[
                   SettingsStyles.rowTitle,
-                  {
-                    color: theme.colors.onSurface,
-                    fontWeight: "700",
-                  },
+                  { color: theme.colors.onSurface, fontWeight: "700" },
                 ]}
               >
                 AMOLED dark mode
@@ -135,9 +152,9 @@ export function AppearanceSection({
       </SheetCard>
 
       <SectionLabel label="Accent colors" />
-      <SheetCard theme={theme} style={local.cardContent}>
+      <SheetCard theme={theme} style={appearanceStyles.cardContent}>
         <View
-          style={local.accentGrid}
+          style={appearanceStyles.accentGrid}
           onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
         >
           {themeOptions.map(([id, preset]) => {
@@ -147,7 +164,7 @@ export function AppearanceSection({
                 key={id}
                 onPress={() => onThemeSelect(id)}
                 style={[
-                  local.accentCard,
+                  appearanceStyles.accentCard,
                   cardWidth != null && { width: cardWidth },
                   {
                     backgroundColor: active
@@ -160,7 +177,7 @@ export function AppearanceSection({
               >
                 <View
                   style={[
-                    local.swatchDot,
+                    appearanceStyles.swatchDot,
                     { backgroundColor: preset.primarySeed },
                   ]}
                 >
@@ -174,7 +191,7 @@ export function AppearanceSection({
                 </View>
                 <Text
                   style={[
-                    local.accentLabel,
+                    appearanceStyles.accentLabel,
                     {
                       color: active
                         ? theme.colors.onPrimaryContainer
@@ -194,7 +211,95 @@ export function AppearanceSection({
   );
 }
 
-const local = StyleSheet.create({
+function SheetShell({
+  children,
+  onDismiss,
+  visible,
+}: SheetProps & {
+  children: React.ReactNode;
+}) {
+  const theme = useTheme();
+
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onDismiss}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+      includeBottomInset={false}
+    >
+      <View style={styles.handleWrap}>
+        <View
+          style={[
+            styles.handle,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+      </View>
+      {children}
+    </AnimatedPaperModal>
+  );
+}
+
+function AppearanceContent({ modal = false, onBack }: ContentProps) {
+  const {
+    activeModeId,
+    handleModeSelect,
+    setThemeId,
+    setTrueBlack,
+    themeId,
+    themeOptions,
+    trueBlack,
+  } = useSettings();
+
+  return (
+    <>
+      <SettingsHeader title="Appearance" onBack={onBack} modal={modal} />
+      <ScrollView
+        contentContainerStyle={SettingsStyles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <AppearanceSection
+          activeModeId={activeModeId}
+          onModeSelect={handleModeSelect}
+          themeId={themeId}
+          onThemeSelect={setThemeId}
+          themeOptions={themeOptions}
+          trueBlack={trueBlack}
+          onTrueBlackChange={setTrueBlack}
+        />
+      </ScrollView>
+    </>
+  );
+}
+
+export function AppearanceModal({ visible, onDismiss }: SheetProps) {
+  return (
+    <SheetShell visible={visible} onDismiss={onDismiss}>
+      <AppearanceContent modal onBack={onDismiss} />
+    </SheetShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  handle: {
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 10,
+  },
+});
+
+const appearanceStyles = StyleSheet.create({
   accentGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

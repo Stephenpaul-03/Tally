@@ -1016,30 +1016,6 @@ const transactionSlice = createSlice({
         state.transactionDrafts = [];
         state.activeTransactionDraftId = null;
       })
-      .addCase(deleteUnusedCategoriesAsync.fulfilled, (state) => {
-        const usedIncome = new Set(
-          state.transactions
-            .filter((transaction) => transaction.type === "income")
-            .map((transaction) => transaction.category),
-        );
-        const usedExpense = new Set(
-          state.transactions
-            .filter((transaction) => transaction.type === "expense")
-            .map((transaction) => transaction.category),
-        );
-        state.incomeCategories = state.incomeCategories.filter((name) =>
-          usedIncome.has(name),
-        );
-        state.expenseCategories = state.expenseCategories.filter((name) =>
-          usedExpense.has(name),
-        );
-      })
-      .addCase(deleteUnusedAccountsAsync.fulfilled, (state) => {
-        const usedAccounts = new Set(
-          state.transactions.map((transaction) => transaction.account),
-        );
-        state.accounts = state.accounts.filter((name) => usedAccounts.has(name));
-      })
       .addCase(resetWorkspaceDataAsync.fulfilled, (state) => {
         state.transactions = [];
         state.transactionDrafts = [];
@@ -1360,22 +1336,6 @@ export const clearTransactionsForDateRangeAsync = createAsyncThunk(
   async ({ startDate, endDate }: { startDate: string; endDate: string }) => {
     if (!financeRepository) throw new Error("Repository not available");
     await financeRepository.clearTransactionsForDateRange(startDate, endDate);
-  },
-);
-
-export const deleteUnusedCategoriesAsync = createAsyncThunk(
-  "transactions/deleteUnusedCategories",
-  async () => {
-    if (!financeRepository) throw new Error("Repository not available");
-    return await financeRepository.deleteUnusedCategories();
-  },
-);
-
-export const deleteUnusedAccountsAsync = createAsyncThunk(
-  "transactions/deleteUnusedAccounts",
-  async () => {
-    if (!financeRepository) throw new Error("Repository not available");
-    return await financeRepository.deleteUnusedAccounts();
   },
 );
 

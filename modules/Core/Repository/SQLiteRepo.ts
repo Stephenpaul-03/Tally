@@ -1164,40 +1164,6 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     );
   }
 
-  async deleteUnusedCategories(): Promise<{
-    income: number;
-    expense: number;
-  }> {
-    const rows = await db.getAllAsync<{
-      id: number;
-      type: "income" | "expense";
-    }>(
-      `SELECT c.id, c.type
-       FROM categories c
-       LEFT JOIN transactions t
-        ON t.category_id = c.id AND t.workspace_id = c.workspace_id
-       WHERE c.workspace_id = ? AND c.is_deleted = 0
-       GROUP BY c.id
-       HAVING COUNT(t.id) = 0`,
-      [this.workspaceId],
-    );
-
-    for (const row of rows) {
-      await db.runAsync(
-        "UPDATE categories SET is_deleted = 1 WHERE id = ? AND workspace_id = ?",
-        [row.id, this.workspaceId],
-      );
-    }
-
-    return rows.reduce(
-      (counts, row) => ({
-        ...counts,
-        [row.type]: counts[row.type] + 1,
-      }),
-      { income: 0, expense: 0 },
-    );
-  }
-
   async getAccounts(): Promise<Account[]> {
     const rows = await db.getAllAsync<AccountRow>(
       "SELECT * FROM accounts WHERE workspace_id = ? AND is_deleted = 0 ORDER BY sort_order ASC, id ASC",
@@ -1330,28 +1296,6 @@ export class SQLiteFinanceRepository implements FinanceRepository {
         [index, this.workspaceId, names[index]],
       );
     }
-  }
-
-  async deleteUnusedAccounts(): Promise<number> {
-    const rows = await db.getAllAsync<{ id: number }>(
-      `SELECT a.id
-       FROM accounts a
-       LEFT JOIN transactions t
-        ON t.account = a.name AND t.workspace_id = a.workspace_id
-       WHERE a.workspace_id = ? AND a.is_deleted = 0
-       GROUP BY a.id
-       HAVING COUNT(t.id) = 0`,
-      [this.workspaceId],
-    );
-
-    for (const row of rows) {
-      await db.runAsync(
-        "UPDATE accounts SET is_deleted = 1 WHERE id = ? AND workspace_id = ?",
-        [row.id, this.workspaceId],
-      );
-    }
-
-    return rows.length;
   }
 
   async getBudget(): Promise<BudgetSettings> {

@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text } from "react-native";
-import { useTheme } from "react-native-paper";
+import { Portal, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ToastType = "success" | "error" | "info";
@@ -48,7 +48,7 @@ export const toast = {
 
 const BANNER_HEIGHT = 52;
 const HIDE_DURATION = 300;
-const VISIBLE_MS = 2800;
+const VISIBLE_MS = 1800;
 const SPRING_CONFIG = { tension: 65, friction: 11, useNativeDriver: true };
 // How long the horizontal swipe-out + swipe-in takes when already fully open
 const SWAP_DURATION = 160;
@@ -274,7 +274,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <ToastBanner />
+      {/* Render through Paper's portal host so toasts sit above sheets and
+          other modal portals, regardless of the caller's z-index. */}
+      <Portal>
+        <ToastBanner />
+      </Portal>
     </>
   );
 }

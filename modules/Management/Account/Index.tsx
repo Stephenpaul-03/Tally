@@ -5,9 +5,9 @@ import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTheme } from "react-native-paper";
 import { useAccountModalState } from "./Hooks";
-import { AccountDeleteScreen } from "./Screens/DeleteScreen";
-import { AccountEditScreen } from "./Screens/EditScreen";
-import { AccountListScreen } from "./Screens/ListScreen";
+import { AccountDeleteModal } from "./Screens/DeleteScreen";
+import { AccountEditModal } from "./Screens/EditScreen";
+import { AccountListModal } from "./Screens/ListScreen";
 import type { AccountManagementModalProps } from "./Types";
 
 export function AccountManagementModal({
@@ -33,6 +33,8 @@ export function AccountManagementModal({
     localColor,
     allColors,
     allIcons,
+    usedColors,
+    usedIcons,
     canSubmitEdit,
     setLocalName,
     setLocalIcon,
@@ -90,7 +92,7 @@ export function AccountManagementModal({
       )}
 
       {screen === "list" && (
-        <AccountListScreen
+        <AccountListModal
           management={management}
           selectedAccount={selectedAccount}
           onSelectAccount={onSelectAccount}
@@ -98,7 +100,6 @@ export function AccountManagementModal({
           onBack={onSelectAccount ? handleClose : handleBack}
           onClose={handleClose}
           theme={theme}
-          useSettingsHeader={Boolean(onSelectAccount)}
         />
       )}
 
@@ -107,14 +108,16 @@ export function AccountManagementModal({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <AccountEditScreen
-            visible
+          <AccountEditModal
+            embedded
             management={management}
             localName={localName}
             localIcon={localIcon}
             localColor={localColor}
             allColors={allColors}
             allIcons={allIcons}
+            usedColors={usedColors}
+            usedIcons={usedIcons}
             iconGrid={iconGrid}
             canSubmitEdit={canSubmitEdit}
             onChangeName={setLocalName}
@@ -130,7 +133,8 @@ export function AccountManagementModal({
       ) : null}
 
       {screen === "delete" && (
-        <AccountDeleteScreen
+        <AccountDeleteModal
+          embedded
           management={management}
           deletingName={deletingName}
           deleteDestinations={deleteDestinations}

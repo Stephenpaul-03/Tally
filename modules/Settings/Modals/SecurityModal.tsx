@@ -1,21 +1,17 @@
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
+import { toast } from "@/components/toast/ToastProvider";
 import {
   BIOMETRIC_LOCK_TIMEOUT_OPTIONS,
   useBiomettricLock,
 } from "@/hooks/use-biometric-lock";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { BiometricSettingsRow } from "../Components/BiometricSettingsRow";
+import { Switch, Text, useTheme } from "react-native-paper";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
 
 type SecurityContentProps = {
@@ -32,6 +28,90 @@ function formatTimeout(value: number) {
   return (
     BIOMETRIC_LOCK_TIMEOUT_OPTIONS.find((option) => option.value === value)
       ?.label ?? "After 30 seconds"
+  );
+}
+
+function getUnavailableCopy(
+  reason: ReturnType<
+    typeof useBiomettricLock
+  >["availability"]["unavailableReason"],
+) {
+  if (reason === "no-hardware") {
+    return "This device does not support biometric authentication.";
+  }
+  if (reason === "not-enrolled") {
+    return "No Face ID or fingerprint is enrolled on this device.";
+  }
+  if (reason === "error") {
+    return "Biometric availability could not be checked right now.";
+  }
+  return null;
+}
+
+function BiometricSettingsRow() {
+  const theme = useTheme();
+  const {
+    enabled,
+    isHydrated,
+    isAuthenticating,
+    availability,
+    setBiometricLockEnabled,
+  } = useBiomettricLock();
+
+  const unavailableCopy = getUnavailableCopy(availability.unavailableReason);
+  const switchDisabled =
+    !isHydrated ||
+    isAuthenticating ||
+    (availability.checked && Boolean(unavailableCopy));
+
+  const handleToggle = React.useCallback(
+    async (next: boolean) => {
+      const result = await setBiometricLockEnabled(next);
+
+      if (result.enabled === next) {
+        toast.success(
+          next ? "Biometric Lock enabled" : "Biometric Lock disabled",
+        );
+        return;
+      }
+
+      const copy = getUnavailableCopy(result.availability.unavailableReason);
+      toast.info(`Biometric Lock unavailable. ${copy ?? "Please try again."}`);
+    },
+    [setBiometricLockEnabled],
+  );
+
+  return (
+    <>
+      <ActionRow
+        icon="lock-outline"
+        label="Biometric Lock"
+        description="Protect using biometric authentication."
+        onPress={() => void handleToggle(!enabled)}
+        theme={theme}
+        showChevron={false}
+        rightElement={
+          <Switch
+            value={enabled}
+            disabled={switchDisabled}
+            onValueChange={(next) => void handleToggle(next)}
+          />
+        }
+      />
+      {unavailableCopy ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
+          <Text
+            style={{
+              fontSize: 12,
+              lineHeight: 16,
+              color: theme.colors.onSurfaceVariant,
+            }}
+          >
+            {unavailableCopy}
+          </Text>
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -160,23 +240,6 @@ export function SecurityModal({ visible, onDismiss }: SecurityModalProps) {
       </View>
       <SecurityContent modal onBack={onDismiss} />
     </AnimatedPaperModal>
-  );
-}
-
-export function SecurityScreen() {
-  const theme = useTheme();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
-
-  return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
-      <SecurityContent onBack={() => navigation.goBack()} />
-    </SafeAreaView>
   );
 }
 

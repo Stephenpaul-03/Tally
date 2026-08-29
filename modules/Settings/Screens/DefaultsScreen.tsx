@@ -6,6 +6,7 @@ import { toast } from "@/components/toast/ToastProvider";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import type {
   AccountSortFieldDefault,
   BudgetSortFieldDefault,
@@ -233,6 +234,7 @@ function getDisplayCurrencySymbol(item: CurrencyItem) {
 
 export function DefaultsScreen() {
   const theme = useTheme();
+  const { minimalIconsEnabled } = useAddonPrefs();
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const dispatch = useAppDispatch();
@@ -354,19 +356,19 @@ export function DefaultsScreen() {
     : "wallet-outline";
   const accountColor = accountValue
     ? getAccountColor(accountValue, accountColors)
-    : theme.colors.primary;
+    : "#159ED9";
   const incomeIcon = incomeValue
     ? getCategoryIconName(incomeValue, "income", categoryIcons)
     : "trending-up";
   const incomeColor = incomeValue
     ? getCategoryColor(incomeValue, "income", categoryColors)
-    : theme.colors.primary;
+    : "#079669";
   const expenseIcon = expenseValue
     ? getCategoryIconName(expenseValue, "expense", categoryIcons)
     : "trending-down";
   const expenseColor = expenseValue
     ? getCategoryColor(expenseValue, "expense", categoryColors)
-    : theme.colors.primary;
+    : "#D9485F";
   const safeBelowPercent = clampPercent(defaults.budgetSafeBelowPercent);
   const nearlyEmptyFromPercent = clampPercent(
     defaults.budgetNearlyEmptyFromPercent,
@@ -535,7 +537,13 @@ export function DefaultsScreen() {
             <SectionLabel label="Matching defaults" />
             <SheetCard theme={theme}>
               {rows.length > 0 ? (
-                rows.map((item) => <DefaultOptionRow key={item.id} {...item} />)
+                rows.map((item) => (
+                  <DefaultOptionRow
+                    key={item.id}
+                    {...item}
+                    minimalIconsEnabled={minimalIconsEnabled}
+                  />
+                ))
               ) : (
                 <View style={styles.emptyState}>
                   <MaterialCommunityIcons
@@ -566,6 +574,7 @@ export function DefaultsScreen() {
                     key={item.id}
                     {...item}
                     animationIndex={index}
+                    minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
             </View>
@@ -579,6 +588,7 @@ export function DefaultsScreen() {
                     key={item.id}
                     {...item}
                     animationIndex={index + 4}
+                    minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
             </View>
@@ -592,6 +602,7 @@ export function DefaultsScreen() {
                     key={item.id}
                     {...item}
                     animationIndex={index + 6}
+                    minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
             </View>
@@ -688,8 +699,18 @@ function SortDefaultsModal({
   onDismiss: () => void;
   onApply: (value: string, direction?: SortDirectionDefault) => void;
 }) {
-  if (!kind) return null;
-  if (kind === "transactions") {
+  const [activeKind, setActiveKind] = React.useState<
+    Exclude<SortPicker, null> | null
+  >(kind);
+
+  React.useEffect(() => {
+    if (kind) setActiveKind(kind);
+  }, [kind]);
+
+  const displayedKind = kind ?? activeKind;
+  if (!displayedKind) return null;
+
+  if (displayedKind === "transactions") {
     return (
       <TransactionSortModal
         visible={visible}
@@ -707,12 +728,14 @@ function SortDefaultsModal({
   return (
     <SortOptionSheet
       visible={visible}
-      title={`Default ${kind === "budget" ? "budget" : kind} sort`}
+      title={`Default ${displayedKind === "budget" ? "budget" : displayedKind} sort`}
       subtitle="Choose the order used when this section opens."
-      options={kind === "budget" ? BUDGET_SORT_OPTIONS : SIMPLE_SORT_OPTIONS}
+      options={
+        displayedKind === "budget" ? BUDGET_SORT_OPTIONS : SIMPLE_SORT_OPTIONS
+      }
       value={selectedValue}
       direction={direction}
-      resetDirection={kind === "budget" ? "desc" : "asc"}
+      resetDirection={displayedKind === "budget" ? "desc" : "asc"}
       onChange={(next) => onApply(next)}
       onDismiss={onDismiss}
       applyLabel="Save default"
@@ -918,14 +941,20 @@ function BudgetThresholdModal({
   const [nearlyEmptyFrom, setNearlyEmptyFrom] = React.useState(
     nearlyEmptyFromPercent,
   );
+  const [lastThreshold, setLastThreshold] = React.useState<BudgetThreshold>(
+    "safeBelow",
+  );
   const wiggle = React.useRef(new Animated.Value(0)).current;
+
+  const displayedThreshold = threshold ?? lastThreshold;
 
   React.useEffect(() => {
     if (visible) {
+      if (threshold) setLastThreshold(threshold);
       setSafeBelow(safeBelowPercent);
       setNearlyEmptyFrom(nearlyEmptyFromPercent);
     }
-  }, [nearlyEmptyFromPercent, safeBelowPercent, visible]);
+  }, [nearlyEmptyFromPercent, safeBelowPercent, threshold, visible]);
 
   const playWiggle = React.useCallback(() => {
     wiggle.stopAnimation();
@@ -998,7 +1027,9 @@ function BudgetThresholdModal({
       <View style={styles.modalHeader}>
         <View>
           <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
-            {threshold === "safeBelow" ? "Safe below" : "Nearly empty from"}
+            {displayedThreshold === "safeBelow"
+              ? "Safe below"
+              : "Nearly empty from"}
           </Text>
         </View>
         <Pressable
@@ -1016,7 +1047,12 @@ function BudgetThresholdModal({
       </View>
 
       <View style={styles.thresholdSectionRow}>
-        <Text style={[styles.modalSectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+        <Text
+          style={[
+            styles.modalSectionLabel,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
           THRESHOLD
         </Text>
         <Text
@@ -1025,10 +1061,10 @@ function BudgetThresholdModal({
             { color: theme.colors.onSurface },
           ]}
         >
-          {threshold === "safeBelow" ? safeBelow : nearlyEmptyFrom}%
+          {displayedThreshold === "safeBelow" ? safeBelow : nearlyEmptyFrom}%
         </Text>
       </View>
-      {threshold === "safeBelow" ? (
+      {displayedThreshold === "safeBelow" ? (
         <ThresholdSlider
           value={safeBelow}
           accent="#2E7D32"
@@ -1055,8 +1091,10 @@ function BudgetThresholdModal({
       )}
 
       <Text style={styles.thresholdHint}>
-        {threshold === "safeBelow"
-          ? "Allowed up to the lower limit of Nearly empty (" + nearlyEmptyFrom + "%)."
+        {displayedThreshold === "safeBelow"
+          ? "Allowed up to the lower limit of Nearly empty (" +
+            nearlyEmptyFrom +
+            "%)."
           : "Allowed down to the upper limit of Safe (" + safeBelow + "%)."}
       </Text>
 
@@ -1065,8 +1103,8 @@ function BudgetThresholdModal({
         accessibilityLabel="Save budget thresholds"
         onPress={() =>
           onSave(
-            threshold ?? "safeBelow",
-            threshold === "safeBelow" ? safeBelow : nearlyEmptyFrom,
+            displayedThreshold,
+            displayedThreshold === "safeBelow" ? safeBelow : nearlyEmptyFrom,
           )
         }
         style={({ pressed }) => [
@@ -1147,6 +1185,7 @@ function DefaultOptionTile({
   value,
   valueIcon,
   animationIndex = 0,
+  minimalIconsEnabled,
 }: {
   icon: string;
   iconText?: string;
@@ -1156,6 +1195,7 @@ function DefaultOptionTile({
   value: string;
   valueIcon?: string;
   animationIndex?: number;
+  minimalIconsEnabled: boolean;
 }) {
   const theme = useTheme();
   const resolvedIconColor = iconColor ?? theme.colors.primary;
@@ -1202,45 +1242,74 @@ function DefaultOptionTile({
           },
         ]}
       >
-      <View
-        style={[styles.tileIconWrap, { backgroundColor: resolvedIconColor }]}
-      >
-        {iconText ? (
-          <Text style={styles.tileIconText}>{iconText}</Text>
-        ) : (
-          <MaterialCommunityIcons name={icon as any} size={22} color="#FFFFFF" />
-        )}
-      </View>
-      <View style={styles.tileCopy}>
-        <Text
-          style={[styles.tileLabel, { color: theme.colors.onSurface }]}
-          numberOfLines={1}
+        <View
+          style={[
+            styles.tileIconWrap,
+            {
+              backgroundColor: minimalIconsEnabled
+                ? theme.colors.background
+                : resolvedIconColor,
+              borderColor: minimalIconsEnabled
+                ? theme.colors.elevation.level1
+                : "transparent",
+              borderWidth: minimalIconsEnabled ? 1 : 0,
+            },
+          ]}
         >
-          {label}
-        </Text>
-        <View style={styles.tileValueRow}>
+          {iconText ? (
+            <Text
+              style={[
+                styles.tileIconText,
+                {
+                  color: minimalIconsEnabled
+                    ? theme.colors.primary
+                    : "#FFFFFF",
+                },
+              ]}
+            >
+              {iconText}
+            </Text>
+          ) : (
+            <MaterialCommunityIcons
+              name={icon as any}
+              size={22}
+              color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+            />
+          )}
+        </View>
+        <View style={styles.tileCopy}>
           <Text
-            style={[styles.tileValue, { color: theme.colors.onSurfaceVariant }]}
+            style={[styles.tileLabel, { color: theme.colors.onSurface }]}
             numberOfLines={1}
           >
-            {value}
+            {label}
           </Text>
-          {valueIcon ? (
-            <MaterialCommunityIcons
-              name={valueIcon as any}
-              size={12}
-              color={theme.colors.onSurfaceVariant}
-              style={styles.tileValueIcon}
-            />
-          ) : null}
+          <View style={styles.tileValueRow}>
+            <Text
+              style={[
+                styles.tileValue,
+                { color: theme.colors.onSurfaceVariant },
+              ]}
+              numberOfLines={1}
+            >
+              {value}
+            </Text>
+            {valueIcon ? (
+              <MaterialCommunityIcons
+                name={valueIcon as any}
+                size={12}
+                color={theme.colors.onSurfaceVariant}
+                style={styles.tileValueIcon}
+              />
+            ) : null}
+          </View>
         </View>
-      </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        size={18}
-        color={theme.colors.onSurfaceVariant}
-        style={styles.tileChevron}
-      />
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+          style={styles.tileChevron}
+        />
       </Pressable>
     </Animated.View>
   );
@@ -1255,6 +1324,7 @@ function DefaultOptionRow({
   onChangeText,
   onPress,
   value,
+  minimalIconsEnabled,
 }: {
   description: string;
   icon: string;
@@ -1264,9 +1334,12 @@ function DefaultOptionRow({
   onChangeText?: (value: string) => void;
   onPress?: () => void;
   value: string;
+  minimalIconsEnabled: boolean;
 }) {
   const theme = useTheme();
-  const resolvedIconColor = iconColor ?? theme.colors.primary;
+  const resolvedIconColor = minimalIconsEnabled
+    ? theme.colors.primary
+    : iconColor ?? theme.colors.primary;
 
   if (onChangeText) {
     return (
@@ -1274,7 +1347,15 @@ function DefaultOptionRow({
         <View
           style={[
             styles.thresholdIconWrap,
-            { backgroundColor: theme.colors.elevation.level1 },
+            {
+              backgroundColor: minimalIconsEnabled
+                ? theme.colors.background
+                : theme.colors.elevation.level1,
+              borderColor: minimalIconsEnabled
+                ? theme.colors.elevation.level1
+                : "transparent",
+              borderWidth: minimalIconsEnabled ? 1 : 0,
+            },
           ]}
         >
           <MaterialCommunityIcons

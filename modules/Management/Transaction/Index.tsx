@@ -4,6 +4,10 @@ import { EmptyState } from "@/components/EmptyStates";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { InlineCalendar } from "@/components/pageheader/Inlinecalendar";
 import {
+  SlidingPillToggle,
+  SortOptionSheet,
+} from "@/components/SortOptionSheet";
+import {
   useSetTabBarEdgeButton,
   useSetTabBarHidden,
   useTabBarHeight,
@@ -21,11 +25,9 @@ import {
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { AccountManagementModal } from "@/modules/Management/Account/Index";
 import { CategoryManagementModal } from "@/modules/Management/Category/Index";
-import { InsightsScreen } from "@/modules/Management/Insights/Index";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
-import { withOpacity } from "@/utils/ColorHelpers";
 import {
   getAccountColor,
   getAccountIconName,
@@ -42,8 +44,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
-  Animated,
-  Easing,
   FlatList,
   Pressable,
   StyleSheet,
@@ -51,11 +51,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, useTheme } from "react-native-paper";
 import {
@@ -128,8 +123,6 @@ const OPTION_COLORS = {
   category: "#F97316",
   account: "#D97706",
   type: "#0891B2",
-  ascending: "#14B8A6",
-  descending: "#1d85e1",
 };
 
 const DEFAULT_VIEW_FILTERS: TransactionViewFilters = {
@@ -190,16 +183,6 @@ const SORT_FIELD_OPTIONS: {
     icon: "swap-vertical",
   },
 ];
-
-function getSortFieldIconColor(field: TransactionSortField) {
-  return OPTION_COLORS[field];
-}
-
-function getSortDirectionIconColor(direction: TransactionSortDirection) {
-  return direction === "asc"
-    ? OPTION_COLORS.ascending
-    : OPTION_COLORS.descending;
-}
 
 function darkenHex(hex: string, amount = 0.18) {
   const clean = hex.replace("#", "");
@@ -354,21 +337,6 @@ function getSortFieldIcon(field: TransactionSortField) {
   );
 }
 
-function getSortDirectionLabel(
-  field: TransactionSortField,
-  direction: TransactionSortDirection,
-) {
-  if (field === "date")
-    return direction === "desc" ? "Newest first" : "Oldest first";
-  if (field === "amount") {
-    return direction === "desc" ? "Highest first" : "Lowest first";
-  }
-  if (field === "title" || field === "category" || field === "account") {
-    return direction === "asc" ? "A to Z" : "Z to A";
-  }
-  return direction === "asc" ? "Income first" : "Expense first";
-}
-
 function FilterChip({
   label,
   selected,
@@ -409,196 +377,6 @@ function FilterChip({
         {label}
       </Text>
     </Pressable>
-  );
-}
-
-type SlidingPillToggleOption<T extends string> = {
-  key: T;
-  label: string;
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  color: string;
-};
-
-function SlidingPillToggle<T extends string>({
-  value,
-  options,
-  onChange,
-  colorizeActive = true,
-  neutralSlider = false,
-}: {
-  value: T;
-  options: SlidingPillToggleOption<T>[];
-  onChange: (value: T) => void;
-  colorizeActive?: boolean;
-  neutralSlider?: boolean;
-}) {
-  const theme = useTheme<ExtendedMD3Theme>();
-  const [trackWidth, setTrackWidth] = React.useState(0);
-  const slideAnim = React.useRef(new Animated.Value(0)).current;
-  const dragProgress = React.useRef(0);
-  const hasInitialized = React.useRef(false);
-  const trackPadding = 4;
-  const activeIndex = Math.max(
-    0,
-    options.findIndex((option) => option.key === value),
-  );
-  const tabWidth =
-    options.length > 0 ? (trackWidth - trackPadding * 2) / options.length : 0;
-  const activeColor = options[activeIndex]?.color ?? theme.colors.primary;
-
-  const slideTo = React.useCallback(
-    (nextValue: T) => {
-      const nextIndex = Math.max(
-        0,
-        options.findIndex((option) => option.key === nextValue),
-      );
-      slideAnim.stopAnimation(() => {
-        Animated.timing(slideAnim, {
-          toValue: nextIndex,
-          useNativeDriver: true,
-          duration: 200,
-          easing: Easing.out(Easing.quad),
-        }).start();
-      });
-    },
-    [options, slideAnim],
-  );
-
-  React.useEffect(() => {
-    if (trackWidth === 0) return;
-
-    if (!hasInitialized.current) {
-      slideAnim.setValue(activeIndex);
-      hasInitialized.current = true;
-      return;
-    }
-
-    slideTo(value);
-  }, [activeIndex, slideAnim, slideTo, trackWidth, value]);
-
-  const panGesture = Gesture.Pan()
-    .runOnJS(true)
-    .onBegin(() => {
-      dragProgress.current = activeIndex;
-      slideAnim.stopAnimation();
-    })
-    .onUpdate((event) => {
-      if (tabWidth <= 0) return;
-      const maxIndex = Math.max(0, options.length - 1);
-      const next = Math.max(
-        0,
-        Math.min(
-          maxIndex,
-          dragProgress.current + event.translationX / tabWidth,
-        ),
-      );
-      slideAnim.setValue(next);
-    })
-    .onEnd((event) => {
-      if (tabWidth <= 0) return;
-      const maxIndex = Math.max(0, options.length - 1);
-      const nextIndex = Math.max(
-        0,
-        Math.min(
-          maxIndex,
-          Math.round(dragProgress.current + event.translationX / tabWidth),
-        ),
-      );
-      const nextValue = options[nextIndex]?.key ?? value;
-      slideTo(nextValue);
-      if (nextValue !== value) onChange(nextValue);
-    });
-
-  const tapGesture = Gesture.Tap()
-    .runOnJS(true)
-    .onEnd((event) => {
-      if (trackWidth === 0 || options.length === 0) return;
-      const nextIndex = Math.max(
-        0,
-        Math.min(
-          options.length - 1,
-          Math.floor(event.x / (trackWidth / options.length)),
-        ),
-      );
-      const nextValue = options[nextIndex]?.key ?? value;
-      slideTo(nextValue);
-      if (nextValue !== value) onChange(nextValue);
-    });
-
-  const gesture = Gesture.Race(panGesture, tapGesture);
-
-  return (
-    <GestureHandlerRootView style={local.pillToggleRoot}>
-      <GestureDetector gesture={gesture}>
-        <View
-          style={[
-            local.pillToggleTrack,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
-              padding: trackPadding,
-            },
-          ]}
-          onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
-        >
-          {trackWidth > 0 ? (
-            <Animated.View
-              style={[
-                local.pillToggleSlider,
-                {
-                  width: tabWidth,
-                  top: trackPadding,
-                  bottom: trackPadding,
-                  left: trackPadding,
-                  backgroundColor: neutralSlider
-                    ? theme.colors.elevation.level2
-                    : withOpacity(activeColor, 0.12),
-                  borderColor: neutralSlider
-                    ? theme.colors.outlineVariant
-                    : withOpacity(darkenHex(activeColor), 0.45),
-                  transform: [
-                    {
-                      translateX: slideAnim.interpolate({
-                        inputRange: [0, Math.max(1, options.length - 1)],
-                        outputRange: [
-                          0,
-                          tabWidth * Math.max(1, options.length - 1),
-                        ],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ) : null}
-          {options.map((option) => {
-            const selected = option.key === value;
-            const contentColor =
-              colorizeActive && selected
-                ? option.color
-                : theme.colors.onSurfaceVariant;
-
-            return (
-              <View key={option.key} style={local.pillToggleTab}>
-                <MaterialCommunityIcons
-                  name={option.icon}
-                  size={15}
-                  color={contentColor}
-                />
-                <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                  style={[local.pillToggleLabel, { color: contentColor }]}
-                >
-                  {option.label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      </GestureDetector>
-    </GestureHandlerRootView>
   );
 }
 
@@ -1508,163 +1286,36 @@ export function TransactionSortModal({
   onReset: () => void;
   onDismiss: () => void;
 }) {
-  const theme = useTheme<ExtendedMD3Theme>();
-  const [draftSort, setDraftSort] =
-    React.useState<TransactionSortConfig>(sortConfig);
-
-  React.useEffect(() => {
-    if (visible) setDraftSort(sortConfig);
-  }, [sortConfig, visible]);
-
-  const patch = (next: Partial<TransactionSortConfig>) =>
-    setDraftSort((current) => ({ ...current, ...next }));
-
-  const handleReset = () => {
-    setDraftSort(DEFAULT_SORT_CONFIG);
-    onReset();
-  };
-
-  const handleApply = () => {
-    onChange(draftSort);
-    onDismiss();
-  };
   return (
-    <TransactionBottomSheet
+    <SortOptionSheet
       visible={visible}
       title="Sort"
-      onDismiss={onDismiss}
-      onReset={handleReset}
-      compact
-      footer={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Apply transaction sort"
-          onPress={handleApply}
-          style={({ pressed }) => [
-            local.applyFiltersButton,
-            {
-              backgroundColor: theme.colors.primary,
-              opacity: pressed ? 0.82 : 1,
-            },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="check"
-            size={18}
-            color={theme.colors.onPrimary}
-          />
-          <Text
-            style={[local.applyFiltersText, { color: theme.colors.onPrimary }]}
-          >
-            Apply sort
-          </Text>
-        </Pressable>
+      subtitle="Choose how transactions are ordered."
+      options={SORT_FIELD_OPTIONS.map((option) => ({
+        id: option.field,
+        label: option.label,
+        description: option.description,
+        icon: option.icon,
+      }))}
+      value={sortConfig.field}
+      direction={sortConfig.direction}
+      resetDirection="desc"
+      onChange={(value) =>
+        onChange({
+          field: value as TransactionSortField,
+          direction: sortConfig.direction,
+        })
       }
-    >
-      <View style={local.sortWorkbench}>
-        <View style={local.sortTopRow}>
-          <View style={local.sortDirectionPanel}>
-            <Text
-              style={[
-                local.sortPanelLabel,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-            >
-              Direction
-            </Text>
-            <SlidingPillToggle
-              value={draftSort.direction}
-              onChange={(direction) => patch({ direction })}
-              options={[
-                {
-                  key: "asc",
-                  label: getSortDirectionLabel(draftSort.field, "asc"),
-                  icon: "sort-ascending",
-                  color: getSortDirectionIconColor("asc"),
-                },
-                {
-                  key: "desc",
-                  label: getSortDirectionLabel(draftSort.field, "desc"),
-                  icon: "sort-descending",
-                  color: getSortDirectionIconColor("desc"),
-                },
-              ]}
-            />
-          </View>
-        </View>
-
-        <View style={local.sortFieldPanel}>
-          <Text
-            style={[
-              local.sortPanelLabel,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Sort types
-          </Text>
-          <View style={local.sortFieldList}>
-            {SORT_FIELD_OPTIONS.map((option) => {
-              const selected = draftSort.field === option.field;
-              const optionIconColor = getSortFieldIconColor(option.field);
-              return (
-                <Pressable
-                  key={option.field}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => patch({ field: option.field })}
-                  style={({ pressed }) => [
-                    local.sortFieldOption,
-                    {
-                      backgroundColor: theme.colors.elevation.level1,
-                      borderColor: "transparent",
-                      opacity: pressed ? 0.72 : 1,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      local.sortFieldIconShell,
-                      {
-                        backgroundColor: optionIconColor,
-                      },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={option.icon}
-                      size={22}
-                      color={WHITE_ICON}
-                    />
-                  </View>
-                  <View style={local.sortFieldCopy}>
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.78}
-                      style={[
-                        local.sortFieldTitle,
-                        {
-                          color: theme.colors.onSurface,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name={selected ? "check-circle" : "circle-outline"}
-                    size={17}
-                    style={local.sortFieldCheck}
-                    color={
-                      selected ? optionIconColor : theme.colors.onSurfaceVariant
-                    }
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </View>
-    </TransactionBottomSheet>
+      onApply={(value, direction) =>
+        onChange({
+          field: value as TransactionSortField,
+          direction,
+        })
+      }
+      onReset={onReset}
+      onDismiss={onDismiss}
+      applyLabel="Apply sort"
+    />
   );
 }
 
@@ -1779,11 +1430,12 @@ export default function Transactions({
     React.useState<TransactionViewFilters>(DEFAULT_VIEW_FILTERS);
   const [draftFilters, setDraftFilters] =
     React.useState<TransactionViewFilters>(DEFAULT_VIEW_FILTERS);
-  const [appliedSort, setAppliedSort] =
-    React.useState<TransactionSortConfig>(() => ({
+  const [appliedSort, setAppliedSort] = React.useState<TransactionSortConfig>(
+    () => ({
       field: workspaceDefaults.transactionSortField,
       direction: workspaceDefaults.transactionSortDirection,
-    }));
+    }),
+  );
   React.useEffect(() => {
     setAppliedSort({
       field: workspaceDefaults.transactionSortField,
@@ -2225,7 +1877,7 @@ export default function Transactions({
         ]}
       >
         <GestureDualCardLayoutView
-          topContent={<InsightsScreen />}
+          suspendLayout={filtersVisible || sortVisible}
           controlButtons={{
             left: {
               label: "Sort",
@@ -2474,40 +2126,6 @@ const local = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 15,
   },
-  pillToggleRoot: {
-    alignSelf: "stretch",
-    width: "100%",
-  },
-  pillToggleTrack: {
-    alignSelf: "stretch",
-    borderRadius: 14,
-    borderWidth: 0.5,
-    flexDirection: "row",
-    position: "relative",
-    width: "100%",
-  },
-  pillToggleSlider: {
-    borderRadius: 10,
-    borderWidth: 0.5,
-    position: "absolute",
-  },
-  pillToggleTab: {
-    alignItems: "center",
-    flex: 1,
-    flexDirection: "row",
-    gap: 7,
-    justifyContent: "center",
-    minHeight: 38,
-    minWidth: 0,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    zIndex: 1,
-  },
-  pillToggleLabel: {
-    ...typography.editorial.sectionLabel,
-    fontSize: 11,
-    lineHeight: 13,
-  },
   filterChip: {
     alignItems: "center",
     borderRadius: 12,
@@ -2530,72 +2148,6 @@ const local = StyleSheet.create({
     fontWeight: "600",
     flexShrink: 1,
     textTransform: "capitalize",
-  },
-  sortWorkbench: {
-    flex: 1,
-    gap: 12,
-    paddingTop: 2,
-  },
-  sortTopRow: {
-    alignItems: "stretch",
-    flexDirection: "row",
-    gap: 10,
-  },
-  sortDirectionPanel: {
-    flex: 1,
-    gap: 5,
-    height: 78,
-    minWidth: 0,
-  },
-  sortPanelLabel: {
-    ...typography.editorial.sectionLabel,
-    fontSize: 11,
-    lineHeight: 16,
-    paddingHorizontal: 2,
-  },
-  sortFieldPanel: {
-    flex: 1,
-    gap: 8,
-    minHeight: 0,
-  },
-  sortFieldList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  sortFieldOption: {
-    alignItems: "center",
-    borderRadius: 15,
-    borderWidth: 0.5,
-    gap: 8,
-    justifyContent: "center",
-    minHeight: 92,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    position: "relative",
-    width: "31.6%",
-  },
-  sortFieldIconShell: {
-    alignItems: "center",
-    borderRadius: 12,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-  },
-  sortFieldCopy: {
-    minWidth: 0,
-    width: "100%",
-  },
-  sortFieldTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    lineHeight: 16,
-    textAlign: "center",
-  },
-  sortFieldCheck: {
-    position: "absolute",
-    right: 8,
-    top: 8,
   },
   optionPickerPanel: {
     borderTopLeftRadius: 24,

@@ -70,6 +70,7 @@ type GestureDualCardLayoutViewProps = {
   controlButtons?: GestureControlButtons;
   children: React.ReactNode;
   topContent?: React.ReactNode;
+  suspendLayout?: boolean;
 };
 
 const CONTROL_BAR_HEIGHT = 64;
@@ -320,6 +321,7 @@ export function GestureDualCardLayoutView({
   controlButtons,
   children,
   topContent,
+  suspendLayout = false,
 }: GestureDualCardLayoutViewProps) {
   const theme = useTheme();
   const { tabBarEnabled } = useTabBarModePreference();
@@ -340,6 +342,7 @@ export function GestureDualCardLayoutView({
   const searchInputRef = useRef<TextInput>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const pendingScreenHeightRef = useRef<number | null>(null);
   const resolvedBottomNavigationClearance = tabBarEnabled
     ? tabBarHeight + safeBottom + CUSTOM_TAB_BAR_BOTTOM_GAP
     : Math.max(safeBottom, MIN_SYSTEM_BOTTOM_CLEARANCE);
@@ -573,6 +576,10 @@ export function GestureDualCardLayoutView({
   const handleRootLayout = useCallback(
     (height: number) => {
       if (height <= 0) return; // ignore spurious/zero measurements entirely
+      if (suspendLayout) {
+        pendingScreenHeightRef.current = height;
+        return;
+      }
       const previousHeight = screenHeight.value;
 
       if (keyboardVisibleRef.current && previousHeight > 0) {
@@ -618,9 +625,36 @@ export function GestureDualCardLayoutView({
       resetShell,
       rightButtonMountProgress,
       screenHeight,
+      suspendLayout,
       topHeightValue,
     ],
   );
+
+  useEffect(() => {
+    if (suspendLayout || pendingScreenHeightRef.current === null) return;
+
+    const nextHeight = pendingScreenHeightRef.current;
+    pendingScreenHeightRef.current = null;
+    const previousHeight = screenHeight.value;
+    if (Math.abs(previousHeight - nextHeight) <= 0.5) return;
+
+    screenHeight.value = nextHeight;
+    const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
+    const target =
+      activeTabValue.value === 1
+        ? bottomOpenStop
+        : activeTabValue.value === 2
+          ? topOpenStop
+          : defaultStop;
+    cancelAnimation(topHeightValue);
+    topHeightValue.value = withTiming(target, SETTLE_CONFIG);
+  }, [
+    activeTabValue,
+    getStops,
+    screenHeight,
+    suspendLayout,
+    topHeightValue,
+  ]);
 
   // Only called from JS (tab-bar tap via registerDriver) — never from
   // inside a gesture worklet. Just animates the one value to its target
@@ -862,18 +896,20 @@ export function GestureDualCardLayoutView({
   // keeps its tab drag on the handle so the transaction list owns vertical
   // scrolling in both directions.
   const topContentGesture = useMemo(
-    () => createTopGesture().enabled(!topCardOpen),
-    [topCardOpen],
+    () => createTopGesture().enabled(!topCardOpen && !suspendLayout),
+    [suspendLayout, topCardOpen],
   );
   const bottomCardOnMainTab = activeTab === "transactions";
   const bottomContentGesture = useMemo(
-    () => createBottomGesture().enabled(bottomCardOnMainTab),
-    [bottomCardOnMainTab],
+    () => createBottomGesture().enabled(bottomCardOnMainTab && !suspendLayout),
+    [bottomCardOnMainTab, suspendLayout],
   );
   const bottomHandleGesture = useMemo(
     () =>
-      createBottomGesture(true).hitSlop(bottomCardOpen ? HANDLE_HIT_SLOP : {}),
-    [bottomCardOpen],
+      createBottomGesture(true)
+        .enabled(!suspendLayout)
+        .hitSlop(bottomCardOpen ? HANDLE_HIT_SLOP : {}),
+    [bottomCardOpen, suspendLayout],
   );
 
   const topAreaAnimatedStyle = useAnimatedStyle(() => {

@@ -1,14 +1,9 @@
 import { EmptyState } from "@/components/EmptyStates";
-import { SectionLabel } from "@/components/SectionLabel";
 import {
   useSetTabBarEdgeButton,
   useTabBarHeight,
 } from "@/components/tabbar/TabBarContext";
-import { useAppSelector } from "@/hooks/Redux";
 import { useAbstractSearch } from "@/hooks/use-abstract-search";
-import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
-import { HeroCard } from "@/modules/Insights/Components/Cards/HeroCard";
-import { formatAmount, formatShortDay } from "@/modules/Insights/Utils";
 import { type TransactionSearchScope } from "@/modules/Management/Transaction/Components/SearchScopeSheet";
 import {
   TransactionRow,
@@ -25,7 +20,6 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { mobileLayoutStyles } from "../Styles/MobileLayoutStyles";
 
@@ -91,31 +85,17 @@ export function MobileLayout({
   filteredExpenseTransactions,
   filteredIncomeTransactions,
   transactionSearchQuery,
-  onTransactionSearchQueryChange,
   transactionSearchScope,
-  onTransactionSearchScopeChange,
   searchVisible,
   onEdit,
   onAddPress,
-  allEmpty,
   selectedDate: propsSelectedDate,
 }: Props) {
-  const theme = useTheme();
-  const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const setTabBarEdgeButton = useSetTabBarEdgeButton();
   const isFocused = useIsFocused();
   const tabBarHeight = useTabBarHeight();
   const { bottom } = useSafeAreaInsets();
   const usableSpace = tabBarHeight + bottom + 60;
-  const currencyCode = activeWorkspace?.currencyCode ?? "INR";
-  const currencySymbol = activeWorkspace?.currencySymbol ?? "";
-  const todayKey = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }, []);
 
   const fallbackSelectedDate = useMemo(() => {
     const now = new Date();
@@ -141,36 +121,6 @@ export function MobileLayout({
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [searchVisible]);
-
-  const dayTransactions = useMemo(
-    () => ({
-      expense: filteredExpenseTransactions.filter(
-        (t) => t.date === selectedDate,
-      ),
-      income: filteredIncomeTransactions.filter((t) => t.date === selectedDate),
-    }),
-    [filteredExpenseTransactions, filteredIncomeTransactions, selectedDate],
-  );
-
-  const dayExpenseTotal = useMemo(
-    () =>
-      dayTransactions.expense.reduce(
-        (sum, transaction) => sum + Math.abs(transaction.amount),
-        0,
-      ),
-    [dayTransactions.expense],
-  );
-
-  const dayIncomeTotal = useMemo(
-    () =>
-      dayTransactions.income.reduce(
-        (sum, transaction) => sum + Math.abs(transaction.amount),
-        0,
-      ),
-    [dayTransactions.income],
-  );
-
-  const isToday = selectedDate === todayKey;
 
   const scopedTransactions = useMemo(() => {
     const matchScope = (transaction: import("@/utils/Types").Transaction) => {
@@ -244,49 +194,12 @@ export function MobileLayout({
   const hasVisibleTransactions =
     visibleExpenseTransactions.length > 0 ||
     visibleIncomeTransactions.length > 0;
-  const averageSpendPerDay = useMemo(() => {
-    if (visibleExpenseTransactions.length === 0) {
-      return 0;
-    }
-
-    const activeExpenseDates = new Set(
-      visibleExpenseTransactions
-        .map((transaction) => transaction.date)
-        .filter((date): date is string => Boolean(date)),
-    );
-
-    if (activeExpenseDates.size === 0) {
-      return 0;
-    }
-
-    const totalVisibleExpense = visibleExpenseTransactions.reduce(
-      (sum, transaction) => sum + Math.abs(transaction.amount),
-      0,
-    );
-
-    return totalVisibleExpense / activeExpenseDates.size;
-  }, [visibleExpenseTransactions]);
-  const scopeLabel =
-    transactionSearchScope === "all"
-      ? "ALL"
-      : transactionSearchScope === "month"
-        ? "MONTH"
-        : "DAY";
   const scopeSearchHint =
     transactionSearchScope === "all"
       ? "your full transaction history"
       : transactionSearchScope === "month"
         ? "the selected month"
         : "the selected day";
-  const sectionLabel = isSearchAwaitingInput
-    ? `SEARCH · ${scopeLabel}`
-    : trimmedSearchQuery
-      ? `SEARCH RESULTS · ${scopeLabel}`
-      : transactionSearchScope === "all"
-        ? "ALL TRANSACTIONS"
-        : transactionSearchScope === "month"
-          ? "MONTH TRANSACTIONS"
-          : "TODAY'S TRANSACTIONS";
 
   const flatListItems = useMemo<TransactionListItem[]>(() => {
     const groups = [
@@ -370,56 +283,6 @@ export function MobileLayout({
     [onEdit],
   );
 
-  const listHeader = useMemo(
-    () => (
-      <>
-        <HeroCard
-          style={mobileLayoutStyles.summaryCardSpacing}
-          heroLabel={
-            isToday
-              ? "Today Summary"
-              : `${formatShortDay(selectedDate)} Summary`
-          }
-          primary={{
-            label: "Expense",
-            value: formatAmount(dayExpenseTotal, currencyCode, currencySymbol),
-            caption: "spent",
-          }}
-          middle={{
-            label: "Income",
-            value: formatAmount(dayIncomeTotal, currencyCode, currencySymbol),
-            caption: "earned",
-          }}
-          right={{
-            label: "Avg Spend",
-            value: formatAmount(
-              averageSpendPerDay,
-              currencyCode,
-              currencySymbol,
-            ),
-            caption: "per day",
-          }}
-          accentColor={theme.colors.primary}
-          outline={theme.colors.outline}
-          textColor={theme.colors.onSurface}
-          muted={theme.colors.onSurfaceVariant}
-        />
-        <SectionLabel label={sectionLabel} />
-      </>
-    ),
-    [
-      currencyCode,
-      currencySymbol,
-      averageSpendPerDay,
-      dayExpenseTotal,
-      dayIncomeTotal,
-      isToday,
-      sectionLabel,
-      selectedDate,
-      theme,
-    ],
-  );
-
   const listEmptyState = useMemo(() => {
     if (isSearchAwaitingInput) {
       return (
@@ -473,7 +336,6 @@ export function MobileLayout({
         data={flatListItems}
         renderItem={renderTransactionItem}
         keyExtractor={(item) => item.key}
-        ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmptyState}
         initialNumToRender={12}
         maxToRenderPerBatch={10}

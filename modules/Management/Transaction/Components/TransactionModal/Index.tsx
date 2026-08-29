@@ -215,7 +215,8 @@ function AnimatedAmountDisplay({
     }
 
     if (isClearing) {
-      setShowClearedZero(false);
+      // Keep the zero visible while the previous digits animate away.
+      setShowClearedZero(true);
       setClearingCharacters(
         previousValue.split("").map((character, index) => ({
           character,
@@ -399,6 +400,7 @@ export function TransactionModal({
     Array.from({ length: 5 }, () => new Animated.Value(0)),
   ).current;
   const addBaselineRef = React.useRef<TransactionFormData | null>(null);
+  const baselineAmountInputRef = React.useRef("");
   const closeHandledRef = React.useRef(false);
   const closeAnimationRunningRef = React.useRef(false);
   const skipDraftOnCloseRef = React.useRef(false);
@@ -499,6 +501,7 @@ export function TransactionModal({
           defaultTransactionCurrency.symbol,
       });
       setAmountString(String(Math.abs(editingTransaction.amount)));
+      baselineAmountInputRef.current = String(Math.abs(editingTransaction.amount));
       const parsed = parseIsoDateOnlyParts(editingTransaction.date);
       if (parsed) {
         setCalendarMonth(parsed.month);
@@ -524,6 +527,7 @@ export function TransactionModal({
       addBaselineRef.current = nextFormData;
       setFormData(nextFormData);
       setAmountString(activeDraft.amountInput);
+      baselineAmountInputRef.current = activeDraft.amountInput;
       const parsed = parseIsoDateOnlyParts(activeDraft.date);
       if (parsed) {
         setCalendarMonth(parsed.month);
@@ -548,6 +552,7 @@ export function TransactionModal({
       };
       setFormData(nextFormData);
       setAmountString(defaultAmountInput);
+      baselineAmountInputRef.current = defaultAmountInput;
       const parsed = parseIsoDateOnlyParts(addModeDate);
       if (parsed) {
         setCalendarMonth(parsed.month);
@@ -593,10 +598,13 @@ export function TransactionModal({
     const baseline = addBaselineRef.current;
     if (!baseline) return false;
 
+    const parsedAmount = Number.parseFloat(amountString);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return false;
+
     return (
-      amountString.trim().length > 0 ||
-      formData.title.trim().length > 0 ||
-      (formData.notes?.trim().length ?? 0) > 0 ||
+      amountString !== baselineAmountInputRef.current ||
+      formData.title !== baseline.title ||
+      formData.notes !== baseline.notes ||
       formData.date !== baseline.date ||
       formData.type !== baseline.type ||
       formData.category !== baseline.category ||
@@ -669,12 +677,29 @@ export function TransactionModal({
       closeWithAnimation(onClose);
       return;
     }
-    if (!isEditMode && hasMeaningfulDraft()) {
-      saveDraft();
-      toast.info("Draft saved");
+    if (!isEditMode) {
+      if (hasMeaningfulDraft()) {
+        saveDraft();
+        toast.info("Draft saved");
+      } else if (
+        activeDraftId &&
+        (!Number.isFinite(Number.parseFloat(amountString)) ||
+          Number.parseFloat(amountString) <= 0)
+      ) {
+        dispatch(removeTransactionDraft(activeDraftId));
+      }
     }
     closeWithAnimation(onClose);
-  }, [closeWithAnimation, hasMeaningfulDraft, isEditMode, onClose, saveDraft]);
+  }, [
+    activeDraftId,
+    amountString,
+    closeWithAnimation,
+    dispatch,
+    hasMeaningfulDraft,
+    isEditMode,
+    onClose,
+    saveDraft,
+  ]);
 
   const handleTypeChange = (type: TransactionType) =>
     setFormData((prev) => ({
@@ -688,8 +713,14 @@ export function TransactionModal({
     const parts = cleaned.split(".");
     let sanitized = cleaned;
     if (parts.length > 2) sanitized = parts[0] + "." + parts.slice(1).join("");
-    if (parts[1] && parts[1].length > 2)
-      sanitized = parts[0] + "." + parts[1].slice(0, 2);
+    if (parts[1] && parts[1].length > 10)
+      sanitized = parts[0] + "." + parts[1].slice(0, 10);
+    const [integerPart, decimalPart] = sanitized.split(".");
+    if (integerPart.length > 15) {
+      sanitized =
+        integerPart.slice(0, 15) +
+        (decimalPart !== undefined ? `.${decimalPart}` : "");
+    }
     setAmountString(sanitized);
     if (errors.amount) setErrors((prev) => ({ ...prev, amount: undefined }));
   };

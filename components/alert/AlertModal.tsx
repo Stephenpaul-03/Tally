@@ -36,6 +36,9 @@ type Props = {
   containerMaxHeight?: number;
   children?: ReactNode;
   forceModal?: boolean;
+  backgroundColor?: string;
+  iconColor?: string;
+  titleColor?: string;
 };
 
 type SlideConfirmProps = {
@@ -273,9 +276,41 @@ export function AlertModal({
   containerMaxHeight,
   children,
   forceModal,
+  backgroundColor,
+  iconColor,
+  titleColor,
 }: Props) {
   const theme = useTheme();
   const { width, height } = useWindowDimensions();
+  const [displayOpen, setDisplayOpen] = React.useState(isOpen);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setDisplayOpen(isOpen);
+  }, [isOpen]);
+
+  React.useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
+
+  // Keep the modal mounted while its closing animation runs. This matters for
+  // callers that remove the AlertModal as soon as their state changes.
+  const requestClose = React.useCallback(() => {
+    if (!displayOpen || closeTimerRef.current) return;
+    setDisplayOpen(false);
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
+      onCancel();
+    }, 320);
+  }, [displayOpen, onCancel]);
+
   const isMobile = !forceModal && (Platform.OS !== "web" || width < 768);
 
   const modalWidth = Math.min(modalMaxWidth, width - 48);
@@ -294,15 +329,20 @@ export function AlertModal({
         iconBg: theme.colors.primaryContainer,
         actionText: theme.colors.onPrimary,
         actionBg: theme.colors.primary,
-      };
+    };
+  // Alerts use the same base surface as the rest of the app's sheets. Keeping
+  // this as a real surface (instead of an elevation token) also makes the
+  // open/close transition read consistently against the backdrop.
+  const modalBackgroundColor = backgroundColor ?? theme.colors.background;
+  const modalIconColor = iconColor ?? tone.icon;
 
   const showTertiaryRow = Boolean(tertiaryLabel && onTertiary);
   const showTopActionRow = Boolean(cancelLabel || showTertiaryRow);
 
   return (
     <AnimatedPaperModal
-      visible={isOpen}
-      onDismiss={onCancel}
+      visible={displayOpen}
+      onDismiss={requestClose}
       presentation={isMobile ? "sheet" : "modal"}
       // Pass keyboardAware whenever there are children (inputs, pickers, etc.)
       // so the modal shifts up and nothing hides behind the keyboard.
@@ -311,7 +351,7 @@ export function AlertModal({
       contentContainerStyle={[
         isMobile ? styles.sheetContainer : styles.modalContainer,
         {
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: modalBackgroundColor,
           width: isMobile ? undefined : modalWidth,
           maxHeight,
         },
@@ -336,21 +376,25 @@ export function AlertModal({
       >
         <View style={styles.headerLeft}>
           <View style={[styles.headerIcon, { backgroundColor: tone.iconBg }]}>
-            <MaterialCommunityIcons name={icon} size={18} color={tone.icon} />
+            <MaterialCommunityIcons name={icon} size={18} color={modalIconColor} />
           </View>
           <Text
             variant="titleLarge"
             numberOfLines={1}
-            style={{ ...typography.editorial.sectionLabel, fontSize: 18 }}
+            style={{
+              ...typography.editorial.sectionLabel,
+              color: titleColor ?? theme.colors.onSurface,
+              fontSize: 18,
+            }}
           >
             {title}
           </Text>
         </View>
 
-        <TouchableRipple
+          <TouchableRipple
           accessibilityRole="button"
           accessibilityLabel="Close"
-          onPress={onCancel}
+          onPress={requestClose}
           borderless
           style={styles.closeBtn}
         >
@@ -390,10 +434,10 @@ export function AlertModal({
               {cancelLabel ? (
                 <Button
                   mode="outlined"
-                  onPress={onCancel}
+                  onPress={requestClose}
                   style={styles.actionButton}
                   contentStyle={styles.actionButtonContent}
-                  textColor={getContrastColor(theme.colors.elevation.level1)}
+                  textColor={getContrastColor(modalBackgroundColor)}
                 >
                   {cancelLabel}
                 </Button>
@@ -406,7 +450,7 @@ export function AlertModal({
                   disabled={tertiaryDisabled}
                   style={[styles.actionButton, styles.tertiaryButton]}
                   contentStyle={styles.actionButtonContent}
-                  textColor={getContrastColor(theme.colors.elevation.level1)}
+                  textColor={getContrastColor(modalBackgroundColor)}
                 >
                   {tertiaryLabel}
                 </Button>

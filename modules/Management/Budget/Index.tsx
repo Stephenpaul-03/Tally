@@ -123,8 +123,12 @@ export function BudgetScreen() {
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
-  const { categoryEntries, saveCategory, clearCategory } =
-    useBudgetManagement();
+  const {
+    categoryEntries,
+    minimalIconsEnabled,
+    saveCategory,
+    clearCategory,
+  } = useBudgetManagement();
 
   const [selectedCategoryName, setSelectedCategoryName] = React.useState<
     string | null
@@ -349,6 +353,7 @@ export function BudgetScreen() {
               indexByName={animationIndexByName}
               onOpenCategory={handleOpenCategory}
               onToggle={() => toggleSection(group.id)}
+              minimalIconsEnabled={minimalIconsEnabled}
               theme={theme}
               title={group.title}
             />
@@ -425,6 +430,7 @@ function BudgetStatusSection({
   indexByName,
   onOpenCategory,
   onToggle,
+  minimalIconsEnabled,
   theme,
   title,
 }: {
@@ -437,6 +443,7 @@ function BudgetStatusSection({
   indexByName: Record<string, number>;
   onOpenCategory: (category: BudgetCategoryEntry) => void;
   onToggle: () => void;
+  minimalIconsEnabled: boolean;
   theme: MD3Theme;
   title: string;
 }) {
@@ -462,12 +469,31 @@ function BudgetStatusSection({
         <View
           style={[
             budgetStyles.budgetSectionIcon,
-            { backgroundColor: darkenHex(color, 0.08) },
+            {
+              backgroundColor: minimalIconsEnabled
+                ? theme.colors.background
+                : darkenHex(color, 0.08),
+              borderColor: minimalIconsEnabled
+                ? theme.colors.elevation.level1
+                : "transparent",
+              borderWidth: minimalIconsEnabled ? 1 : 0,
+            },
           ]}
         >
-          <MaterialCommunityIcons name={icon as any} size={15} color="#FFFFFF" />
+          <MaterialCommunityIcons
+            name={icon as any}
+            size={15}
+            color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+          />
         </View>
-        <Text style={[budgetStyles.budgetSectionTitle, { color }]}>
+        <Text
+          style={[
+            budgetStyles.budgetSectionTitle,
+            {
+              color: minimalIconsEnabled ? theme.colors.onSurface : color,
+            },
+          ]}
+        >
           {title}
         </Text>
         <Text
@@ -498,6 +524,7 @@ function BudgetStatusSection({
                 >
                   <BudgetCategoryRow
                     category={category}
+                    minimalIconsEnabled={minimalIconsEnabled}
                     theme={theme}
                     onPress={() => onOpenCategory(category)}
                     expanded={expanded}
@@ -517,6 +544,7 @@ function BudgetStatusSection({
 
 function BudgetCategoryRow({
   category,
+  minimalIconsEnabled,
   theme,
   onPress,
   expanded,
@@ -529,6 +557,7 @@ function BudgetCategoryRow({
     icon: string;
     color: string;
   };
+  minimalIconsEnabled: boolean;
   theme: MD3Theme;
   onPress: () => void;
   expanded: boolean;
@@ -566,13 +595,21 @@ function BudgetCategoryRow({
           <View
             style={[
               budgetStyles.accountLikeIconBadge,
-              { backgroundColor: darkenHex(statusColor) },
+              {
+                backgroundColor: minimalIconsEnabled
+                  ? theme.colors.background
+                  : darkenHex(statusColor),
+                borderColor: minimalIconsEnabled
+                  ? theme.colors.elevation.level1
+                  : "transparent",
+                borderWidth: minimalIconsEnabled ? 1 : 0,
+              },
             ]}
           >
             <MaterialCommunityIcons
               name={category.icon as any}
               size={20}
-              color="#FFFFFF"
+              color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
             />
           </View>
           <View style={budgetStyles.accountLikeText}>

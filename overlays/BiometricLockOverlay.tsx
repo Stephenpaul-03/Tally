@@ -4,15 +4,15 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type BiometricLockScreenProps = {
+type BiometricLockOverlayProps = {
   isAuthenticating: boolean;
   onUnlock: () => void;
 };
 
-export function BiometricLockScreen({
+export function BiometricLockOverlay({
   isAuthenticating,
   onUnlock,
-}: BiometricLockScreenProps) {
+}: BiometricLockOverlayProps) {
   const theme = useTheme();
 
   return (

@@ -11,8 +11,6 @@ import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import {
   Platform,
@@ -22,11 +20,9 @@ import {
   View,
 } from "react-native";
 import { Switch, Text, useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
-import type { SettingsStackParamList } from "../Navigation";
 import { SettingsStyles } from "../Styles";
 
 type NotificationsContentProps = {
@@ -312,23 +308,6 @@ export function NotificationsModal({
       </View>
       <NotificationsContent modal onBack={onDismiss} />
     </AnimatedPaperModal>
-  );
-}
-
-export function NotificationsScreen() {
-  const theme = useTheme();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
-
-  return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
-      <NotificationsContent onBack={() => navigation.goBack()} />
-    </SafeAreaView>
   );
 }
 

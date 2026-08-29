@@ -1,22 +1,30 @@
-import { SharedTabHeaderProvider } from "@/components/pageheader/SharedTabHeader";
 import {
   AppShellProvider,
   useAppShell,
   type ShellTab,
 } from "@/components/AppShellContext";
+import { SharedTabHeaderProvider } from "@/components/pageheader/SharedTabHeader";
 import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
 import {
+  useSetTabBarEdgeButton,
   useSetTabBarHeight,
   useTabBarEdgeButton,
-  useSetTabBarEdgeButton,
 } from "@/components/tabbar/TabBarContext";
 import { SHELL_TAB_ROUTES } from "@/constants/routes";
+import { useAppDispatch } from "@/hooks/Redux";
+import {
+  fetchAccounts,
+  fetchBudget,
+  fetchCategories,
+  fetchTransactions,
+} from "@/modules/Core/Slices/TransactionSlice";
+import { fetchWorkspaces } from "@/modules/Core/Slices/WorkspaceSlice";
 import { TransactionsScreen } from "@/modules/Management/Transaction/Screens/TransactionsScreen";
-import { OnboardingGate, OnboardingScreen } from "@/modules/Onboarding/Index";
 import { SettingsScreen } from "@/modules/Settings/Index";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
+import { useTheme } from "react-native-paper";
 import type { RootParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootParamList>();
@@ -38,7 +46,9 @@ function ShellBottomBar() {
   const { activeTab, activeTabProgress, requestTab, requestTabProgress } =
     useAppShell();
   const visibleRoutes = SHELL_TAB_ROUTES;
-  const activeIndex = visibleRoutes.findIndex((route) => route.key === activeTab);
+  const activeIndex = visibleRoutes.findIndex(
+    (route) => route.key === activeTab,
+  );
   const actionButtons = (() => {
     const activeRoute = visibleRoutes[activeIndex];
     if (!activeRoute || (!edgeButtons?.left && !edgeButtons?.right)) {
@@ -86,6 +96,42 @@ function ShellBottomBar() {
 }
 
 function TransactionsStackScreen() {
+  const theme = useTheme();
+  const dispatch = useAppDispatch();
+  const [isHydrated, setIsHydrated] = React.useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void Promise.all([
+      dispatch(fetchWorkspaces() as any),
+      dispatch(fetchTransactions() as any),
+      dispatch(fetchCategories("income") as any),
+      dispatch(fetchCategories("expense") as any),
+      dispatch(fetchAccounts() as any),
+      dispatch(fetchBudget() as any),
+    ]).then(() => {
+      if (mounted) setIsHydrated(true);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
+
+  if (!isHydrated) {
+    return (
+      <View
+        style={{
+          alignItems: "center",
+          backgroundColor: theme.colors.background,
+          flex: 1,
+          justifyContent: "center",
+        }}
+      ></View>
+    );
+  }
+
   return (
     <SharedTabHeaderProvider activeRouteName="Transactions">
       <TransactionsScreen />
@@ -106,11 +152,9 @@ function SettingsStackScreen() {
 function RootStackNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="OnboardingGate"
+      initialRouteName="Transactions"
       screenOptions={{ headerShown: false }}
     >
-      <Stack.Screen name="OnboardingGate" component={OnboardingGate} />
-      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Transactions" component={TransactionsStackScreen} />
       <Stack.Screen name="Settings" component={SettingsStackScreen} />
     </Stack.Navigator>

@@ -2,7 +2,9 @@ import { useStagger } from "@/components/animations/UseStagger";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { CategoryTile } from "@/modules/Management/Category/Components/CategoryTile";
+import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -11,7 +13,7 @@ import type { MD3Theme } from "react-native-paper";
 import { Text } from "react-native-paper";
 import { AccountModalHeader } from "../Components/ModalHeader";
 
-interface AccountDeleteScreenProps {
+interface AccountDeleteContentProps {
   management: ReturnType<typeof useAccountManagement>;
   deletingName: string;
   deleteDestinations: string[];
@@ -19,14 +21,25 @@ interface AccountDeleteScreenProps {
   canConfirmDelete: boolean;
   onSelectDest: (dest: string) => void;
   onConfirmDelete: () => void;
+  footer?: React.ReactNode;
+  theme: MD3Theme;
+  modal?: boolean;
+}
+
+type AccountDeleteScreenProps = AccountDeleteContentProps & {
+  onBack: () => void;
+  onClose: () => void;
+};
+
+type AccountDeleteModalProps = AccountDeleteContentProps & {
   onBack: () => void;
   onClose: () => void;
   hideCloseButton?: boolean;
-  footer?: React.ReactNode;
-  theme: MD3Theme;
-}
+  visible?: boolean;
+  embedded?: boolean;
+};
 
-export function AccountDeleteScreen({
+function AccountDeleteContent({
   management,
   deletingName,
   deleteDestinations,
@@ -34,12 +47,10 @@ export function AccountDeleteScreen({
   canConfirmDelete,
   onSelectDest,
   onConfirmDelete,
-  onBack,
-  onClose,
-  hideCloseButton = false,
   footer,
   theme,
-}: AccountDeleteScreenProps) {
+  modal = false,
+}: AccountDeleteContentProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const c = theme.colors;
   const divider = c.outlineVariant;
@@ -61,18 +72,6 @@ export function AccountDeleteScreen({
 
   return (
     <>
-      <AccountModalHeader
-        title="Delete account"
-        subtitle="Cannot be undone"
-        showBack
-        accentColor={c.error}
-        iconName="delete-outline"
-        onBack={onBack}
-        onClose={onClose}
-        hideCloseButton={hideCloseButton}
-        theme={theme}
-      />
-
       {/* Preview — mirrors category DeleteScreen layout */}
       <View style={{ margin: 12 }}>
         <View
@@ -143,7 +142,13 @@ export function AccountDeleteScreen({
       {deleteDestinations.length > 0 && (
         <>
           <SectionLabel label="Move transactions to" />
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
+          <View
+            style={{
+              flex: modal ? 0 : 1,
+              marginHorizontal: 12,
+              maxHeight: modal ? 280 : undefined,
+            }}
+          >
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
@@ -195,7 +200,7 @@ export function AccountDeleteScreen({
           style={{
             flexDirection: "row",
             margin: 12,
-            marginTop: "auto",
+            marginTop: modal ? 0 : "auto",
           }}
         >
           <Pressable
@@ -233,5 +238,78 @@ export function AccountDeleteScreen({
         </View>
       )}
     </>
+  );
+}
+
+export function AccountDeleteScreen(props: AccountDeleteScreenProps) {
+  return (
+    <>
+      <SettingsHeader title="Delete account" onBack={props.onBack} />
+      <AccountDeleteContent {...props} />
+    </>
+  );
+}
+
+export function AccountDeleteModal(props: AccountDeleteModalProps) {
+  const {
+    theme,
+    onBack,
+    onClose,
+    hideCloseButton = false,
+    visible = true,
+    embedded = false,
+    ...contentProps
+  } = props;
+
+  const content = (
+    <>
+      <AccountModalHeader
+        title="Delete account"
+        subtitle="Cannot be undone"
+        showBack
+        accentColor={theme.colors.error}
+        iconName="delete-outline"
+        onBack={onBack}
+        onClose={onClose}
+        hideCloseButton={hideCloseButton}
+        modal
+        theme={theme}
+      />
+      <AccountDeleteContent
+        {...contentProps}
+        theme={theme}
+        modal
+      />
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onBack}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        justifyContent: "flex-start",
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+    >
+      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
+        <View
+          style={{
+            backgroundColor: theme.colors.outlineVariant,
+            borderRadius: 999,
+            height: 4,
+            width: 42,
+          }}
+        />
+      </View>
+      {content}
+    </AnimatedPaperModal>
   );
 }

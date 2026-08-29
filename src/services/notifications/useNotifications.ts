@@ -29,8 +29,6 @@ const notificationsApi = {
     notificationService.scheduleMonthlyInsightPrompt.bind(notificationService),
   sendTestDailyFinanceReminder:
     notificationService.sendTestDailyFinanceReminderAsync.bind(notificationService),
-  sendTestMonthlyInsightPrompt:
-    notificationService.sendTestMonthlyInsightPromptAsync.bind(notificationService),
   setDailyReminderEnabled:
     notificationService.setDailyReminderEnabled.bind(notificationService),
   setDailyReminderTime:

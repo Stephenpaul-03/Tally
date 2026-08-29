@@ -2,15 +2,14 @@ import options from "@/data/management-options.json";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { CustomColorPickerModal } from "@/modules/Management/Category/Components/ColorPickerModal";
-import { DeleteScreen } from "@/modules/Management/Category/Screens/DeleteScreen";
-import { CategoryEditScreen } from "@/modules/Management/Category/Screens/EditScreen";
-import { ListScreen } from "@/modules/Management/Category/Screens/ListScreen";
+import { CategoryDeleteModal } from "@/modules/Management/Category/Screens/DeleteScreen";
+import { CategoryEditModal } from "@/modules/Management/Category/Screens/EditScreen";
+import { CategoryListScreen } from "@/modules/Management/Category/Screens/ListScreen";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { SettingsHeader } from "../Components/SettingsHeader";
 import type { SettingsStackParamList } from "../Navigation";
 
 const NAME_LIMIT = 30;
@@ -29,11 +28,13 @@ export function CategoriesScreen() {
   );
   const [localIcon, setLocalIcon] = useState(
     management.editingCategory?.icon ??
+      management.iconOptions[0] ??
       allIcons[0] ??
       "tag-outline",
   );
   const [localColor, setLocalColor] = useState(
     management.editingCategory?.color ??
+      allColors.find((color) => !management.usedColors.includes(color)) ??
       allColors[0] ??
       "#3B82F6",
   );
@@ -47,8 +48,12 @@ export function CategoriesScreen() {
       setLocalColor(management.editingCategory.color);
     } else {
       setLocalName("");
-      setLocalIcon(allIcons[0] || "tag-outline");
-      setLocalColor(allColors[0] || "#3B82F6");
+      setLocalIcon(management.iconOptions[0] || allIcons[0] || "tag-outline");
+      setLocalColor(
+        allColors.find((color) => !management.usedColors.includes(color)) ||
+          allColors[0] ||
+          "#3B82F6",
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [management.isEditOpen, management.editingCategory]);
@@ -144,46 +149,6 @@ export function CategoriesScreen() {
     management.handleConfirmDeleteCategory(localDest);
   };
 
-  const renderHeader = ({
-    title,
-    showBack = false,
-    rightAccessory,
-    rightAccessoryBeforeSearch,
-    centerContent,
-    hideBack = false,
-    searchOpen,
-    query,
-    onQueryChange,
-    onSearchOpenChange,
-    searchPlaceholder,
-  }: {
-    title: string;
-    subtitle?: string;
-    showBack?: boolean;
-    rightAccessory?: React.ReactNode;
-    rightAccessoryBeforeSearch?: React.ReactNode;
-    centerContent?: React.ReactNode;
-    hideBack?: boolean;
-    searchOpen?: boolean;
-    query?: string;
-    onQueryChange?: (value: string) => void;
-    onSearchOpenChange?: (value: boolean) => void;
-    searchPlaceholder?: string;
-  }) => (
-    <SettingsHeader
-      title={title}
-      centerContent={centerContent}
-      onBack={hideBack ? undefined : showBack ? handleBack : handleClose}
-      rightAccessory={rightAccessory}
-      rightAccessoryBeforeSearch={rightAccessoryBeforeSearch}
-      searchOpen={searchOpen}
-      query={query}
-      onQueryChange={onQueryChange}
-      onSearchOpenChange={onSearchOpenChange}
-      searchPlaceholder={searchPlaceholder}
-    />
-  );
-
   return (
     <SafeAreaView
       style={{
@@ -199,48 +164,47 @@ export function CategoriesScreen() {
         initialColor={localColor}
       />
 
-      <ListScreen
+      <CategoryListScreen
         management={management}
         listHeight={listHeight}
         theme={theme}
-        renderHeader={renderHeader}
-        useSettingsHeader
+        onBack={handleClose}
       />
 
-      <CategoryEditScreen
+      <CategoryEditModal
         visible={management.isEditOpen}
-          management={management}
-          localName={localName}
-          setLocalName={setLocalName}
-          localIcon={localIcon}
-          setLocalIcon={setLocalIcon}
-          localColor={localColor}
-          setLocalColor={setLocalColor}
-          allColors={allColors}
-          allIcons={allIcons}
-          iconGrid={iconGrid}
-          canSubmitEdit={canSubmitEdit}
-          bg={theme.colors.background}
-          theme={theme}
-          onSubmit={handleSubmit}
-          onBack={handleBack}
-          presentation="modal"
-        />
+        management={management}
+        localName={localName}
+        setLocalName={setLocalName}
+        localIcon={localIcon}
+        setLocalIcon={setLocalIcon}
+        localColor={localColor}
+        setLocalColor={setLocalColor}
+        allColors={allColors}
+        allIcons={allIcons}
+        usedColors={management.usedColors}
+        usedIcons={management.usedIcons}
+        iconGrid={iconGrid}
+        canSubmitEdit={canSubmitEdit}
+        bg={theme.colors.background}
+        theme={theme}
+        onSubmit={handleSubmit}
+        onBack={handleBack}
+      />
 
-      {management.isDeleteOpen ? (
-        <DeleteScreen
-          management={management}
-          deletingName={deletingName}
-          deletingType={deletingType}
-          deleteDestinations={deleteDestinations}
-          localDest={localDest}
-          setLocalDest={setLocalDest}
-          canConfirmDelete={canConfirmDelete}
-          theme={theme}
-          onConfirmDelete={handleConfirmDelete}
-          renderHeader={renderHeader}
-        />
-      ) : null}
+      <CategoryDeleteModal
+        visible={management.isDeleteOpen}
+        management={management}
+        deletingName={deletingName}
+        deletingType={deletingType}
+        deleteDestinations={deleteDestinations}
+        localDest={localDest}
+        setLocalDest={setLocalDest}
+        canConfirmDelete={canConfirmDelete}
+        theme={theme}
+        onConfirmDelete={handleConfirmDelete}
+        onBack={handleBack}
+      />
     </SafeAreaView>
   );
 }

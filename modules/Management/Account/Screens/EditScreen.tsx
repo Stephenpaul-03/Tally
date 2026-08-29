@@ -14,6 +14,8 @@ type Props = {
   localColor: string;
   allColors: string[];
   allIcons: string[];
+  usedColors?: string[];
+  usedIcons?: string[];
   iconGrid: IconGrid;
   canSubmitEdit: boolean;
   onChangeName: (name: string) => void;
@@ -30,13 +32,15 @@ type Props = {
   visible?: boolean;
 };
 
-export function AccountEditScreen({
+function AccountEditContent({
   management,
   localName,
   localIcon,
   localColor,
   allColors,
   allIcons,
+  usedColors,
+  usedIcons,
   iconGrid,
   canSubmitEdit,
   onChangeName,
@@ -102,7 +106,7 @@ export function AccountEditScreen({
       </TouchableRipple>
     ) : null;
 
-  const closeAccessory = !hideCloseButton ? (
+  const closeAccessory = !hideCloseButton && presentation !== "modal" ? (
     <TouchableRipple
       borderless
       onPress={onClose}
@@ -131,6 +135,8 @@ export function AccountEditScreen({
     <EntityEditLayout
       allColors={allColors}
       allIcons={allIcons}
+      usedColors={usedColors}
+      usedIcons={usedIcons}
       background={background}
       canSubmit={canSubmitEdit}
       deleteAccessory={headerAccessory}
@@ -153,6 +159,38 @@ export function AccountEditScreen({
       submitLabelCreate="Add account"
       submitLabelEdit="Save changes"
       theme={theme}
+      visible={visible}
+    />
+  );
+}
+
+type AccountEditScreenProps = Omit<
+  Props,
+  "hideCloseButton" | "presentation" | "visible"
+>;
+
+type AccountEditModalProps = Omit<Props, "presentation">;
+
+export function AccountEditScreen(props: AccountEditScreenProps) {
+  return (
+    <AccountEditContent
+      {...props}
+      hideCloseButton
+      presentation="screen"
+      visible
+    />
+  );
+}
+
+export function AccountEditModal({
+  visible = true,
+  embedded = false,
+  ...props
+}: AccountEditModalProps & { embedded?: boolean }) {
+  return (
+    <AccountEditContent
+      {...props}
+      presentation={embedded ? "screen" : "modal"}
       visible={visible}
     />
   );

@@ -1,18 +1,18 @@
 /* eslint-disable react/no-unescaped-entities */
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { usePasswordPrompt } from "@/components/PasswordPrompt";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
 import type { ExportResult } from "@/hooks/use-import-export";
+import { selectNonDeletedTransactions } from "@/modules/Core/Slices/TransactionSlice";
 import {
   markWorkspaceBackedUpAsync,
   selectActiveWorkspaceId,
 } from "@/modules/Core/Slices/WorkspaceSlice";
 import { isEncryptionSupported } from "@/utils/CryptoUtils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Sharing from "expo-sharing";
 import React from "react";
 import {
@@ -24,13 +24,8 @@ import {
   View,
 } from "react-native";
 import { Button, Switch, Text, TextInput, useTheme } from "react-native-paper";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
-import type { SettingsStackParamList } from "../Navigation";
-import { SettingsStyles } from "../Styles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -725,13 +720,6 @@ function ExportConfirmModal({
           ]}
         />
 
-        <View
-          style={[
-            styles.confirmRowDivider,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-
         {/* Date range */}
         <View style={[styles.confirmRow, { alignItems: "flex-start" }]}>
           <MaterialCommunityIcons
@@ -802,6 +790,9 @@ function ExportConfirmModal({
   return (
     <AlertModal
       isOpen={visible}
+      backgroundColor={theme.colors.background}
+      iconColor={theme.colors.onSurface}
+      titleColor={theme.colors.onSurface}
       title="Save backup"
       message={summaryMessage}
       confirmLabel="Slide to save"
@@ -815,15 +806,19 @@ function ExportConfirmModal({
   );
 }
 
-// ─── BackupExportScreen ───────────────────────────────────────────────────────
+type BackupExportModalProps = {
+  visible: boolean;
+  onDismiss: () => void;
+};
 
-export function BackupExportScreen() {
+export function BackupExportModal({
+  visible,
+  onDismiss,
+}: BackupExportModalProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
-  const navigation =
-    useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const encryptionSupported = isEncryptionSupported();
   const { promptPassword, PasswordPromptModal } = usePasswordPrompt();
 
@@ -836,16 +831,37 @@ export function BackupExportScreen() {
     setSingleMonth,
     rangeStartMonth,
     rangeEndMonth,
-    transactionCount = 0,
-  } = useDataTransferControls() as ReturnType<
-    typeof useDataTransferControls
-  > & {
-    transactionCount?: number;
-  };
+  } = useDataTransferControls();
+  const nonDeletedTransactions = useAppSelector(selectNonDeletedTransactions);
 
   // For "range" scope we now use full ISO dates instead of month strings
   const [rangeStartDate, setRangeStartDate] = React.useState("");
   const [rangeEndDate, setRangeEndDate] = React.useState("");
+
+  const transactionCount = React.useMemo(() => {
+    if (exportScope === "all") return nonDeletedTransactions.length;
+    if (exportScope === "month") {
+      return singleMonth
+        ? nonDeletedTransactions.filter((tx) => tx.date.startsWith(singleMonth))
+            .length
+        : 0;
+    }
+    if (!rangeStartDate || !rangeEndDate) return 0;
+    const [from, to] =
+      rangeStartDate <= rangeEndDate
+        ? [rangeStartDate.slice(0, 7), rangeEndDate.slice(0, 7)]
+        : [rangeEndDate.slice(0, 7), rangeStartDate.slice(0, 7)];
+    return nonDeletedTransactions.filter((tx) => {
+      const month = tx.date.slice(0, 7);
+      return month >= from && month <= to;
+    }).length;
+  }, [
+    exportScope,
+    nonDeletedTransactions,
+    rangeEndDate,
+    rangeStartDate,
+    singleMonth,
+  ]);
 
   const suggestedName = buildDefaultExportFileName(
     exportScope as ScopeOption,
@@ -946,9 +962,9 @@ export function BackupExportScreen() {
     } finally {
       setIsSharing(false);
       setShareVisible(false);
-      navigation.goBack();
+      onDismiss();
     }
-  }, [exportResult, isSharing, navigation]);
+  }, [exportResult, isSharing, onDismiss]);
 
   const handleToggleEncrypt = React.useCallback(
     async (value: boolean) => {
@@ -973,16 +989,29 @@ export function BackupExportScreen() {
   const footerHeight = 52 + 16 + Math.max(insets.bottom, 16);
 
   return (
-    <SafeAreaView
-      style={[
-        SettingsStyles.safeArea,
-        { backgroundColor: theme.colors.background },
-      ]}
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onDismiss}
+      presentation="sheet"
+      contentContainerStyle={{
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        maxHeight: "92%",
+        overflow: "hidden",
+      }}
+      keyboardAware
+      includeBottomInset={false}
     >
-      <SettingsHeader
-        title="Export Backup"
-        onBack={() => navigation.goBack()}
-      />
+      <View style={styles.handleWrap}>
+        <View
+          style={[
+            styles.handle,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+      </View>
+      <SettingsHeader title="Export Backup" onBack={onDismiss} modal />
 
       <ScrollView
         contentContainerStyle={[
@@ -1231,10 +1260,10 @@ export function BackupExportScreen() {
         onShare={() => void handleShare()}
         onDismiss={() => {
           setShareVisible(false);
-          navigation.goBack();
+          onDismiss();
         }}
       />
-    </SafeAreaView>
+    </AnimatedPaperModal>
   );
 }
 
@@ -1242,9 +1271,17 @@ export function BackupExportScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 4,
+    paddingHorizontal: 20,
+    gap: 5,
+  },
+  handle: {
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingTop: 10,
   },
   sectionHeader: {
     fontSize: 11,

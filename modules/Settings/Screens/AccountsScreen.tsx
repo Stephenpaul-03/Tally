@@ -1,7 +1,7 @@
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAccountModalState } from "@/modules/Management/Account/Hooks";
-import { AccountDeleteScreen } from "@/modules/Management/Account/Screens/DeleteScreen";
-import { AccountEditScreen } from "@/modules/Management/Account/Screens/EditScreen";
+import { AccountDeleteModal } from "@/modules/Management/Account/Screens/DeleteScreen";
+import { AccountEditModal } from "@/modules/Management/Account/Screens/EditScreen";
 import { AccountListScreen } from "@/modules/Management/Account/Screens/ListScreen";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -25,6 +25,8 @@ export function AccountsScreen() {
     localColor,
     allColors,
     allIcons,
+    usedColors,
+    usedIcons,
     canSubmitEdit,
     setLocalName,
     setLocalIcon,
@@ -47,58 +49,49 @@ export function AccountsScreen() {
         backgroundColor: theme.colors.background,
       }}
     >
-      {screen === "list" && (
-        <AccountListScreen
-          management={management}
-          showBack
-          hideCloseButton
-          listHeight={listHeight}
-          onBack={handleClose}
-          onClose={handleClose}
-          theme={theme}
-          useSettingsHeader
-        />
-      )}
+      <AccountListScreen
+        management={management}
+        listHeight={listHeight}
+        onBack={handleClose}
+        onClose={handleClose}
+        theme={theme}
+      />
 
-      {screen === "edit" && (
-        <AccountEditScreen
-          visible
-          management={management}
-          localName={localName}
-          localIcon={localIcon}
-          localColor={localColor}
-          allColors={allColors}
-          allIcons={allIcons}
-          iconGrid={iconGrid}
-          canSubmitEdit={canSubmitEdit}
-          onChangeName={setLocalName}
-          onChangeIcon={setLocalIcon}
-          onChangeColor={setLocalColor}
-          onSubmit={handleSubmit}
-          onBack={handleBack}
-          onClose={handleClose}
-          hideCloseButton
-          theme={theme}
-          background={theme.colors.background}
-          presentation="modal"
-        />
-      )}
+      <AccountEditModal
+        visible={screen === "edit"}
+        management={management}
+        localName={localName}
+        localIcon={localIcon}
+        localColor={localColor}
+        allColors={allColors}
+        allIcons={allIcons}
+        usedColors={usedColors}
+        usedIcons={usedIcons}
+        iconGrid={iconGrid}
+        canSubmitEdit={canSubmitEdit}
+        onChangeName={setLocalName}
+        onChangeIcon={setLocalIcon}
+        onChangeColor={setLocalColor}
+        onSubmit={handleSubmit}
+        onBack={handleBack}
+        onClose={handleBack}
+        theme={theme}
+        background={theme.colors.background}
+      />
 
-      {screen === "delete" && (
-        <AccountDeleteScreen
-          management={management}
-          deletingName={deletingName}
-          deleteDestinations={deleteDestinations}
-          localDest={localDest}
-          canConfirmDelete={canConfirmDelete}
-          onSelectDest={setLocalDest}
-          onConfirmDelete={handleConfirmDelete}
-          onBack={handleBack}
-          onClose={handleClose}
-          hideCloseButton
-          theme={theme}
-        />
-      )}
+      <AccountDeleteModal
+        visible={screen === "delete"}
+        management={management}
+        deletingName={deletingName}
+        deleteDestinations={deleteDestinations}
+        localDest={localDest}
+        canConfirmDelete={canConfirmDelete}
+        onSelectDest={setLocalDest}
+        onConfirmDelete={handleConfirmDelete}
+        onBack={handleBack}
+        onClose={handleBack}
+        theme={theme}
+      />
     </SafeAreaView>
   );
 }

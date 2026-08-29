@@ -38,6 +38,14 @@ export function useAccountModalState(
     return merged;
   }, [management.iconOptions]);
 
+  const firstAvailableColor = useMemo(
+    () =>
+      allColors.find((color) => !management.usedColors.includes(color)) ||
+      allColors[0] ||
+      "#6366F1",
+    [allColors, management.usedColors],
+  );
+
   useEffect(() => {
     if (!management.isEditOpen) return;
     if (management.editingAccount) {
@@ -47,10 +55,16 @@ export function useAccountModalState(
     } else {
       setLocalName("");
       setLocalIcon(allIcons[0] || "credit-card-outline");
-      setLocalColor(allColors[0] || "#6366F1");
+      setLocalColor(firstAvailableColor);
     }
     setScreen("edit");
-  }, [allColors, allIcons, management.editingAccount, management.isEditOpen]);
+  }, [
+    allColors,
+    allIcons,
+    firstAvailableColor,
+    management.editingAccount,
+    management.isEditOpen,
+  ]);
 
   useEffect(() => {
     if (management.isDeleteOpen) {
@@ -163,6 +177,8 @@ export function useAccountModalState(
     localColor,
     allColors,
     allIcons,
+    usedColors: management.usedColors,
+    usedIcons: management.usedIcons,
     canSubmitEdit,
     setLocalName,
     setLocalIcon,

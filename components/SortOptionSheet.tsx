@@ -2,7 +2,18 @@ import { AnimatedPaperModal } from "@/components/modal/modal";
 import { withOpacity } from "@/utils/ColorHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import { Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -27,6 +38,208 @@ export type SortOption = {
   icon: string;
 };
 
+type SlidingPillToggleOption<T extends string> = {
+  key: T;
+  label: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  color: string;
+};
+
+function darkenHex(hex: string, amount = 0.18) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return hex;
+
+  const value = parseInt(clean, 16);
+  const r = Math.max(0, Math.round(((value >> 16) & 255) * (1 - amount)));
+  const g = Math.max(0, Math.round(((value >> 8) & 255) * (1 - amount)));
+  const b = Math.max(0, Math.round((value & 255) * (1 - amount)));
+
+  return `#${[r, g, b]
+    .map((part) => part.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+export function SlidingPillToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  colorizeActive = true,
+  neutralSlider = false,
+}: {
+  value: T;
+  options: SlidingPillToggleOption<T>[];
+  onChange: (value: T) => void;
+  colorizeActive?: boolean;
+  neutralSlider?: boolean;
+}) {
+  const theme = useTheme();
+  const [trackWidth, setTrackWidth] = React.useState(0);
+  const slideAnim = React.useRef(new Animated.Value(0)).current;
+  const dragProgress = React.useRef(0);
+  const hasInitialized = React.useRef(false);
+  const trackPadding = 4;
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((option) => option.key === value),
+  );
+  const tabWidth =
+    options.length > 0 ? (trackWidth - trackPadding * 2) / options.length : 0;
+  const activeColor = options[activeIndex]?.color ?? theme.colors.primary;
+
+  const slideTo = React.useCallback(
+    (nextValue: T) => {
+      const nextIndex = Math.max(
+        0,
+        options.findIndex((option) => option.key === nextValue),
+      );
+      slideAnim.stopAnimation(() => {
+        Animated.timing(slideAnim, {
+          toValue: nextIndex,
+          useNativeDriver: true,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+        }).start();
+      });
+    },
+    [options, slideAnim],
+  );
+
+  React.useEffect(() => {
+    if (trackWidth === 0) return;
+
+    if (!hasInitialized.current) {
+      slideAnim.setValue(activeIndex);
+      hasInitialized.current = true;
+      return;
+    }
+
+    slideTo(value);
+  }, [activeIndex, slideAnim, slideTo, trackWidth, value]);
+
+  const panGesture = Gesture.Pan()
+    .runOnJS(true)
+    .onBegin(() => {
+      dragProgress.current = activeIndex;
+      slideAnim.stopAnimation();
+    })
+    .onUpdate((event) => {
+      if (tabWidth <= 0) return;
+      const maxIndex = Math.max(0, options.length - 1);
+      const next = Math.max(
+        0,
+        Math.min(
+          maxIndex,
+          dragProgress.current + event.translationX / tabWidth,
+        ),
+      );
+      slideAnim.setValue(next);
+    })
+    .onEnd((event) => {
+      if (tabWidth <= 0) return;
+      const maxIndex = Math.max(0, options.length - 1);
+      const nextIndex = Math.max(
+        0,
+        Math.min(
+          maxIndex,
+          Math.round(dragProgress.current + event.translationX / tabWidth),
+        ),
+      );
+      const nextValue = options[nextIndex]?.key ?? value;
+      slideTo(nextValue);
+      if (nextValue !== value) onChange(nextValue);
+    });
+
+  const tapGesture = Gesture.Tap()
+    .runOnJS(true)
+    .onEnd((event) => {
+      if (trackWidth === 0 || options.length === 0) return;
+      const nextIndex = Math.max(
+        0,
+        Math.min(
+          options.length - 1,
+          Math.floor(event.x / (trackWidth / options.length)),
+        ),
+      );
+      const nextValue = options[nextIndex]?.key ?? value;
+      slideTo(nextValue);
+      if (nextValue !== value) onChange(nextValue);
+    });
+
+  return (
+    <GestureHandlerRootView style={slidingStyles.root}>
+      <GestureDetector gesture={Gesture.Race(panGesture, tapGesture)}>
+        <View
+          style={[
+            slidingStyles.track,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+              padding: trackPadding,
+            },
+          ]}
+          onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+        >
+          {trackWidth > 0 ? (
+            <Animated.View
+              style={[
+                slidingStyles.slider,
+                {
+                  width: tabWidth,
+                  top: trackPadding,
+                  bottom: trackPadding,
+                  left: trackPadding,
+                  backgroundColor: neutralSlider
+                    ? theme.colors.elevation.level2
+                    : withOpacity(activeColor, 0.12),
+                  borderColor: neutralSlider
+                    ? theme.colors.outlineVariant
+                    : withOpacity(darkenHex(activeColor), 0.45),
+                  transform: [
+                    {
+                      translateX: slideAnim.interpolate({
+                        inputRange: [0, Math.max(1, options.length - 1)],
+                        outputRange: [
+                          0,
+                          tabWidth * Math.max(1, options.length - 1),
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ) : null}
+          {options.map((option) => {
+            const selected = option.key === value;
+            const contentColor =
+              colorizeActive && selected
+                ? option.color
+                : theme.colors.onSurfaceVariant;
+
+            return (
+              <View key={option.key} style={slidingStyles.tab}>
+                <MaterialCommunityIcons
+                  name={option.icon}
+                  size={15}
+                  color={contentColor}
+                />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                  style={[slidingStyles.label, { color: contentColor }]}
+                >
+                  {option.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </GestureDetector>
+    </GestureHandlerRootView>
+  );
+}
+
 export function SortOptionSheet({
   visible,
   title,
@@ -40,6 +253,7 @@ export function SortOptionSheet({
   onDismiss,
   applyLabel = "Apply sort",
   onApply,
+  onReset,
 }: {
   visible: boolean;
   title: string;
@@ -53,6 +267,7 @@ export function SortOptionSheet({
   onDismiss: () => void;
   applyLabel?: string;
   onApply?: (value: string, direction: "asc" | "desc") => void;
+  onReset?: () => void;
 }) {
   const theme = useTheme();
   const c = theme.colors;
@@ -87,7 +302,6 @@ export function SortOptionSheet({
           styles.panel,
           {
             backgroundColor: c.background,
-            borderColor: c.outlineVariant,
             paddingBottom: Math.max(18, bottom + 12),
           },
         ]}
@@ -129,6 +343,7 @@ export function SortOptionSheet({
             onPress={() => {
               setDraftValue(options[0]?.id ?? value);
               setDraftDirection(resetDirection);
+              onReset?.();
             }}
             style={({ pressed }) => [
               styles.headerButton,
@@ -146,44 +361,24 @@ export function SortOptionSheet({
         <Text style={[styles.sectionLabel, { color: c.onSurfaceVariant }]}>
           Direction
         </Text>
-        <View
-          style={[
-            styles.directionTrack,
-            { backgroundColor: c.elevation.level1, borderColor: c.outlineVariant },
+        <SlidingPillToggle
+          value={draftDirection}
+          onChange={setDraftDirection}
+          options={[
+            {
+              key: "asc",
+              label: "Ascending",
+              icon: "sort-ascending",
+              color: "#14B8A6",
+            },
+            {
+              key: "desc",
+              label: "Descending",
+              icon: "sort-descending",
+              color: "#1D85E1",
+            },
           ]}
-        >
-          {(["asc", "desc"] as const).map((item) => {
-            const selected = draftDirection === item;
-            const directionColor = item === "asc" ? "#14B8A6" : "#1D85E1";
-            return (
-              <Pressable
-                key={item}
-                onPress={() => setDraftDirection(item)}
-                style={[
-                  styles.directionTab,
-                  {
-                    backgroundColor: selected
-                      ? withOpacity(directionColor, 0.12)
-                      : "transparent",
-                    borderColor: selected
-                      ? withOpacity(directionColor, 0.35)
-                      : "transparent",
-                    borderWidth: 0.5,
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={item === "asc" ? "sort-ascending" : "sort-descending"}
-                  size={16}
-                  color={selected ? directionColor : c.onSurfaceVariant}
-                />
-                <Text style={{ color: selected ? directionColor : c.onSurfaceVariant, fontSize: 11, fontWeight: "700" }}>
-                  {item === "asc" ? "Ascending" : "Descending"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        />
         <Text style={[styles.sectionLabel, { color: c.onSurfaceVariant }]}>
           Sort types
         </Text>
@@ -201,35 +396,41 @@ export function SortOptionSheet({
                   styles.option,
                   {
                     backgroundColor: c.elevation.level1,
-                    borderColor: selected ? c.primary : "transparent",
+                    borderColor: "transparent",
                     opacity: pressed ? 0.72 : 1,
                   },
                 ]}
               >
-                <View
-                  style={[styles.iconShell, { backgroundColor: optionColor }]}
-                >
-                  <MaterialCommunityIcons
-                    name={icon as any}
-                    size={22}
-                    color={c.onPrimary}
-                  />
-                </View>
-                <View style={styles.optionCopy}>
-                  <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.78}
-                    style={[styles.optionTitle, { color: c.onSurface }]}
+                <View style={styles.optionContent}>
+                  <View
+                    style={[styles.iconShell, { backgroundColor: optionColor }]}
                   >
-                    {label}
-                  </Text>
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.optionDescription, { color: c.onSurfaceVariant }]}
-                  >
-                    {description}
-                  </Text>
+                    <MaterialCommunityIcons
+                      name={icon as any}
+                      size={22}
+                      color="#FFFFFF"
+                      style={styles.sortIcon}
+                    />
+                  </View>
+                  <View style={styles.optionCopy}>
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.78}
+                      style={[styles.optionTitle, { color: c.onSurface }]}
+                    >
+                      {label}
+                    </Text>
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.optionDescription,
+                        { color: c.onSurfaceVariant },
+                      ]}
+                    >
+                      {description}
+                    </Text>
+                  </View>
                 </View>
                 <MaterialCommunityIcons
                   name={selected ? "check-circle" : "circle-outline"}
@@ -261,6 +462,42 @@ export function SortOptionSheet({
   );
 }
 
+const slidingStyles = StyleSheet.create({
+  root: {
+    alignSelf: "stretch",
+    width: "100%",
+  },
+  track: {
+    alignSelf: "stretch",
+    borderRadius: 14,
+    borderWidth: 0.5,
+    flexDirection: "row",
+    position: "relative",
+    width: "100%",
+  },
+  slider: {
+    borderRadius: 10,
+    borderWidth: 0.5,
+    position: "absolute",
+  },
+  tab: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 38,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    zIndex: 1,
+  },
+  label: {
+    fontSize: 11,
+    lineHeight: 13,
+  },
+});
+
 const styles = StyleSheet.create({
   modalContent: {
     width: "100%",
@@ -268,7 +505,6 @@ const styles = StyleSheet.create({
   panel: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: 0.5,
     gap: 10,
     paddingBottom: 18,
     paddingHorizontal: 16,
@@ -309,42 +545,30 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     marginTop: 2,
   },
-  directionTrack: {
-    borderRadius: 14,
-    borderWidth: 0.5,
-    flexDirection: "row",
-    gap: 4,
-    padding: 4,
-  },
-  directionTab: {
-    alignItems: "center",
-    borderRadius: 10,
-    flex: 1,
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "center",
-    minHeight: 38,
-    paddingHorizontal: 8,
-  },
   optionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   option: {
-    alignItems: "center",
     borderRadius: 15,
     borderWidth: 0.5,
-    gap: 8,
     justifyContent: "center",
-    minHeight: 100,
+    aspectRatio: 1,
     paddingHorizontal: 6,
     paddingVertical: 10,
     position: "relative",
     width: "31.6%",
   },
+  optionContent: {
+    alignItems: "center",
+    alignSelf: "stretch",
+    gap: 8,
+    justifyContent: "center",
+  },
   iconShell: {
     alignItems: "center",
+    alignSelf: "center",
     borderRadius: 12,
     height: 38,
     justifyContent: "center",
@@ -353,6 +577,10 @@ const styles = StyleSheet.create({
   optionCopy: {
     minWidth: 0,
     width: "100%",
+  },
+  sortIcon: {
+    textAlign: "center",
+    textAlignVertical: "center",
   },
   optionTitle: {
     fontSize: 12,

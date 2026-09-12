@@ -1,4 +1,5 @@
 import { AlertModal } from "@/components/alert/AlertModal";
+import { InsightsScreen } from "@/modules/Insights/InsightsScreen";
 import { useAppShell } from "@/components/AppShellContext";
 import { EmptyState } from "@/components/EmptyStates";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -1877,6 +1878,7 @@ export default function Transactions({
         ]}
       >
         <GestureDualCardLayoutView
+          topContent={<InsightsScreen />}
           suspendLayout={filtersVisible || sortVisible}
           controlButtons={{
             left: {
@@ -2033,8 +2035,8 @@ const local = StyleSheet.create({
     justifyContent: "flex-end",
   },
   nativeSheetPanel: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -2150,8 +2152,8 @@ const local = StyleSheet.create({
     textTransform: "capitalize",
   },
   optionPickerPanel: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     gap: 8,
     paddingTop: 10,
     width: "100%",

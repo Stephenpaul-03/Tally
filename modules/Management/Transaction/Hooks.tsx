@@ -8,7 +8,7 @@ import {
     deleteTransactionAsync,
     openAddModal,
     openDraftModal,
-    openEditModal,
+    openViewModal,
     selectExpenseTransactions,
     selectIncomeTransactions,
     selectIsModalOpen,
@@ -92,7 +92,7 @@ export function useTransactionsPage(): TransactionsPageState {
         dispatch(openDraftModal(id));
         return;
       }
-      dispatch(openEditModal(id));
+      dispatch(openViewModal(id));
     },
     [dispatch, transactionDrafts],
   );

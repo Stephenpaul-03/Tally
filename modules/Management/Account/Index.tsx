@@ -61,9 +61,9 @@ export function AccountManagementModal({
       contentContainerStyle={[
         isMobile
           ? {
-              borderTopLeftRadius: 26,
-              borderTopRightRadius: 26,
-              borderTopWidth: 0.5,
+              borderTopLeftRadius: 40,
+              borderTopRightRadius: 40,
+              borderTopWidth: 0,
               overflow: "hidden",
             }
           : {

@@ -995,8 +995,8 @@ export function BackupExportModal({
       presentation="sheet"
       contentContainerStyle={{
         backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         maxHeight: "92%",
         overflow: "hidden",
       }}
@@ -1346,8 +1346,8 @@ const styles = StyleSheet.create({
   // Conjoined summary card under "all"
   conjoinedSummary: {
     borderRadius: 12,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,

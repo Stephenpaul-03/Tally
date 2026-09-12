@@ -178,8 +178,8 @@ export function CurrencyPickerField({
         keyboardAware
         contentContainerStyle={{
           backgroundColor: c.elevation.level1,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          borderTopLeftRadius: 40,
+          borderTopRightRadius: 40,
           maxHeight: "82%",
           overflow: "hidden",
         }}

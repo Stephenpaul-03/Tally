@@ -164,8 +164,8 @@ const styles = StyleSheet.create({
     width: 56,
   },
   modal: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderTopWidth: StyleSheet.hairlineWidth,
     maxHeight: "92%",
   },

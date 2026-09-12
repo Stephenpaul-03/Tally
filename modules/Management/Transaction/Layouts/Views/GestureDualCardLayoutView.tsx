@@ -74,7 +74,6 @@ type GestureDualCardLayoutViewProps = {
 };
 
 const CONTROL_BAR_HEIGHT = 64;
-const CARD_RADIUS = 40;
 const HANDLE_HEIGHT = 34;
 const CONTROL_BAR_SIDE_PADDING = 20;
 const APP_HEADER_FALLBACK_HEIGHT = 68;
@@ -1507,8 +1506,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderTopLeftRadius: CARD_RADIUS,
-    borderTopRightRadius: CARD_RADIUS,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     overflow: "hidden",
   },
   cardSlot: {

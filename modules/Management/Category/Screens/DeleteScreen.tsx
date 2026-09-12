@@ -301,8 +301,8 @@ export function CategoryDeleteModal({
       presentation="sheet"
       contentContainerStyle={{
         backgroundColor: props.theme.colors.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         justifyContent: "flex-start",
         maxHeight: "92%",
         overflow: "hidden",

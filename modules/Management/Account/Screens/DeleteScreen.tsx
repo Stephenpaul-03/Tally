@@ -1,8 +1,8 @@
 import { useStagger } from "@/components/animations/UseStagger";
+import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { AnimatedPaperModal } from "@/components/modal/modal";
 import { CategoryTile } from "@/modules/Management/Category/Components/CategoryTile";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { typography } from "@/theme/typography";
@@ -275,11 +275,7 @@ export function AccountDeleteModal(props: AccountDeleteModalProps) {
         modal
         theme={theme}
       />
-      <AccountDeleteContent
-        {...contentProps}
-        theme={theme}
-        modal
-      />
+      <AccountDeleteContent {...contentProps} theme={theme} modal />
     </>
   );
 
@@ -292,8 +288,8 @@ export function AccountDeleteModal(props: AccountDeleteModalProps) {
       presentation="sheet"
       contentContainerStyle={{
         backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         justifyContent: "flex-start",
         maxHeight: "92%",
         overflow: "hidden",

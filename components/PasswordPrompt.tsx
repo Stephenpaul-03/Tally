@@ -92,8 +92,8 @@ export function usePasswordPrompt() {
       contentContainerStyle={{
         paddingTop: 12,
         backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         maxHeight: "92%",
         overflow: "hidden",
       }}

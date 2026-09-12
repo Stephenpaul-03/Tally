@@ -152,6 +152,13 @@ const transactionSlice = createSlice({
       state.modalInitialDate = null;
       state.activeTransactionDraftId = null;
     },
+    openViewModal: (state, action: PayloadAction<string>) => {
+      state.modalMode = "view";
+      state.editingTransactionId = action.payload;
+      state.isModalOpen = true;
+      state.modalInitialDate = null;
+      state.activeTransactionDraftId = null;
+    },
     closeModal: (state) => {
       state.isModalOpen = false;
       state.editingTransactionId = null;
@@ -1041,6 +1048,7 @@ export const {
   openAddModal,
   openDraftModal,
   openEditModal,
+  openViewModal,
   closeModal,
   upsertTransactionDraft,
   removeTransactionDraft,

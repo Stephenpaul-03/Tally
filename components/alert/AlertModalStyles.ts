@@ -13,8 +13,8 @@ export const styles = StyleSheet.create({
     margin: 0,
   },
   sheetContainer: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderTopWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },

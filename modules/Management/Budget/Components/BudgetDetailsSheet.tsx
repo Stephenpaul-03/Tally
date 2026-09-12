@@ -1,6 +1,6 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useAppSelector } from "@/hooks/Redux";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -109,8 +109,8 @@ export function BudgetDetailsSheet({
       includeBottomInset
       contentContainerStyle={{
         backgroundColor: background,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         borderColor: border,
         borderTopWidth: 0.5,
         maxHeight: "88%",

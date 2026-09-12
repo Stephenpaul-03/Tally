@@ -339,8 +339,8 @@ export function AnimatedPaperModal({
           }}
         >
           {presentation === "sheet" && sheetPanResponder ? (
-              <Animated.View
-                style={[
+            <Animated.View
+              style={[
                 { alignSelf: "stretch", flexShrink: 1 },
                 contentWrapperStyle,
                 contentAnimationStyle,

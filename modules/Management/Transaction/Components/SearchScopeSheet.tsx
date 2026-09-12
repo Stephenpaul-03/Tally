@@ -55,8 +55,8 @@ export function SearchScopeSheet({
       <View
         style={{
           backgroundColor: theme.colors.background,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          borderTopLeftRadius: 40,
+          borderTopRightRadius: 40,
           paddingHorizontal: 20,
           paddingTop: 14,
           paddingBottom: 28,

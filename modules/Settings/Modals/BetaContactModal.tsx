@@ -67,8 +67,8 @@ export function BetaContactModal({ visible, scenario, onDismiss }: Props) {
       zIndex={1200}
       contentContainerStyle={{
         backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         maxHeight: "92%",
       }}
     >

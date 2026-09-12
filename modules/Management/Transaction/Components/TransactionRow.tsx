@@ -260,8 +260,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   firstGrouped: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderTopWidth: 0.5,
     borderLeftWidth: 0.5,
     borderRightWidth: 0.5,

@@ -11,7 +11,7 @@
 
 export type TransactionType = "income" | "expense";
 export type PaymentMethod = string;
-export type ModalMode = "add" | "edit";
+export type ModalMode = "add" | "view" | "edit";
 export type TransactionDatePreset =
   | "all"
   | "today"

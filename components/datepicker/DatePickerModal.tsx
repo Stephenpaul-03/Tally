@@ -241,8 +241,8 @@ export function InlineDatePicker({
 
 const styles = StyleSheet.create({
   sheetContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     overflow: "hidden",
   },
   modalContainer: {

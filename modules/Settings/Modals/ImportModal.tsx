@@ -497,8 +497,8 @@ export function BackupImportModal({
       presentation="sheet"
       contentContainerStyle={{
         backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
         maxHeight: "92%",
         overflow: "hidden",
       }}

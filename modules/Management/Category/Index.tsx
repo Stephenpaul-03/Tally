@@ -1,5 +1,5 @@
-import options from "@/data/management-options.json";
 import { AnimatedPaperModal } from "@/components/modal/modal";
+import options from "@/data/management-options.json";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import React, { useEffect, useMemo, useState } from "react";
@@ -214,16 +214,16 @@ export function CategoryManagementModal({
         contentContainerStyle={[
           isMobile
             ? {
-                borderTopLeftRadius: 26,
-                borderTopRightRadius: 26,
-                borderTopWidth: 0.5,
+                borderTopLeftRadius: 40,
+                borderTopRightRadius: 40,
+                borderTopWidth: 0,
                 overflow: "hidden",
               }
             : {
                 alignSelf: "center",
                 maxWidth: "95%",
                 borderRadius: 24,
-                borderWidth: 0.5,
+                borderWidth: 0,
                 overflow: "hidden",
               },
           {

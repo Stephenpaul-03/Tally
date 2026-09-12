@@ -2,13 +2,7 @@ import { AnimatedPaperModal } from "@/components/modal/modal";
 import { withOpacity } from "@/utils/ColorHelpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import {
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -469,14 +463,14 @@ const slidingStyles = StyleSheet.create({
   },
   track: {
     alignSelf: "stretch",
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 0.5,
     flexDirection: "row",
     position: "relative",
     width: "100%",
   },
   slider: {
-    borderRadius: 10,
+    borderRadius: 999,
     borderWidth: 0.5,
     position: "absolute",
   },
@@ -503,8 +497,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   panel: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     gap: 10,
     paddingBottom: 18,
     paddingHorizontal: 16,
@@ -551,7 +545,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   option: {
-    borderRadius: 15,
+    borderRadius: 18,
     borderWidth: 0.5,
     justifyContent: "center",
     aspectRatio: 1,
@@ -569,7 +563,7 @@ const styles = StyleSheet.create({
   iconShell: {
     alignItems: "center",
     alignSelf: "center",
-    borderRadius: 12,
+    borderRadius: 20,
     height: 38,
     justifyContent: "center",
     width: 38,

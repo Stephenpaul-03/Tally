@@ -129,8 +129,8 @@ export const categoryPicker = StyleSheet.create({
     opacity: 1,
   },
   contentContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     paddingBottom: 32,
     maxHeight: 480,
   },
@@ -349,7 +349,7 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       height: 24,
       lineHeight: 16,
       minWidth: 0,
-      paddingHorizontal: 0,
+      paddingHorizontal: 2,
     },
     iosUtilityRow: {
       alignItems: "center",
@@ -718,8 +718,8 @@ export const modal = StyleSheet.create({
     alignSelf: "center",
   },
   datePickerContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     alignSelf: "center",

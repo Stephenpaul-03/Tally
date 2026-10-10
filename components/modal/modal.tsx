@@ -30,6 +30,9 @@ type Props = {
   dismissable?: boolean;
   keyboardAware?: boolean;
   includeBottomInset?: boolean;
+  animationDuration?: number;
+  dismissDuration?: number;
+  reduceMotion?: boolean;
 };
 
 export function AnimatedPaperModal({
@@ -45,6 +48,9 @@ export function AnimatedPaperModal({
   dismissable = true,
   keyboardAware = false,
   includeBottomInset = true,
+  animationDuration = 500,
+  dismissDuration = 300,
+  reduceMotion = false,
 }: Props) {
   const { height } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
@@ -90,19 +96,19 @@ export function AnimatedPaperModal({
       Animated.parallel([
         Animated.timing(progress, {
           toValue: 1,
-          duration: 500,
+          duration: reduceMotion ? 0 : animationDuration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(backdropProgress, {
           toValue: 1,
-          duration: 500,
+          duration: reduceMotion ? 0 : animationDuration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(sheetTranslateY, {
           toValue: 0,
-          duration: 500,
+          duration: reduceMotion ? 0 : animationDuration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -116,19 +122,19 @@ export function AnimatedPaperModal({
     Animated.parallel([
       Animated.timing(progress, {
         toValue: 0,
-        duration: 300,
+        duration: reduceMotion ? 0 : dismissDuration,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(backdropProgress, {
         toValue: 0,
-        duration: 300,
+        duration: reduceMotion ? 0 : dismissDuration,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
         toValue: hiddenTranslateY,
-        duration: 300,
+        duration: reduceMotion ? 0 : dismissDuration,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -142,6 +148,9 @@ export function AnimatedPaperModal({
     progress,
     sheetTranslateY,
     visible,
+    animationDuration,
+    dismissDuration,
+    reduceMotion,
   ]);
 
   useEffect(() => {
@@ -207,7 +216,7 @@ export function AnimatedPaperModal({
 
         Animated.timing(sheetTranslateY, {
           toValue: shouldDismiss ? hiddenTranslateY : 0,
-          duration: shouldDismiss ? 180 : 220,
+          duration: reduceMotion ? 0 : shouldDismiss ? 180 : 220,
           easing: shouldDismiss
             ? Easing.in(Easing.cubic)
             : Easing.out(Easing.cubic),
@@ -215,7 +224,7 @@ export function AnimatedPaperModal({
         }).start();
         Animated.timing(backdropProgress, {
           toValue: shouldDismiss ? 0 : 1,
-          duration: shouldDismiss ? 180 : 220,
+          duration: reduceMotion ? 0 : shouldDismiss ? 180 : 220,
           easing: shouldDismiss
             ? Easing.in(Easing.cubic)
             : Easing.out(Easing.cubic),
@@ -225,13 +234,13 @@ export function AnimatedPaperModal({
       onPanResponderTerminate: () => {
         Animated.timing(sheetTranslateY, {
           toValue: 0,
-          duration: 220,
+          duration: reduceMotion ? 0 : 220,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start();
         Animated.timing(backdropProgress, {
           toValue: 1,
-          duration: 220,
+          duration: reduceMotion ? 0 : 220,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start();
@@ -239,6 +248,7 @@ export function AnimatedPaperModal({
     });
   }, [
     dismissable,
+    reduceMotion,
     height,
     hiddenTranslateY,
     onDismiss,

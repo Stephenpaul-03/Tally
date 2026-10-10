@@ -1,6 +1,6 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { toast } from "@/components/toast/ToastProvider";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import { palette } from "@/theme/color_palette";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
@@ -44,16 +44,6 @@ interface TransactionRowProps {
   disableLongPress?: boolean;
 }
 
-function darkenHex(hex: string, amount = 0.18) {
-  const clean = hex.replace("#", "");
-  if (clean.length !== 6) return hex;
-  const num = parseInt(clean, 16);
-  const r = Math.max(0, Math.round(((num >> 16) & 0xff) * (1 - amount)));
-  const g = Math.max(0, Math.round(((num >> 8) & 0xff) * (1 - amount)));
-  const b = Math.max(0, Math.round((num & 0xff) * (1 - amount)));
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-}
-
 function TransactionRowComponent({
   transaction,
   onPressTransaction,
@@ -65,7 +55,6 @@ function TransactionRowComponent({
 }: TransactionRowProps) {
   const theme = useTheme<MD3Theme>();
   const dispatch = useAppDispatch();
-  const { minimalIconsEnabled } = useAddonPrefs();
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -109,17 +98,6 @@ function TransactionRowComponent({
     [categoryColors, transaction.category, transaction.type],
   );
 
-  const categoryIconBackground = useMemo(
-    () =>
-      minimalIconsEnabled ? theme.colors.background : darkenHex(categoryColor),
-    [categoryColor, minimalIconsEnabled, theme.colors.background],
-  );
-
-  const categoryIconBorder = useMemo(
-    () => (minimalIconsEnabled ? theme.colors.elevation.level1 : undefined),
-    [minimalIconsEnabled, theme.colors.elevation.level1],
-  );
-
   const handleLongPress = useCallback(() => {
     setDeleteConfirmOpen(true);
   }, []);
@@ -150,24 +128,8 @@ function TransactionRowComponent({
       >
         <View style={styles.row}>
           <View style={styles.left}>
-            <View
-              style={[
-                styles.iconCircle,
-                {
-                  backgroundColor: categoryIconBackground,
-                  borderColor: categoryIconBorder,
-                  borderWidth: minimalIconsEnabled ? 1 : 0,
-                },
-                isDraft ? styles.draftIconCluster : null,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={categoryIcon as any}
-                size={20}
-                color={minimalIconsEnabled ? categoryColor : "#FFFFFF"}
-                style={styles.icon}
-              />
-            </View>
+            <CategoryIconBadge icon={categoryIcon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
+              color={categoryColor} style={isDraft ? styles.draftIconCluster : undefined} />
             <View style={styles.info}>
               <Text
                 style={[styles.name, { color: theme.colors.onSurface }]}
@@ -291,18 +253,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
   draftIconCluster: {
     opacity: 0.58,
   },
-  icon: { flexShrink: 0, width: 22, textAlign: "center" },
   info: { flex: 1, minWidth: 0, gap: 4, paddingTop: 1, fontWeight: "600" },
   name: { fontSize: 14, fontWeight: "600", letterSpacing: 0.1 },
   meta: { fontSize: 12, opacity: 0.84 },

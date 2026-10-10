@@ -5,7 +5,7 @@ import {
 } from "@/components/tabbar/TabBarContext";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { typography } from "@/theme/typography";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -41,6 +41,8 @@ export type TabActionPair = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BAR_HEIGHT = 64;
+const BAR_BOTTOM_GAP = 5;
+const BAR_BORDER_WIDTH = 1;
 const BAR_SIDE_GAP = 20;
 const PILL_INSET = 5;
 const PILL_GAP = 6;
@@ -244,10 +246,10 @@ function BasicTabBar({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const setTabBarHeight = useSetTabBarHeight();
-  const surfaceHeightRef = useRef(0);
+  const [surfaceHeight, setSurfaceHeight] = useState(BAR_HEIGHT + BAR_BORDER_WIDTH * 2);
   const barWidthRef = useRef(0);
   const pillLeft = useRef(new Animated.Value(0)).current;
-  const pillWidth = useRef(new Animated.Value(0)).current;
+  const [pillWidth, setPillWidth] = useState(0);
 
   // Keep the latest activeIndex/onTabPress available to the PanResponder
   // handlers below without needing to recreate the responder every render.
@@ -277,10 +279,13 @@ function BasicTabBar({
     autoPlay: true,
   });
 
-  const publishHeight = useCallback(
-    (h: number) => setTabBarHeight(h + insets.bottom),
-    [insets.bottom, setTabBarHeight],
-  );
+  // Publish the bar's footprint, excluding the safe inset that consumers
+  // already add. Keep publication and cleanup in one lifecycle so a remount
+  // or effect replay cannot leave a visible bar reporting zero height.
+  useLayoutEffect(() => {
+    setTabBarHeight(hidden ? 0 : surfaceHeight + BAR_BOTTOM_GAP);
+    return () => setTabBarHeight(0);
+  }, [hidden, surfaceHeight, setTabBarHeight]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -289,18 +294,11 @@ function BasicTabBar({
       return;
     }
     if (hidden) {
-      slideOut(() => setTabBarHeight(0));
+      slideOut();
     } else {
-      publishHeight(surfaceHeightRef.current);
       slideIn();
     }
   }, [hidden]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    publishHeight(surfaceHeightRef.current);
-  }, [publishHeight]);
-
-  useEffect(() => () => setTabBarHeight(0), [setTabBarHeight]);
 
   const inactiveColor = theme.colors.onBackground + 40;
   const activeColor = theme.colors.onPrimary;
@@ -317,28 +315,6 @@ function BasicTabBar({
     (index: number, tabWidth: number) =>
       PILL_INSET + index * tabWidth + PILL_GAP / 2,
     [],
-  );
-
-  // Width only needs to change when barWidth/routes.length changes — not per tap.
-  const setPillWidth = useCallback(
-    (animated: boolean) => {
-      const tabWidth = getTabWidth();
-      if (!tabWidth) return;
-      const nextWidth = Math.max(0, tabWidth - PILL_GAP);
-
-      pillWidth.stopAnimation();
-      if (animated) {
-        Animated.timing(pillWidth, {
-          toValue: nextWidth,
-          duration: 220,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: false,
-        }).start();
-      } else {
-        pillWidth.setValue(nextWidth);
-      }
-    },
-    [getTabWidth, pillWidth],
   );
 
   // Position-only — safe to run on the native driver now that width isn't coupled to it.
@@ -454,11 +430,7 @@ function BasicTabBar({
       ]}
       onLayout={(e) => {
         const { height } = e.nativeEvent.layout;
-        const contentH = height - insets.bottom;
-        if (contentH !== surfaceHeightRef.current) {
-          surfaceHeightRef.current = contentH;
-          if (!hidden) publishHeight(contentH);
-        }
+        if (height > 0) setSurfaceHeight(height);
       }}
     >
       {/*
@@ -490,7 +462,8 @@ function BasicTabBar({
           const nextWidth = e.nativeEvent.layout.width;
           if (nextWidth !== barWidthRef.current) {
             barWidthRef.current = nextWidth;
-            setPillWidth(false);
+            // Keep width static so the native-driven position never receives a layout animation.
+            setPillWidth(Math.max(0, getTabWidth() - PILL_GAP));
             updatePill(activeIndex, false);
           }
         }}
@@ -535,9 +508,8 @@ function DisabledTabBarActions({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setTabBarHeight(0);
-    return () => setTabBarHeight(0);
   }, [setTabBarHeight]);
 
   if (hidden || (!activeActions?.left && !activeActions?.right)) return null;
@@ -624,9 +596,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: BAR_SIDE_GAP,
     right: BAR_SIDE_GAP,
-    bottom: 5,
+    bottom: BAR_BOTTOM_GAP,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: BAR_BORDER_WIDTH,
     overflow: "visible",
   },
   actionOnlyContainer: {

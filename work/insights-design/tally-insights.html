@@ -1,0 +1,149 @@
+<style>
+#tally-insights { --tally-bg:light-dark(#ffffff,#151517); --tally-text:light-dark(#0a0a0b,#ededed); --tally-muted:light-dark(#4a4a52,#b5b5bd); --tally-panel:light-dark(#f0f0f2,#27272c); --tally-line:light-dark(#dddde2,#424248); --tally-accent:light-dark(#405d50,#9acbb2); --tally-alert:light-dark(#a32f24,#ffada5); color-scheme:light dark; font-family:Arial,system-ui,sans-serif; color:var(--tally-text); font-size:17px; line-height:1.5; }
+#tally-insights * { box-sizing:border-box; }
+#tally-insights .tally-phone { width:100%; max-width:430px; margin:auto; padding:24px; background:var(--tally-bg); border:1px solid var(--tally-line); border-radius:28px; }
+#tally-insights h1,#tally-insights h2,#tally-insights p { margin:0; }
+#tally-insights h1 { font-size:28px; font-weight:500; }
+#tally-insights h2 { font-size:20px; font-weight:500; margin-bottom:14px; }
+#tally-insights .tally-muted { color:var(--tally-muted); }
+#tally-insights .tally-small { font-size:15px; }
+#tally-insights .tally-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+#tally-insights .tally-number { font-variant-numeric:tabular-nums; }
+#tally-insights .tally-top { margin-bottom:24px; }
+#tally-insights .tally-period { display:grid; grid-template-columns:48px 1fr 48px; gap:8px; align-items:center; text-align:center; margin:20px 0; }
+#tally-insights button { font:inherit; color:inherit; cursor:inherit; }
+#tally-insights .tally-arrow { border:0; background:var(--tally-panel); border-radius:50%; width:48px; height:48px; display:grid; place-items:center; }
+#tally-insights button:disabled { opacity:.35; }
+#tally-insights .tally-hero { background:var(--tally-panel); padding:22px; border-radius:24px; margin-bottom:28px; }
+#tally-insights .tally-big { font-size:42px; line-height:1.2; font-weight:500; overflow-wrap:anywhere; margin:8px 0 14px; }
+#tally-insights .tally-budget { margin-top:20px; padding-top:16px; border-top:1px solid var(--tally-line); }
+#tally-insights .tally-track { height:6px; background:var(--tally-line); border-radius:6px; overflow:hidden; margin:10px 0; }
+#tally-insights .tally-fill { height:100%; background:var(--tally-accent); border-radius:6px; }
+#tally-insights .tally-section { margin-bottom:28px; }
+#tally-insights .tally-category { display:block; width:100%; padding:12px 0; text-align:left; border:0; border-bottom:1px solid var(--tally-line); background:transparent; }
+#tally-insights .tally-category .tally-row { flex-wrap:nowrap; }
+#tally-insights .tally-category-name { flex:1; min-width:0; overflow-wrap:anywhere; }
+#tally-insights .tally-category-value { flex-shrink:0; }
+#tally-insights .tally-category .tally-track { margin-bottom:0; margin-right:24px; }
+#tally-insights .tally-link { padding:12px 0; min-height:48px; background:transparent; border:0; color:var(--tally-accent); text-align:left; }
+#tally-insights .tally-note { border-left:3px solid var(--tally-accent); padding-left:16px; }
+#tally-insights details { border-top:1px solid var(--tally-line); }
+#tally-insights summary { padding:16px 0; min-height:56px; font-size:18px; }
+#tally-insights .tally-disclosed { padding-bottom:20px; display:grid; gap:14px; }
+#tally-insights .tally-bottom { margin-top:24px; padding-top:18px; border-top:1px solid var(--tally-line); display:flex; justify-content:space-around; gap:12px; color:var(--tally-muted); font-size:15px; }
+#tally-insights .tally-bottom span { display:flex; align-items:center; flex-direction:column; gap:4px; }
+#tally-insights .tally-bottom .tally-current { color:var(--tally-accent); }
+#tally-insights .tally-demo { text-align:center; margin-top:12px; font-size:14px; color:var(--tally-muted); }
+#tally-insights [hidden] { display:none!important; }
+#tally-insights .tally-back { display:flex; gap:8px; align-items:center; }
+#tally-insights .tally-entry { padding:14px 0; border-bottom:1px solid var(--tally-line); }
+#tally-insights .tally-history { display:grid; grid-template-columns:80px 1fr auto; gap:12px; align-items:center; }
+#tally-insights .tally-history .tally-track { margin:0; }
+#tally-insights .tally-alert { color:var(--tally-alert); }
+@media(max-width:360px) { #tally-insights .tally-phone { padding:18px; } #tally-insights .tally-big { font-size:36px; } #tally-insights .tally-history { grid-template-columns:1fr auto; } #tally-insights .tally-history .tally-track { display:none; } }
+</style>
+<div id="tally-insights">
+  <div class="tally-phone" aria-label="Tally insights proposal">
+    <header class="tally-top tally-row"><span>Tally</span><span class="tally-muted tally-small">Personal · INR</span></header>
+    <main id="tally-overview">
+      <h1>Your month</h1>
+      <div class="tally-period">
+        <button type="button" id="tally-previous" class="tally-arrow cursor-interaction" aria-label="Previous month"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+        <div><div id="tally-month">October 2026</div><div id="tally-dates" class="tally-muted tally-small">1–2 October</div></div>
+        <button type="button" id="tally-next" class="tally-arrow cursor-interaction" aria-label="Next month" disabled><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <section class="tally-hero" aria-label="Monthly spending" aria-live="polite">
+        <p>Spent this month</p><p id="tally-spent" class="tally-big tally-number">₹18,400</p>
+        <p id="tally-comparison">₹1,400 less than last month</p>
+        <p id="tally-comparison-dates" class="tally-muted tally-small">Comparing 1–2 October with 1–2 September</p>
+        <div id="tally-budget" class="tally-budget">
+          <div class="tally-row"><span id="tally-budget-label">Remaining budget</span><span id="tally-budget-left" class="tally-number">₹11,600</span></div>
+          <div id="tally-budget-track" class="tally-track" role="progressbar" aria-label="Monthly budget used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="61"><div id="tally-budget-fill" class="tally-fill" style="width:61.333%"></div></div>
+          <p id="tally-budget-caption" class="tally-muted tally-small">₹18,400 spent of ₹30,000 budget</p>
+        </div>
+      </section>
+      <section class="tally-section" aria-labelledby="tally-category-heading">
+        <h2 id="tally-category-heading">Where it went</h2>
+        <div id="tally-categories"></div>
+        <button type="button" id="tally-see-all" class="tally-link cursor-interaction" aria-expanded="false">See all 4 categories</button>
+      </section>
+      <section class="tally-section" aria-labelledby="tally-change-heading">
+        <h2 id="tally-change-heading">What changed</h2>
+        <div class="tally-note"><p id="tally-change">Groceries were ₹1,200 lower. This was the biggest change in your spending.</p><button type="button" id="tally-explain" class="tally-link cursor-interaction">View groceries</button></div>
+      </section>
+      <details id="tally-income-disclosure"><summary class="cursor-interaction">Income and spending</summary><div class="tally-disclosed" id="tally-income"></div></details>
+      <details id="tally-history-disclosure"><summary class="cursor-interaction">Past months</summary><div class="tally-disclosed" id="tally-history"></div></details>
+      <details id="tally-accounts-disclosure"><summary class="cursor-interaction">Spent using</summary><div class="tally-disclosed" id="tally-accounts"></div></details>
+      <p class="tally-muted tally-small" style="margin-top:20px">Based on the entries you recorded.</p>
+    </main>
+    <main id="tally-detail" hidden aria-live="polite">
+      <button type="button" id="tally-back" class="tally-link tally-back cursor-interaction"><i data-lucide="chevron-left" aria-hidden="true"></i> Back to your month</button>
+      <h1 id="tally-detail-title">Groceries</h1><p id="tally-detail-period" class="tally-muted tally-small"></p>
+      <p id="tally-detail-amount" class="tally-big tally-number"></p>
+      <p id="tally-detail-comparison"></p><p id="tally-detail-context" class="tally-muted tally-small" style="margin-top:8px"></p>
+      <section style="margin-top:28px"><h2>Recorded spending</h2><div id="tally-detail-transactions"></div></section>
+    </main>
+    <footer class="tally-bottom" aria-label="App navigation preview"><span><i data-lucide="calendar" aria-hidden="true"></i>Transactions</span><span><i data-lucide="house" aria-hidden="true"></i>Home</span><span class="tally-current" aria-current="page"><i data-lucide="chart-no-axes-column" aria-hidden="true"></i>Insights</span></footer>
+  </div>
+  <p class="tally-demo">Illustrative entries · design proposal</p>
+</div>
+<script>
+(() => {
+ const root=document.getElementById('tally-insights');
+ const el=id=>root.querySelector('#tally-'+id);
+ const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n);
+ const periods=[
+  {month:'July 2026',dates:'1–31 July',compareDates:'Comparing full months: July and June',previous:28600,income:42000,categories:[['Rent',16000,16000,'Monthly rent','2 July','Bank'],['Groceries',7000,6400,'Grocery entries','July','Card'],['Transport',4000,4000,'Travel entries','July','Cash'],['Other',2500,2200,'Other entries','July','UPI']]},
+  {month:'August 2026',dates:'1–31 August',compareDates:'Comparing full months: August and July',previous:29500,income:42000,categories:[['Rent',16000,16000,'Monthly rent','2 August','Bank'],['Groceries',8000,7000,'Grocery entries','August','Card'],['Transport',4500,4000,'Travel entries','August','Cash'],['Other',2500,2500,'Other entries','August','UPI']]},
+  {month:'September 2026',dates:'1–30 September',compareDates:'Comparing full months: September and August',previous:31000,income:42000,categories:[['Rent',16000,16000,'Monthly rent','2 September','Bank'],['Groceries',8500,8000,'Grocery entries','September','Card'],['Transport',4500,4500,'Travel entries','September','Cash'],['Other',3000,2500,'Other entries','September','UPI']]},
+  {month:'October 2026',dates:'1–2 October',compareDates:'Comparing 1–2 October with 1–2 September',previous:19800,income:42000,categories:[['Rent',16000,16000,'Monthly rent','2 October','Bank'],['Groceries',1800,3000,'Weekly groceries','2 October','Card'],['Transport',400,400,'Taxi and bus','1 October','Cash'],['Other',200,400,'Household items','2 October','UPI']]}
+ ];
+ const options={budget:true,categoryBars:true,textSize:'Comfortable',scenario:'With income'};
+ const saved=window.openai?.widgetState?.privateContent;
+ let index=Number.isInteger(saved?.monthIndex)&&saved.monthIndex>=0&&saved.monthIndex<4?saved.monthIndex:3;
+ let all=!!saved?.allCategories, selected=saved?.category||null;
+ const save=()=>window.openai?.setWidgetState({modelContent:{proposal:'Spending first',month:periods[index].month,category:selected},privateContent:{monthIndex:index,allCategories:all,category:selected}})?.catch(()=>{});
+ const row=(label,value)=>`<div class="tally-row"><span>${label}</span><span class="tally-number">${value}</span></div>`;
+ const difference=(n,old)=>n===old?'The same as last month':`${money(Math.abs(n-old))} ${n>old?'more':'less'} than last month`;
+ function render(){
+  const p=periods[index],sum=p.categories.reduce((s,c)=>s+c[1],0),max=Math.max(...p.categories.map(c=>c[1]));
+  root.style.fontSize=options.textSize==='Larger'?'19px':'17px';
+  el('month').textContent=p.month;el('dates').textContent=p.dates;
+  el('previous').disabled=index===0;el('next').disabled=index===3;
+  el('spent').textContent=money(sum);el('comparison').textContent=difference(sum,p.previous);el('comparison-dates').textContent=p.compareDates;
+  const budget=options.scenario==='Over budget'?17000:30000,left=budget-sum;
+  el('budget').hidden=!options.budget||index!==3;
+  el('budget-label').textContent=left<0?'Over budget':'Remaining budget';el('budget-left').textContent=money(Math.abs(left));el('budget-left').classList.toggle('tally-alert',left<0);
+  el('budget-fill').style.width=Math.min(100,sum/budget*100)+'%';el('budget-fill').style.background=left<0?'var(--tally-alert)':'var(--tally-accent)';
+  el('budget-track').setAttribute('aria-valuenow',Math.round(Math.min(100,sum/budget*100)));el('budget-track').setAttribute('aria-valuetext',`${money(sum)} spent of ${money(budget)} budget`);
+  el('budget-caption').textContent=`${money(sum)} spent of ${money(budget)} budget`;
+  const cats=[...p.categories].sort((a,b)=>b[1]-a[1]);
+  el('categories').innerHTML=(all?cats:cats.slice(0,3)).map(c=>`<button type="button" class="tally-category cursor-interaction" data-category="${c[0]}" aria-label="${c[0]}, ${money(c[1])}. View details"><span class="tally-row"><span class="tally-category-name">${c[0]}</span><span class="tally-category-value tally-number">${money(c[1])}</span><span aria-hidden="true">›</span></span>${options.categoryBars?`<div class="tally-track" aria-hidden="true"><div class="tally-fill" style="width:${c[1]/max*100}%"></div></div>`:''}</button>`).join('');
+  el('see-all').textContent=all?'Show top 3 categories':'See all 4 categories';el('see-all').setAttribute('aria-expanded',String(all));
+  const biggest=[...p.categories].sort((a,b)=>Math.abs(b[1]-b[2])-Math.abs(a[1]-a[2]))[0];
+  el('change').textContent=`${biggest[0]} ${biggest[0]==='Groceries'?'were':'was'} ${money(Math.abs(biggest[1]-biggest[2]))} ${biggest[1]>biggest[2]?'higher':'lower'}. This was the biggest change in your spending.`;
+  el('explain').textContent='View '+biggest[0].toLowerCase();el('explain').dataset.category=biggest[0];
+  const income=options.scenario==='Spending only'?0:p.income;
+  el('income').innerHTML=income?row('Income recorded',money(income))+row('Spending recorded',money(sum))+row('Income minus spending',money(income-sum))+'<p class="tally-muted tally-small">This is the difference between recorded income and spending.</p>':'<p>No income recorded for this month.</p>'+row('Spending recorded',money(sum));
+  el('history').innerHTML=periods.slice(0,index).map(h=>{const s=h.categories.reduce((a,c)=>a+c[1],0);return `<div class="tally-history"><span>${h.month.split(' ')[0]}</span><div class="tally-track" aria-hidden="true"><div class="tally-fill" style="width:${s/32000*100}%"></div></div><span class="tally-number">${money(s)}</span></div>`;}).join('')||'<p>No earlier months in this preview.</p>';
+  el('accounts').innerHTML=p.categories.map(c=>row(c[5],money(c[1]))).join('');
+  el('overview').hidden=!!selected;el('detail').hidden=!selected;
+  if(selected){
+   const c=p.categories.find(c=>c[0]===selected);
+   if(!c){selected=null;render();return;}
+   el('detail-title').textContent=c[0];el('detail-period').textContent=p.dates;el('detail-amount').textContent=money(c[1]);
+   el('detail-comparison').textContent=difference(c[1],c[2]);el('detail-context').textContent=p.compareDates;
+   el('detail-transactions').innerHTML=`<div class="tally-entry">${row(c[3],money(c[1]))}<p class="tally-muted tally-small">${c[4]} · ${c[5]}${index<3?' · grouped demo entries':''}</p></div>`;
+  }
+ }
+ el('previous').addEventListener('click',()=>{if(index>0){index--;all=false;render();save();}});
+ el('next').addEventListener('click',()=>{if(index<3){index++;all=false;render();save();}});
+ el('see-all').addEventListener('click',()=>{all=!all;render();save();});
+ el('categories').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(b){selected=b.dataset.category;render();el('back').focus();save();}});
+ el('explain').addEventListener('click',()=>{selected=el('explain').dataset.category;render();el('back').focus();save();});
+ el('back').addEventListener('click',()=>{selected=null;render();el('explain').focus();save();});
+ window.addEventListener('openai:set_globals',e=>{const v=e.detail?.globals?.widgetState?.privateContent;if(v&&Number.isInteger(v.monthIndex)&&v.monthIndex>=0&&v.monthIndex<4){index=v.monthIndex;all=!!v.allCategories;selected=v.category||null;render();}});
+ render();
+ if(globalThis.Tweak){const t=new Tweak({container:root.querySelector('.tally-phone'),onChange:render});t.addToggle(options,'budget',{label:'Show monthly budget'});t.addToggle(options,'categoryBars',{label:'Show category bars'});t.addSelect(options,'textSize',{label:'Reading size',options:['Comfortable','Larger']});t.addSelect(options,'scenario',{label:'Recorded data',options:['With income','Spending only','Over budget']});}
+})();
+</script>

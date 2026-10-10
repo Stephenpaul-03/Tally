@@ -6,6 +6,7 @@ import {
 import { SharedTabHeaderProvider } from "@/components/pageheader/SharedTabHeader";
 import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
 import {
+  TabBarProvider,
   useSetTabBarEdgeButton,
   useSetTabBarHeight,
   useTabBarEdgeButton,
@@ -142,10 +143,11 @@ function TransactionsStackScreen() {
 
 function SettingsStackScreen() {
   return (
-    <>
-      <TabBarHeightResetter />
+    // Settings has no bottom bar. Keep its empty state local so opening it
+    // cannot erase the clearance of the still-mounted transaction screen.
+    <TabBarProvider>
       <SettingsScreen />
-    </>
+    </TabBarProvider>
   );
 }
 

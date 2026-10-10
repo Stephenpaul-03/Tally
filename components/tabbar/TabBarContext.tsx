@@ -19,6 +19,7 @@ export type EdgeButtons = {
 };
 
 type TabBarContextValue = {
+  // Bar plus its bottom gap; consumers add their safe-area inset separately.
   height: number;
   setHeight: (height: number) => void;
   edgeButtons: EdgeButtons | null;

@@ -1,68 +1,117 @@
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
-import { Muted } from "../components/Primitives";
-import type { calculateInsights } from "../calculations";
+import { AnimatedBar, MotionPressable } from "../components/Motion";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { Disclosure, Muted, styles } from "../components/Primitives";
+import { monthLabel, type calculateInsights } from "../calculations";
+import { typography } from "@/theme/typography";
+import { CardEmptyState } from "../components/CardEmptyState";
 type Data = ReturnType<typeof calculateInsights>;
 
-export function CashFlowChart({ trend, money }: { trend: Data["trend"]; money: (v: number) => string }) {
+export function SpendingHistory({ trend, money, onMonth }: {
+  trend: Data["trend"]; money: (v: number) => string; onMonth?: (month: string) => void;
+}) {
   const theme = useTheme();
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const selected = trend.find(row => row.month === selectedMonth) ?? trend[trend.length - 1];
-  const max = Math.max(1, ...trend.flatMap(row => [row.income, row.expense]));
-  const label = (month: string) => new Date(month + "-01T00:00:00").toLocaleDateString(undefined, { month: "short" });
-  return <View style={{ gap: 20 }}>
-    <View style={{ flexDirection: "row", gap: 24 }}>
-      <View style={{ flex: 1, gap: 5 }}>
-        <Muted>↓ Money in</Muted>
-        <Text style={{ fontSize: 19, color: theme.colors.primary }}>{money(selected.income)}</Text>
-      </View>
-      <View style={{ flex: 1, gap: 5 }}>
-        <Muted>↑ Money out</Muted>
-        <Text style={{ fontSize: 19 }}>{money(selected.expense)}</Text>
-      </View>
-    </View>
-    <View style={{ flexDirection: "row", gap: 6 }}>
-      {trend.map(row => <Pressable key={row.month} onPress={() => setSelectedMonth(row.month)}
-        accessibilityRole="button" accessibilityState={{ selected: selected.month === row.month }}
-        accessibilityLabel={row.month + ", income " + money(row.income) + ", expenses " + money(row.expense)}
-        style={{ flex: 1, gap: 10, alignItems: "center", paddingVertical: 8, borderRadius: 10,
-          backgroundColor: selected.month === row.month ? theme.colors.elevation.level2 : "transparent" }}>
-        <View style={{ height: 100, flexDirection: "row", alignItems: "flex-end", gap: 4 }}>
-          <View style={{ height: Math.max(2, row.income / max * 100), width: 10, borderRadius: 4,
-            backgroundColor: theme.colors.primary }} />
-          <View style={{ height: Math.max(2, row.expense / max * 100), width: 10, borderRadius: 4,
-            backgroundColor: theme.colors.onSurfaceVariant, opacity: 0.5 }} />
+  const max = Math.max(1, ...trend.map(row => row.expense));
+  return <View style={{ gap: 10, paddingBottom: 16 }}>
+    {trend.map(row => {
+      const label = monthLabel(row.month);
+      const content = <View style={{ gap: 10, paddingVertical: 10 }}>
+        <View style={[styles.row, { flexWrap: "wrap" }]}>
+          <Text style={{ ...typography.bodyMedium, fontSize: 14, flexGrow: 1 }}>{label}{row.isPartial ? " · so far" : ""}</Text>
+          {row.expenseCount ? <Text style={styles.value}>{money(row.expense)}</Text> : <Muted>No entries</Muted>}
         </View>
-        <Text style={{ fontSize: 13 }}>{label(row.month)}</Text>
-      </Pressable>)}
-    </View>
-    <Muted>{new Date(selected.month + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Muted>
+        <AnimatedBar fraction={row.expense / max} height={5} color={theme.colors.primary} trackColor={theme.colors.elevation.level2} />
+      </View>;
+      return onMonth ? <MotionPressable key={row.month} onPress={() => onMonth(row.month)}
+        accessibilityRole="button" accessibilityLabel={`${label}${row.isPartial ? ", so far" : ""}, ${row.expenseCount ? money(row.expense) + " spent" : "no spending recorded"}. View month.`}>
+        {content}
+      </MotionPressable> : <View key={row.month}>{content}</View>;
+    })}
   </View>;
 }
 
-export function ActivityHeatmap({ days, type, onDay }: {
-  days: Data["days"]; type: "income" | "expense"; onDay: (day: Data["days"][number]) => void;
+export function ActivityHeatmap({ days, type, money, onDay }: {
+  days: Data["days"]; type: "income" | "expense"; money: (value: number) => string;
+  onDay: (day: Data["days"][number]) => void;
 }) {
   const theme = useTheme();
-  const maximum = Math.max(1, ...days.map(day => day[type]));
   const offset = (new Date(days[0].date + "T00:00:00").getDay() + 6) % 7;
+  const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   return <View style={{ gap: 8 }}>
-    <View style={{ flexDirection: "row" }}>{["M", "T", "W", "T", "F", "S", "S"].map((label, i) =>
-      <Text key={i} style={{ width: "14.285%", textAlign: "center", fontSize: 11 }}>{label}</Text>)}</View>
+    <View style={{ flexDirection: "row" }}>{weekdays.map(label =>
+      <Text key={label} accessibilityLabel={label}
+        style={{ ...typography.body, width: "14.285%", textAlign: "center", fontSize: 14 }}>{label[0]}</Text>)}</View>
     <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
       {Array.from({ length: offset }, (_, i) => <View key={"empty" + i} style={{ width: "14.285%" }} />)}
-      {days.map((day, i) => <View key={day.date} style={{ width: "14.285%", padding: 3 }}>
-        <Pressable disabled={day.future} accessibilityRole="button"
-          accessibilityLabel={day.date + ", " + type + " " + day[type]}
+      {days.map((day, i) => <View key={day.date} style={{ width: "14.285%", padding: 2 }}>
+        <MotionPressable disabled={day.future} accessibilityRole="button"
+          accessibilityState={{ disabled: day.future }}
+          accessibilityLabel={day.date + ", " + (day.future ? "future day" : money(day[type]) + (type === "expense" ? " spending recorded" : " income recorded"))}
           onPress={() => onDay(day)}
-          style={{ aspectRatio: 1, borderRadius: 9, justifyContent: "center", alignItems: "center",
-            backgroundColor: day[type] ? theme.colors.primary : theme.colors.elevation.level3,
-            opacity: day.future ? 0.2 : day[type] ? 0.35 + 0.65 * day[type] / maximum : 1 }}>
-          <Text style={{ fontSize: 11, color: day[type] ? theme.colors.onPrimary : theme.colors.onSurface }}>{i + 1}</Text>
-        </Pressable>
+          style={{ minHeight: 44, borderRadius: 12, justifyContent: "center", alignItems: "center",
+            backgroundColor: day[type] ? theme.colors.primaryContainer : theme.colors.elevation.level1,
+            opacity: day.future ? 0.4 : 1 }}>
+          <Text style={{ ...typography.bodyMedium, fontSize: 15,
+            color: day[type] ? theme.colors.onPrimaryContainer : theme.colors.onSurface }}>{i + 1}</Text>
+        </MotionPressable>
       </View>)}
     </View>
-    <Muted>Tap a day for details.</Muted>
+    <Muted>Tap a highlighted day for entries.</Muted>
+  </View>;
+}
+
+export function YearOverview({ year, selectedMonth, money, onMonth }: {
+  year: Data["year"]; selectedMonth: string; money: (value: number) => string; onMonth: (month: string) => void;
+}) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  const [showMonths, setShowMonths] = useState(false);
+  if (!year.months.some(row => row.incomeCount || row.expenseCount)) {
+    return <CardEmptyState message="No entries this year" />;
+  }
+  const max = Math.max(1, ...year.months.flatMap(row => [row.income, row.expense]));
+  return <View style={{ gap: 12 }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}>
+      {([ ["Income", year.income, theme.semantic.income], ["Spent", year.expense, theme.semantic.expense] ] as const).map(([label, value, color]) =>
+        <View key={label} style={{ flex: 1, minWidth: 110, gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+            <Text style={{ ...typography.body, fontSize: 12, color: theme.colors.onSurfaceVariant }}>{label}</Text>
+          </View>
+          <Text style={{ ...typography.bodyMedium, fontSize: 18, color }}>{money(value)}</Text>
+        </View>)}
+    </View>
+    <View accessible accessibilityLabel={`${year.label} monthly income and spending chart. Expand monthly totals for exact amounts.`}
+      style={{ flexDirection: "row", gap: 5, alignItems: "flex-end", height: 112, paddingTop: 8 }}>
+      {year.months.map(row => <View key={row.month} style={{ flex: 1, gap: 6, alignItems: "center", opacity: row.future ? 0.3 : 1 }}>
+        <View style={{ height: 80, flexDirection: "row", gap: 2, alignItems: "flex-end", width: "100%" }}>
+          <View style={{ flex: 1, height: Math.max(2, row.income / max * 80), backgroundColor: row.incomeCount ? theme.semantic.income : theme.colors.outlineVariant, borderRadius: 2 }} />
+          <View style={{ flex: 1, height: Math.max(2, row.expense / max * 80), backgroundColor: row.expenseCount ? theme.semantic.expense : theme.colors.outlineVariant, borderRadius: 2 }} />
+        </View>
+        <Text style={{ ...typography.body, fontSize: 10, color: row.month === selectedMonth ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+          {new Date(`${row.month}-01T00:00:00`).toLocaleDateString(undefined, { month: "narrow" })}
+        </Text>
+      </View>)}
+    </View>
+    {year.isCurrent ? <Text style={{ ...typography.body, fontSize: 12, color: theme.colors.onSurfaceVariant }}>Year to date · current month so far</Text> : null}
+    <Disclosure label="Monthly totals" open={showMonths} onPress={() => setShowMonths(!showMonths)} />
+    {showMonths ? <View>
+      <View style={{ flexDirection: "row", gap: 12, paddingBottom: 8 }}>
+        <View style={{ width: 36 }} /><Text style={{ ...typography.body, fontSize: 12, flex: 1, color: theme.semantic.income }}>Income</Text>
+        <Text style={{ ...typography.body, fontSize: 12, flex: 1, color: theme.semantic.expense }}>Spent</Text>
+      </View>
+      {year.months.map(row => <MotionPressable key={row.month} onPress={() => onMonth(row.month)} disabled={row.future}
+        accessibilityRole="button" accessibilityState={{ selected: row.month === selectedMonth, disabled: row.future }}
+        accessibilityLabel={`${monthLabel(row.month)}${row.isPartial ? ", so far" : ""}. ${row.future ? "Upcoming" : `Income ${row.incomeCount ? money(row.income) : "not recorded"}, spent ${row.expenseCount ? money(row.expense) : "not recorded"}. View month.`}`}
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingVertical: 10, borderBottomWidth: 0.5, borderColor: theme.colors.outlineVariant }}>
+        <Text style={{ ...typography.body, fontSize: 13, width: 36 }}>{new Date(`${row.month}-01T00:00:00`).toLocaleDateString(undefined, { month: "short" })}</Text>
+        {row.future ? <Muted>Upcoming</Muted> : <>
+          <Text style={{ ...typography.body, fontSize: 13, flex: 1 }}>{row.incomeCount ? money(row.income) : "—"}</Text>
+          <Text style={{ ...typography.body, fontSize: 13, flex: 1 }}>{row.expenseCount ? money(row.expense) : "—"}</Text>
+        </>}
+      </MotionPressable>)}
+      <Text style={{ ...typography.body, fontSize: 12, paddingTop: 10, color: theme.colors.onSurfaceVariant }}>— No entries · tap a month to explore</Text>
+    </View> : null}
   </View>;
 }

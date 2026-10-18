@@ -1,6 +1,6 @@
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
-import { withOpacity } from "@/utils/ColorHelpers";
+import { withOpacity } from "@/utils/color-helpers";
 import { TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";

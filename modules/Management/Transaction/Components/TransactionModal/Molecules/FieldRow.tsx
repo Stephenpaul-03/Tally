@@ -1,4 +1,4 @@
-import { getContrastColor } from "@/utils/ColorHelpers";
+import { getContrastColor } from "@/utils/color-helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { View } from "react-native";

@@ -1,4 +1,6 @@
-# Android APK releases
+# Android APK releases — 0.1.0 preview
+
+The current app version is **0.1.0**, an early preview. Migration safety, backup compatibility, and monetary precision still need hardening before a stable release.
 
 Measured during the 18 October 2026 optimization pass: the ARM64 release APK decreased from 64,883,368 bytes (61.88 MiB) to 44,737,374 bytes (42.66 MiB), a 31.05% reduction. Both measurements use ARM64; the older universal APK is not the comparison baseline. The optimized APK retains Hermes and uncompressed native libraries for direct loading.
 

@@ -1,5 +1,5 @@
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { withOpacity } from "@/utils/ColorHelpers";
+import { withOpacity } from "@/utils/color-helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";

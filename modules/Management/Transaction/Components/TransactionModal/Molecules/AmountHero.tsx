@@ -5,7 +5,7 @@ import {
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { typography } from "@/theme/typography";
-import { getContrastColor } from "@/utils/ColorHelpers";
+import { getContrastColor } from "@/utils/color-helpers";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { Text, TextInput, useTheme, type MD3Theme } from "react-native-paper";

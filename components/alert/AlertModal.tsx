@@ -12,7 +12,7 @@ import { Button, Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { typography } from "@/theme/typography";
-import { getContrastColor } from "@/utils/ColorHelpers";
+import { getContrastColor } from "@/utils/color-helpers";
 import { styles } from "./AlertModalStyles";
 
 type ConfirmMode = "button" | "slide";

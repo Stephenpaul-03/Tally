@@ -41,7 +41,9 @@ Captured from an Android development build using generated sample data. See the 
 
 ## Working, with a little sawdust
 
-Tally is working and usable. Code cleanup and bug fixes are ongoing. The app has its shoes on; the workshop is still open.
+**Current version: 0.1.0 — early preview.** Tally is working, with code cleanup and bug fixes ongoing. The app has its shoes on; the workshop is still open.
+
+SQLite migration safety, backup compatibility, and money precision still need hardening. Keep independent copies of important records while those foundations get tightened up.
 
 Android gets first dibs as the current release target. iOS source is included, but an iOS release has not been verified. Tally uses native modules and needs a development build; it does not run in standard Expo Go.
 

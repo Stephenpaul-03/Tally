@@ -4,6 +4,9 @@ import type { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export type ExpandedControl = {
   label: string;
+  group?: string;
+  compact?: boolean;
+  selected?: boolean;
   icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
   accessibilityLabel?: string;
   badgeIcon?: ComponentProps<typeof MaterialCommunityIcons>["name"];

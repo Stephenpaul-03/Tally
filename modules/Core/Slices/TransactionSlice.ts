@@ -1,3 +1,4 @@
+import { sortCategories } from "@/utils/category-order";
 /**
  * Transaction Redux Slice
  * State management for financial transactions
@@ -32,6 +33,7 @@ import {
 } from "../../../utils/Types";
 import { financeRepository, switchWorkspace } from "../Repository/Index";
 import type { RootState } from "../Store";
+import { SQLiteFinanceRepository } from "../Repository/SQLiteRepo";
 
 // Storage key for persistence
 export const transactionStorageKey = "transactions";
@@ -935,28 +937,6 @@ const transactionSlice = createSlice({
         if (type === "income") state.deletedIncomeCategories = cleaned;
         else state.deletedExpenseCategories = cleaned;
       })
-      .addCase(deleteCategoryAsync.fulfilled, (state, action) => {
-        const { name, type } = action.payload;
-        const categories =
-          type === "income" ? state.incomeCategories : state.expenseCategories;
-        const deletedCategories =
-          type === "income"
-            ? state.deletedIncomeCategories
-            : state.deletedExpenseCategories;
-
-        // Remove from active categories
-        const activeIndex = categories.indexOf(name);
-        if (activeIndex !== -1) {
-          categories.splice(activeIndex, 1);
-        }
-        // Add to deleted categories
-        if (!deletedCategories.includes(name)) {
-          deletedCategories.push(name);
-        }
-        if (type === "expense") {
-          delete state.categoryBudgets[name];
-        }
-      })
       .addCase(addAccountAsync.fulfilled, (state, action) => {
         const { name, icon, color } = action.payload;
         if (!state.accounts.includes(name)) {
@@ -1142,27 +1122,22 @@ export const selectTransactionById =
   (id: string) => (state: { transactions: TransactionState }) =>
     state.transactions.transactions.find((t) => t.id === id);
 
-export const selectActiveIncomeCategories = (state: {
-  transactions: TransactionState;
-}) =>
-  state.transactions.incomeCategories.filter(
-    (name) => !state.transactions.deletedIncomeCategories.includes(name),
-  );
-
-export const selectActiveExpenseCategories = (state: {
-  transactions: TransactionState;
-}) =>
-  state.transactions.expenseCategories.filter(
-    (name) => !state.transactions.deletedExpenseCategories.includes(name),
-  );
-
-export const selectIncomeCategories = (state: {
-  transactions: TransactionState;
-}) => state.transactions.incomeCategories;
-
-export const selectExpenseCategories = (state: {
-  transactions: TransactionState;
-}) => state.transactions.expenseCategories;
+export const selectIncomeCategories = createSelector(
+  [(state: { transactions: TransactionState }) => state.transactions.incomeCategories],
+  names => sortCategories(names, name => name),
+);
+export const selectExpenseCategories = createSelector(
+  [(state: { transactions: TransactionState }) => state.transactions.expenseCategories],
+  names => sortCategories(names, name => name),
+);
+export const selectActiveIncomeCategories = createSelector(
+  [selectIncomeCategories, (state: { transactions: TransactionState }) => state.transactions.deletedIncomeCategories],
+  (names, deleted) => names.filter(name => !deleted.includes(name)),
+);
+export const selectActiveExpenseCategories = createSelector(
+  [selectExpenseCategories, (state: { transactions: TransactionState }) => state.transactions.deletedExpenseCategories],
+  (names, deleted) => names.filter(name => !deleted.includes(name)),
+);
 
 export const selectCategoryIcons = (state: {
   transactions: TransactionState;
@@ -1230,9 +1205,23 @@ export const fetchTransactions = createAsyncThunk(
   async () => {
     if (!financeRepository) return [] as Transaction[];
     const txs = await financeRepository.getTransactions();
-    console.log("[fetchTransactions] Got from DB:", txs.length);
     return txs;
   },
+);
+
+export const setInsightsSampleDataAsync = createAsyncThunk<number, boolean, { state: RootState }>(
+  "transactions/setInsightsSampleData",
+  async (enabled, { getState, dispatch }) => {
+    const workspaceId = getState().workspace.activeWorkspaceId;
+    const repository = new SQLiteFinanceRepository(workspaceId);
+    const count = await repository.setInsightsSampleData(enabled);
+    const transactions = await repository.getTransactions();
+    if (getState().workspace.activeWorkspaceId === workspaceId) {
+      dispatch(loadTransactions(transactions));
+    }
+    return count;
+  },
+  { condition: (_, { getState }) => !getState().transactions.isLoading },
 );
 
 export const fetchCategories = createAsyncThunk(
@@ -1379,35 +1368,31 @@ export const updateCategoryAsync = createAsyncThunk(
   },
 );
 
+export const deleteCategoriesAsync = createAsyncThunk<number, { names: string[]; type: TransactionType; destination?: string; workspaceId: string }, { state: RootState }>(
+  "transactions/deleteCategories",
+  async ({ names, type, destination, workspaceId }, { getState, dispatch }) => {
+    if (getState().workspace.activeWorkspaceId !== workspaceId) throw new Error("Workspace changed. Open the category list again.");
+    const repository = new SQLiteFinanceRepository(workspaceId);
+    await repository.deleteCategories(type, names, destination);
+    try {
+      const [transactions, categories, budget] = await Promise.all([repository.getTransactions(), repository.getCategories(type), repository.getBudget()]);
+      if (getState().workspace.activeWorkspaceId === workspaceId) {
+        dispatch(loadTransactions(transactions));
+        dispatch(fetchCategories.fulfilled({ type, categories }, "category-delete", type));
+        dispatch(fetchBudget.fulfilled(budget, "category-delete", undefined));
+      }
+    } catch {
+      throw new Error("Categories were deleted, but the list could not refresh. Restart the app.");
+    }
+    return names.length;
+  },
+);
+
 export const deleteCategoryAsync = createAsyncThunk(
   "transactions/deleteCategory",
-  async ({
-    name,
-    type,
-    fallback,
-  }: {
-    name: string;
-    type: TransactionType;
-    fallback?: string;
-  }) => {
-    if (!financeRepository) throw new Error("Repository not available");
-    const category = await financeRepository.getCategoryByName(name, type);
-    if (!category) throw new Error(`Category '${name}' not found`);
-    if (fallback && fallback !== name) {
-      const destination = await financeRepository.getCategoryByName(
-        fallback,
-        type,
-      );
-      if (!destination) {
-        throw new Error(`Category '${fallback}' not found`);
-      }
-      await financeRepository.reassignCategoryTransactions(
-        category.id,
-        destination.id,
-        type,
-      );
-    }
-    await financeRepository.softDeleteCategory(category.id);
+  async ({ name, type, fallback }: { name: string; type: TransactionType; fallback?: string }, { getState, dispatch }) => {
+    const workspaceId = (getState() as RootState).workspace.activeWorkspaceId;
+    await dispatch(deleteCategoriesAsync({ names: [name], type, destination: fallback, workspaceId }) as any).unwrap();
     return { name, type };
   },
 );

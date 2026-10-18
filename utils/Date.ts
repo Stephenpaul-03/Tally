@@ -1,4 +1,4 @@
-import { DateType } from "react-native-ui-datepicker";
+type DateInput = string | number | Date | { toDate: () => Date } | null | undefined;
 
 export function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -49,7 +49,7 @@ export function parseIsoDateOnlyToDate(value?: string): Date | null {
 }
 
 export function toIsoDateOnly(
-  value: DateType,
+  value: DateInput,
   formatDateForInput: (date: Date) => string,
 ): string | undefined {
   if (!value) return undefined;

@@ -1,0 +1,35 @@
+name: Bug report
+description: Report something that is not working as expected.
+body:
+  - type: markdown
+    attributes:
+      value: Please use sample data and redact personal information from screenshots and logs.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open…
+        2. Tap…
+        3. Observe…
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: App and device
+      description: Include the app version or commit, device/emulator, OS version, theme, and relevant interface preferences.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: Optional. Remove financial details, passwords, and other personal information.

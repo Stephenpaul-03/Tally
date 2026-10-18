@@ -9,6 +9,7 @@ import {
   StyleProp,
   StyleSheet,
   useWindowDimensions,
+  View,
   ViewStyle,
 } from "react-native";
 import { Modal, Portal, useTheme } from "react-native-paper";
@@ -55,11 +56,11 @@ export function AnimatedPaperModal({
   const { height } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
   const paperTheme = useTheme();
-  const hiddenTranslateY = Math.max(0, Math.floor(height));
+  const hiddenOffset = Math.max(0, Math.floor(height));
   const progress = useRef(new Animated.Value(0)).current;
   const backdropProgress = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(hiddenTranslateY)).current;
-  const gestureStartTranslateY = useRef(0);
+  const sheetOffset = useRef(new Animated.Value(hiddenOffset)).current;
+  const gestureStartOffset = useRef(0);
   const [rendered, setRendered] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -88,10 +89,10 @@ export function AnimatedPaperModal({
       setRendered(true);
       progress.stopAnimation();
       backdropProgress.stopAnimation();
-      sheetTranslateY.stopAnimation();
+      sheetOffset.stopAnimation();
       progress.setValue(0);
       backdropProgress.setValue(0);
-      if (presentation === "sheet") sheetTranslateY.setValue(hiddenTranslateY);
+      if (presentation === "sheet") sheetOffset.setValue(hiddenOffset);
 
       Animated.parallel([
         Animated.timing(progress, {
@@ -106,7 +107,7 @@ export function AnimatedPaperModal({
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(sheetTranslateY, {
+        Animated.timing(sheetOffset, {
           toValue: 0,
           duration: reduceMotion ? 0 : animationDuration,
           easing: Easing.out(Easing.cubic),
@@ -118,7 +119,7 @@ export function AnimatedPaperModal({
 
     progress.stopAnimation();
     backdropProgress.stopAnimation();
-    sheetTranslateY.stopAnimation();
+    sheetOffset.stopAnimation();
     Animated.parallel([
       Animated.timing(progress, {
         toValue: 0,
@@ -132,8 +133,8 @@ export function AnimatedPaperModal({
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(sheetTranslateY, {
-        toValue: hiddenTranslateY,
+      Animated.timing(sheetOffset, {
+        toValue: hiddenOffset,
         duration: reduceMotion ? 0 : dismissDuration,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
@@ -143,10 +144,10 @@ export function AnimatedPaperModal({
     });
   }, [
     backdropProgress,
-    hiddenTranslateY,
+    hiddenOffset,
     presentation,
     progress,
-    sheetTranslateY,
+    sheetOffset,
     visible,
     animationDuration,
     dismissDuration,
@@ -191,19 +192,19 @@ export function AnimatedPaperModal({
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
         backdropProgress.stopAnimation();
-        sheetTranslateY.stopAnimation((value) => {
-          gestureStartTranslateY.current =
+        sheetOffset.stopAnimation((value) => {
+          gestureStartOffset.current =
             typeof value === "number" ? Math.max(0, value) : 0;
         });
       },
       onPanResponderMove: (_event, gesture) => {
         const nextTranslate = Math.min(
-          hiddenTranslateY,
-          Math.max(0, gestureStartTranslateY.current + gesture.dy),
+          hiddenOffset,
+          Math.max(0, gestureStartOffset.current + gesture.dy),
         );
-        sheetTranslateY.setValue(nextTranslate);
+        sheetOffset.setValue(nextTranslate);
         backdropProgress.setValue(
-          1 - Math.min(1, nextTranslate / Math.max(hiddenTranslateY, 1)),
+          1 - Math.min(1, nextTranslate / Math.max(hiddenOffset, 1)),
         );
       },
       onPanResponderRelease: (_event, gesture) => {
@@ -214,8 +215,8 @@ export function AnimatedPaperModal({
           onDismiss();
         }
 
-        Animated.timing(sheetTranslateY, {
-          toValue: shouldDismiss ? hiddenTranslateY : 0,
+        Animated.timing(sheetOffset, {
+          toValue: shouldDismiss ? hiddenOffset : 0,
           duration: reduceMotion ? 0 : shouldDismiss ? 180 : 220,
           easing: shouldDismiss
             ? Easing.in(Easing.cubic)
@@ -232,7 +233,7 @@ export function AnimatedPaperModal({
         }).start();
       },
       onPanResponderTerminate: () => {
-        Animated.timing(sheetTranslateY, {
+        Animated.timing(sheetOffset, {
           toValue: 0,
           duration: reduceMotion ? 0 : 220,
           easing: Easing.out(Easing.cubic),
@@ -250,11 +251,11 @@ export function AnimatedPaperModal({
     dismissable,
     reduceMotion,
     height,
-    hiddenTranslateY,
+    hiddenOffset,
     onDismiss,
     presentation,
     backdropProgress,
-    sheetTranslateY,
+    sheetOffset,
   ]);
 
   const combinedContentContainerStyle = useMemo(() => {
@@ -274,7 +275,7 @@ export function AnimatedPaperModal({
       {
         borderTopLeftRadius: 40,
         borderTopRightRadius: 40,
-        transform: [{ translateY: sheetTranslateY }],
+        transform: [{ translateY: sheetOffset }],
       },
     ] as any;
   }, [
@@ -284,7 +285,7 @@ export function AnimatedPaperModal({
     keyboardAware,
     keyboardHeight,
     presentation,
-    sheetTranslateY,
+    sheetOffset,
   ]);
 
   const contentAnimationStyle = useMemo(
@@ -321,9 +322,13 @@ export function AnimatedPaperModal({
       children
     );
 
+  // Paper stacks portals by registration order, not the zIndex of their children.
+  // Register only while presented (including the exit animation), so the next
+  // opened modal and its backdrop sit above the existing modal stack.
+  if (!rendered) return null;
+
   return (
-    <>
-      <Portal>
+    <Portal>
         <Animated.View
           pointerEvents="none"
           style={[
@@ -335,8 +340,7 @@ export function AnimatedPaperModal({
             },
           ]}
         />
-      </Portal>
-      <Portal>
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { zIndex }]}>
         <Modal
           visible={rendered}
           onDismiss={onDismiss}
@@ -348,14 +352,14 @@ export function AnimatedPaperModal({
             colors: { ...paperTheme.colors, backdrop: "transparent" },
           }}
         >
-          {presentation === "sheet" && sheetPanResponder ? (
+          {presentation === "sheet" ? (
             <Animated.View
               style={[
                 { alignSelf: "stretch", flexShrink: 1 },
                 contentWrapperStyle,
                 contentAnimationStyle,
               ]}
-              {...sheetPanResponder.panHandlers}
+              {...(sheetPanResponder?.panHandlers ?? {})}
             >
               {wrappedChildren}
             </Animated.View>
@@ -365,7 +369,7 @@ export function AnimatedPaperModal({
             </Animated.View>
           )}
         </Modal>
-      </Portal>
-    </>
+        </View>
+    </Portal>
   );
 }

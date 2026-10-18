@@ -144,8 +144,7 @@ export function useAccountManagement() {
       return true;
     } catch (error) {
       toast.error(
-        "Couldn't save account",
-        error instanceof Error ? error.message : String(error),
+        `Couldn't save account: ${error instanceof Error ? error.message : String(error)}`,
       );
       return false;
     }

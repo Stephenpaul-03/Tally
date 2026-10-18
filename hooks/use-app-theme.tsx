@@ -11,8 +11,8 @@ type AppThemeContextValue = {
   setTrueBlack: (enabled: boolean) => void;
 };
 
-const STORAGE_KEY = "appThemeId";
-const TRUE_BLACK_STORAGE_KEY = "appThemeTrueBlack";
+export const APP_THEME_STORAGE_KEY = "appThemeId";
+export const TRUE_BLACK_STORAGE_KEY = "appThemeTrueBlack";
 
 const DEFAULT_THEME: ThemeId = "gold";
 
@@ -32,7 +32,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const stored = await AsyncStorage.getItem(APP_THEME_STORAGE_KEY);
         const storedTrueBlack = await AsyncStorage.getItem(
           TRUE_BLACK_STORAGE_KEY,
         );
@@ -56,7 +56,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!isHydrated) return;
     const id = setTimeout(() => {
-      void AsyncStorage.setItem(STORAGE_KEY, themeId);
+      void AsyncStorage.setItem(APP_THEME_STORAGE_KEY, themeId);
     }, 250);
     return () => clearTimeout(id);
   }, [themeId, isHydrated]);

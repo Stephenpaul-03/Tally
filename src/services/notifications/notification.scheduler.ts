@@ -56,6 +56,8 @@ function toResponseEnvelope(
 
 function toExpoTrigger(trigger: SchedulerTriggerSpec): Notifications.NotificationTriggerInput {
   switch (trigger.kind) {
+    case "immediate":
+      return Platform.OS === "android" ? { channelId: trigger.channelId } : null;
     case "daily":
       return {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -197,6 +199,13 @@ export async function scheduleNotificationAsync(
     return `web-${content.data.type}-${Date.now()}`;
   }
 
+  configureForegroundPresentation();
+  if (Platform.OS === "android" && Number(Platform.Version) >= 26) {
+    const channel = await Notifications.getNotificationChannelAsync(content.channelId);
+    if (!channel || channel.importance === Notifications.AndroidImportance.NONE) {
+      throw new Error("The notification channel is blocked. Open Android settings → Notifications → Tally and enable Daily reminders.");
+    }
+  }
   return Notifications.scheduleNotificationAsync({
     content: {
       body: content.body,

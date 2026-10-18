@@ -1,3 +1,4 @@
+import { SpotlightTourProvider } from "@/modules/Onboarding/SpotlightTour";
 import {
   AppShellProvider,
   useAppShell,
@@ -21,6 +22,8 @@ import {
 } from "@/modules/Core/Slices/TransactionSlice";
 import { fetchWorkspaces } from "@/modules/Core/Slices/WorkspaceSlice";
 import { TransactionsScreen } from "@/modules/Management/Transaction/Screens/TransactionsScreen";
+import { OnboardingGate } from "@/modules/Onboarding/OnboardingGate";
+import { OnboardingScreen } from "@/modules/Onboarding/OnboardingScreen";
 import { SettingsScreen } from "@/modules/Settings/Index";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
@@ -152,12 +155,20 @@ function SettingsStackScreen() {
 }
 
 function RootStackNavigator() {
+  const theme = useTheme();
   return (
     <Stack.Navigator
-      initialRouteName="Transactions"
-      screenOptions={{ headerShown: false }}
+      initialRouteName="OnboardingGate"
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.colors.background },
+        statusBarStyle: theme.dark ? "light" : "dark",
+        animation: "slide_from_right",
+      }}
     >
-      <Stack.Screen name="Transactions" component={TransactionsStackScreen} />
+      <Stack.Screen name="OnboardingGate" component={OnboardingGate} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      <Stack.Screen name="Transactions" component={TransactionsStackScreen} options={{ freezeOnBlur: false }} />
       <Stack.Screen name="Settings" component={SettingsStackScreen} />
     </Stack.Navigator>
   );
@@ -166,7 +177,9 @@ function RootStackNavigator() {
 export function AppNavigator() {
   return (
     <AppShellProvider>
-      <RootStackNavigator />
+      <SpotlightTourProvider>
+        <RootStackNavigator />
+      </SpotlightTourProvider>
     </AppShellProvider>
   );
 }

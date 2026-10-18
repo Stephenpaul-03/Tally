@@ -1,6 +1,8 @@
 import type { ShellTab } from "@/components/AppShellContext";
 
 export type RootParamList = {
+  OnboardingGate: undefined;
+  Onboarding: { preview?: boolean } | undefined;
   Transactions:
     | {
         source?: "notification";

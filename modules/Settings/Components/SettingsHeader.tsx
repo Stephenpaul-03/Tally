@@ -1,10 +1,9 @@
 import { BackButton } from "@/components/backbutton/BackButton";
-import { headerInsetCollapseAnimValue } from "@/components/toast/ToastProvider";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, View } from "react-native";
+import { View } from "react-native";
 import { Text, TouchableRipple, useTheme } from "react-native-paper";
 import { SettingsStyles } from "../Styles";
 
@@ -98,16 +97,8 @@ export function SettingsHeader({
 
   if (searchOpen && searchEnabled) {
     return (
-      <Animated.View
-        style={[
-          SettingsStyles.header,
-          {
-            paddingTop: headerInsetCollapseAnimValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [16, 0],
-            }),
-          },
-        ]}
+      <View
+        style={SettingsStyles.header}
       >
         <View style={SettingsStyles.headerCenter}>
           <UniversalSearchBar
@@ -135,21 +126,13 @@ export function SettingsHeader({
             color={theme.colors.onSurface}
           />
         </TouchableRipple>
-      </Animated.View>
+      </View>
     );
   }
 
   return (
-    <Animated.View
-      style={[
-        SettingsStyles.header,
-        {
-          paddingTop: headerInsetCollapseAnimValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [16, 0],
-          }),
-        },
-      ]}
+    <View
+      style={SettingsStyles.header}
     >
       {onBack && !searchOpen ? (
         modal ? (
@@ -200,6 +183,6 @@ export function SettingsHeader({
         )}
       </View>
       {rightAction}
-    </Animated.View>
+    </View>
   );
 }

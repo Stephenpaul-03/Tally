@@ -68,7 +68,7 @@ function createSnapshot(): NotificationsStateSnapshot {
 }
 
 function assertValidTime(hour: number, minute: number) {
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
     throw new Error("Notification time must use a valid 24-hour clock value.");
   }
 }
@@ -230,7 +230,7 @@ function buildUpcomingMonthlyDates(
 
 class NotificationService {
   private handledResponseKeys = new Set<string>();
-  private initialized = false;
+  private initialization: Promise<void> | null = null;
   private readonly listeners = new Set<() => void>();
   private state = createSnapshot();
 
@@ -353,17 +353,18 @@ class NotificationService {
     return result;
   }
 
-  async initializeAsync() {
-    configureForegroundPresentation();
-    await configureNotificationChannelsAsync();
-    await configureNotificationCategoriesAsync();
-
-    if (!this.initialized) {
-      this.initialized = true;
-    }
-
-    await this.syncPermissionSnapshot();
-    await this.reconcileScheduledNotificationsAsync();
+  initializeAsync(): Promise<void> {
+    if (this.initialization) return this.initialization;
+    this.initialization = (async () => {
+      configureForegroundPresentation();
+      await configureNotificationChannelsAsync();
+      await configureNotificationCategoriesAsync();
+      await this.syncPermissionSnapshot();
+      await this.reconcileScheduledNotificationsAsync();
+    })().catch(error => {
+      console.warn("Notifications could not initialize", error);
+    }).finally(() => { this.initialization = null; });
+    return this.initialization;
   }
 
   async openSystemSettingsAsync() {
@@ -381,7 +382,7 @@ class NotificationService {
       (!daily.schedule ||
         daily.schedule.ids.some((id) => !scheduledIds.has(id)))
     ) {
-      await this.scheduleDailyFinanceReminder(daily.config);
+      await this.scheduleDailyFinanceReminder(daily.config, { promptIfNeeded: false, openSettingsOnDeny: false });
     }
 
     if (
@@ -390,7 +391,7 @@ class NotificationService {
         monthly.schedule.ids.some((id) => !scheduledIds.has(id)) ||
         this.shouldRefreshMonthlyWindow())
     ) {
-      await this.scheduleMonthlyInsightPrompt(monthly.config);
+      await this.scheduleMonthlyInsightPrompt(monthly.config, { promptIfNeeded: false, openSettingsOnDeny: false });
     }
 
     if (!daily.config.enabled && daily.schedule?.ids.length) {
@@ -420,8 +421,7 @@ class NotificationService {
       buildDailyReminderContent(DEFAULT_DAILY_FINANCE_REMINDER),
       {
         channelId: NotificationChannelId.Reminders,
-        kind: "seconds",
-        seconds: 2,
+        kind: "immediate",
       },
     );
   }
@@ -462,38 +462,43 @@ class NotificationService {
         schedule: null,
       };
 
-    await this.cancelExistingSchedule(this.state.dailyFinanceReminder);
-
+    if (!weekdays.length || !config.reminders.length) throw new Error("Choose at least one reminder time and day.");
+    const reminders = config.reminders.filter(time => !isTimeInQuietHours(time, config.quietHours));
+    if (!reminders.length) throw new Error("All reminder times fall inside Quiet hours. Choose a time outside Quiet hours.");
+    const previous = this.state.dailyFinanceReminder;
     const content = buildDailyReminderContent(config);
     const ids: string[] = [];
 
-    for (const reminder of config.reminders.filter(
-      (time) => !isTimeInQuietHours(time, config.quietHours),
-    )) {
-      if (weekdays.length === 7) {
-        ids.push(
-          await scheduleNotificationAsync(content, {
-            channelId: NotificationChannelId.Reminders,
-            hour: reminder.hour,
-            kind: "daily",
-            minute: reminder.minute,
-          }),
-        );
-      } else {
-        for (const weekday of weekdays) {
+    try {
+      for (const reminder of reminders) {
+        if (weekdays.length === 7) {
           ids.push(
             await scheduleNotificationAsync(content, {
               channelId: NotificationChannelId.Reminders,
               hour: reminder.hour,
-              kind: "weekly",
+              kind: "daily",
               minute: reminder.minute,
-              weekday,
             }),
           );
+        } else {
+          for (const weekday of weekdays) {
+            ids.push(
+              await scheduleNotificationAsync(content, {
+                channelId: NotificationChannelId.Reminders,
+                hour: reminder.hour,
+                kind: "weekly",
+                minute: reminder.minute,
+                weekday,
+              }),
+            );
+          }
         }
       }
+    } catch (error) {
+      await cancelScheduledNotificationIdsAsync(ids);
+      throw error;
     }
-
+    await this.cancelExistingSchedule(previous);
     nextPreference.schedule = buildScheduleRecord(ids);
     notificationStorage.setDailyFinanceReminder(nextPreference);
     this.refreshStateFromStorage();
@@ -665,12 +670,12 @@ class NotificationService {
     return nextPreference;
   }
 
-  async scheduleMonthlyInsightPrompt(config: MonthlyInsightPromptConfig) {
+  async scheduleMonthlyInsightPrompt(config: MonthlyInsightPromptConfig, options?: { openSettingsOnDeny?: boolean; promptIfNeeded?: boolean }) {
     assertValidTime(config.hour, config.minute);
 
     const permission = await this.ensurePermissionsAsync({
-      openSettingsOnDeny: true,
-      promptIfNeeded: true,
+      openSettingsOnDeny: options?.openSettingsOnDeny ?? true,
+      promptIfNeeded: options?.promptIfNeeded ?? true,
     });
 
     if (permission.status !== NotificationPermissionStatus.Granted) {
@@ -683,18 +688,22 @@ class NotificationService {
     );
     const ids: string[] = [];
 
-    await this.cancelExistingSchedule(this.state.monthlyInsightPrompt);
-
-    for (const date of dates) {
-      ids.push(
-        await scheduleNotificationAsync(buildMonthlyInsightContent(date, config.timing), {
-          channelId: NotificationChannelId.Insights,
-          date: date.toISOString(),
-          kind: "date",
-        }),
-      );
+    const previous = this.state.monthlyInsightPrompt;
+    try {
+      for (const date of dates) {
+        ids.push(
+          await scheduleNotificationAsync(buildMonthlyInsightContent(date, config.timing), {
+            channelId: NotificationChannelId.Insights,
+            date: date.toISOString(),
+            kind: "date",
+          }),
+        );
+      }
+    } catch (error) {
+      await cancelScheduledNotificationIdsAsync(ids);
+      throw error;
     }
-
+    await this.cancelExistingSchedule(previous);
     const nextPreference: StoredNotificationPreference<MonthlyInsightPromptConfig> =
       {
         config: {
@@ -744,7 +753,7 @@ class NotificationService {
   attachListeners() {
     let isDisposed = false;
 
-    void this.handleInitialNotificationResponse();
+    void this.handleInitialNotificationResponse().catch(error => { console.warn("Notification response failed", error); });
 
     const removeReceiptListener = subscribeToNotificationReceipts(() => {
       if (!isDisposed) {
@@ -755,7 +764,7 @@ class NotificationService {
     const removeResponseListener = subscribeToNotificationResponses(
       (response) => {
         if (!isDisposed) {
-          void this.handleNotificationResponse(response);
+          void this.handleNotificationResponse(response).catch(error => { console.warn("Notification response failed", error); });
         }
       },
     );

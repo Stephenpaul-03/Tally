@@ -1,3 +1,4 @@
+import type { ImportRow } from "@/modules/Core/import/validation";
 import {
     Account,
     Transaction,
@@ -25,6 +26,7 @@ export interface BudgetSettings {
 
 export interface FinanceRepository {
   // Transaction methods
+  importReviewedTransactions(rows: ImportRow[]): Promise<number>;
   getTransactions(filters?: any): Promise<Transaction[]>;
   addTransaction(tx: TransactionFormData): Promise<Transaction>;
   updateTransaction(
@@ -37,7 +39,11 @@ export interface FinanceRepository {
   clearAllTransactions(): Promise<void>;
   clearTransactionsForDateRange(startDate: string, endDate: string): Promise<void>;
 
+  setInsightsSampleData(enabled: boolean): Promise<number>;
+
   // Category methods
+  getCategoryUsage(type: "income" | "expense"): Promise<{ name: string; count: number }[]>;
+  deleteCategories(type: "income" | "expense", names: string[], destination?: string): Promise<void>;
   getCategories(type: "income" | "expense"): Promise<Category[]>;
   getCategoryByName(
     name: string,

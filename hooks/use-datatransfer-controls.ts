@@ -7,8 +7,6 @@ import {
     useImportExport,
 } from "@/hooks/use-import-export";
 import {
-    selectActiveExpenseCategories,
-    selectActiveIncomeCategories,
     selectNonDeletedTransactions,
 } from "@/modules/Core/Slices/TransactionSlice";
 import type { TransactionFilters } from "@/utils/Types";
@@ -38,8 +36,6 @@ export function useDataTransferControls(
 ) {
   const dispatch = useAppDispatch();
   const nonDeletedTransactions = useAppSelector(selectNonDeletedTransactions);
-  const incomeCategories = useAppSelector(selectActiveIncomeCategories);
-  const expenseCategories = useAppSelector(selectActiveExpenseCategories);
 
   const {
     importTransactions,
@@ -50,8 +46,6 @@ export function useDataTransferControls(
     dispatch,
     handleApplyFilters,
     nonDeletedTransactions,
-    incomeCategories,
-    expenseCategories,
     options,
   );
 

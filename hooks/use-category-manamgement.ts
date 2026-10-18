@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { getActiveWorkspaceId } from "@/modules/Core/Repository/Index";
+import { SQLiteFinanceRepository } from "@/modules/Core/Repository/SQLiteRepo";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { toast } from "@/components/toast/ToastProvider";
 import {
     addCategoryAsync,
     deleteCategoryAsync,
-    removeCategoryAndReassign,
     selectActiveExpenseCategories,
     selectActiveIncomeCategories,
     selectCategoryColors,
@@ -23,6 +24,8 @@ import { useAppDispatch, useAppSelector } from "./Redux";
 
 export function useCategoryManagement(activeTab: TransactionType) {
   const dispatch = useAppDispatch();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deletePlanRequest = useRef(0);
 
   // Modals
   const [isManagementOpen, setIsManagementOpen] = useState(false);
@@ -38,6 +41,7 @@ export function useCategoryManagement(activeTab: TransactionType) {
   const [pendingDelete, setPendingDelete] = useState<{
     name: string;
     type: TransactionType;
+    count: number;
   } | null>(null);
   const [reassignToCategory, setReassignToCategory] = useState<string>("");
 
@@ -83,7 +87,9 @@ export function useCategoryManagement(activeTab: TransactionType) {
     setIsEditOpen(true);
   };
 
-  const handleRequestDeleteCategory = (name: string) => {
+  const handleRequestDeleteCategory = async (name: string) => {
+    const request = ++deletePlanRequest.current;
+    const workspaceId = getActiveWorkspaceId();
     const fallback =
       selectedType === "income" ? "Other Income" : "Other Expense";
     if (name === fallback) return;
@@ -94,42 +100,35 @@ export function useCategoryManagement(activeTab: TransactionType) {
       ? fallback
       : destinationOptions[0] || "";
 
-    setPendingDelete({ name, type: selectedType });
-    setReassignToCategory(defaultDestination);
+    try {
+      const usage = await new SQLiteFinanceRepository(workspaceId).getCategoryUsage(selectedType);
+      if (request !== deletePlanRequest.current || workspaceId !== getActiveWorkspaceId()) return;
+      setPendingDelete({ name, type: selectedType, count: usage.find(row => row.name === name)?.count ?? 0 });
+      setReassignToCategory(defaultDestination);
+    } catch { toast.error("Couldn't check category transactions"); }
   };
 
   const handleCancelDeleteCategory = () => {
+    if (isDeleting) return;
+    deletePlanRequest.current++;
     setPendingDelete(null);
     setReassignToCategory("");
   };
 
-  const handleConfirmDeleteCategory = (destinationOverride?: string) => {
-    if (!pendingDelete) return;
-
-    const fallback =
-      pendingDelete.type === "income" ? "Other Income" : "Other Expense";
-    const destination = destinationOverride || reassignToCategory || fallback;
-    if (!destination || destination === pendingDelete.name) return;
-
-    // Update Redux state (reassign transactions, mark category deleted)
-    dispatch(
-      removeCategoryAndReassign({
-        type: pendingDelete.type,
-        name: pendingDelete.name,
-        fallback: destination,
-      }),
-    );
-    // Persist to SQLite
-    dispatch(
-      deleteCategoryAsync({
-        name: pendingDelete.name,
-        type: pendingDelete.type,
-        fallback: destination,
-      }),
-    );
-
-    toast.success("Category deleted");
-    handleCancelDeleteCategory();
+  const handleConfirmDeleteCategory = async (destinationOverride?: string) => {
+    if (!pendingDelete || isDeleting) return;
+    const affected = pendingDelete.count > 0;
+    const destination = affected ? destinationOverride || reassignToCategory : undefined;
+    if (affected && (!destination || destination === pendingDelete.name)) return;
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteCategoryAsync({ name: pendingDelete.name, type: pendingDelete.type, fallback: destination })).unwrap();
+      toast.success("Category deleted");
+      setPendingDelete(null);
+      setReassignToCategory("");
+    } catch (error) {
+      toast.error(typeof error === "object" && error && "message" in error ? String(error.message) : "Couldn't delete category");
+    } finally { setIsDeleting(false); }
   };
 
   const handleCloseManagement = () => {
@@ -173,12 +172,7 @@ export function useCategoryManagement(activeTab: TransactionType) {
     }
   };
 
-  const deleteAffectCount = useMemo(() => {
-    if (!pendingDelete) return 0;
-    return nonDeletedTransactions.filter(
-      (t) => t.type === pendingDelete.type && t.category === pendingDelete.name,
-    ).length;
-  }, [nonDeletedTransactions, pendingDelete]);
+  const deleteAffectCount = pendingDelete?.count ?? 0;
 
   const categoryStatsByType = useMemo(() => {
     const stats: Record<
@@ -295,6 +289,7 @@ export function useCategoryManagement(activeTab: TransactionType) {
     usedIcons,
     usedColors,
     isDeleteOpen: pendingDelete !== null,
+    isDeleting,
     deletingCategory: pendingDelete,
     deleteAffectCount,
     categoryStats,

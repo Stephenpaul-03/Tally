@@ -120,7 +120,7 @@ export function CategoryManagementModal({
     localName.trim().length > 0 &&
     localIcon.length > 0 &&
     localColor.length > 0;
-  const canConfirmDelete = Boolean(localDest) && localDest !== deletingName;
+  const canConfirmDelete = !management.isDeleting && (management.deleteAffectCount === 0 || (Boolean(localDest) && localDest !== deletingName));
 
   const modalMaxHeight = useMemo(() => Math.max(height * 0.96, 540), [height]);
   const modalWidth = useMemo(() => Math.min(680, width - 48), [width]);

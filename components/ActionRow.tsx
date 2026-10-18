@@ -1,3 +1,5 @@
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { actionAccent, colorTreatment } from "@/theme/colorTreatment";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, type StyleProp, type ViewStyle, View } from "react-native";
@@ -42,8 +44,11 @@ export function ActionRow({
   iconSize = 20,
   disabled = false,
 }: ActionRowProps) {
+  const { minimalIconsEnabled } = useAddonPrefs();
   const color =
-    iconColor ?? (destructive ? theme.colors.error : theme.colors.primary);
+    iconColor ?? (destructive ? theme.colors.error : actionAccent(icon, theme.colors.primary));
+
+  const tint = colorTreatment(color, theme.dark, false, theme.colors.elevation.level1);
 
   return (
     <Pressable
@@ -72,7 +77,7 @@ export function ActionRow({
           backgroundColor: iconBackgroundColor,
         }}
       >
-        <MaterialCommunityIcons name={icon as any} size={iconSize} color={color} />
+        <MaterialCommunityIcons name={icon as any} size={iconSize} color={minimalIconsEnabled ? theme.colors.primary : tint.foregroundColor} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <Text

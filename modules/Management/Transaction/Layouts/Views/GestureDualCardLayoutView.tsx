@@ -1,3 +1,5 @@
+import { colorTreatment } from "@/theme/colorTreatment";
+import { useSpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 /* eslint-disable react-hooks/exhaustive-deps */
 import { InsightsExpansionContext } from "@/components/InsightsExpansionContext";
 import { ExpandedControlsContext, InsightsHeadingContext, type InsightsHeadingControl, type ExpandedControl } from "@/components/ExpandedControlsContext";
@@ -84,8 +86,6 @@ const CONTROL_BAR_SIDE_PADDING = 20;
 const APP_HEADER_FALLBACK_HEIGHT = 68;
 const TRANSACTION_OPEN_TOP_STOP = 0;
 const MIN_SYSTEM_BOTTOM_CLEARANCE = 28;
-const COLLAPSED_BOTTOM_HANDLE_GAP = 10;
-const COLLAPSED_BOTTOM_HANDLE_GAP_NO_TAB_BAR = 0;
 const CUSTOM_TAB_BAR_BOTTOM_GAP = 0;
 
 // Once the control bar's buttons have fully faded out (see
@@ -228,6 +228,18 @@ function toActiveTab(shellTab: ShellTab): ActiveTab {
   return "default";
 }
 
+function ExpandedPillButton({ control, expandedWidth }: { control: ExpandedControl; expandedWidth: number }) {
+  const targetWidth = control.selected ? expandedWidth : 44;
+  const width = useSharedValue(targetWidth);
+  useEffect(() => {
+    width.value = withTiming(targetWidth, { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System });
+  }, [targetWidth, width]);
+  const size = useAnimatedStyle(() => ({ width: width.value }));
+  return <Animated.View style={[{ height: 44, overflow: "hidden" }, size]}>
+    <ControlButton {...control} compact={false} inlineLabel tintSelection={control.group === "views"} label={control.selected ? control.label : undefined} />
+  </Animated.View>;
+}
+
 function ControlButton({
   label,
   icon,
@@ -239,6 +251,10 @@ function ControlButton({
   disabled,
   badgeCount,
   badgeIcon,
+  selected,
+  inlineLabel = false,
+  hideLabel = false,
+  tintSelection = false,
 }: {
   label?: string;
   icon: ControlButtonIcon;
@@ -250,21 +266,30 @@ function ControlButton({
   disabled?: boolean;
   badgeCount?: number;
   badgeIcon?: ControlButtonIcon;
+  selected?: boolean;
+  inlineLabel?: boolean;
+  hideLabel?: boolean;
+  tintSelection?: boolean;
 }) {
   const theme = useTheme();
   const showBadge = Boolean(badgeIcon || badgeCount);
+  const selectionTint = colorTreatment(theme.colors.primary, theme.dark, true, theme.colors.elevation.level1);
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.controlButton,
         compact ? styles.iconButton : styles.dockButton,
+        inlineLabel && { flexDirection: "row", gap: 6, paddingHorizontal: 8 },
         {
           opacity: disabled ? 0.45 : pressed ? 0.72 : 1,
+          ...(selected ? { backgroundColor: tintSelection ? selectionTint.backgroundColor : theme.colors.primaryContainer, borderRadius: 22,
+            ...(tintSelection ? { borderWidth: 1, borderColor: selectionTint.borderColor } : {}) } : {}),
         },
       ]}
     >
@@ -310,9 +335,10 @@ function ControlButton({
           </View>
         ) : null}
       </View>
-      {label ? (
+      {label && !hideLabel ? (
         <Text
-          style={[styles.controlLabel, { color: theme.colors.onSurface }]}
+          style={[styles.controlLabel, { color: selected ? theme.colors.onPrimaryContainer : theme.colors.onSurface },
+            inlineLabel && { ...typography.bodyMedium, fontSize: 12, lineHeight: 16, marginTop: 0, flexShrink: 1 }]}
           numberOfLines={1}
         >
           {label}
@@ -328,9 +354,16 @@ export function GestureDualCardLayoutView({
   topContent,
   suspendLayout = false,
 }: GestureDualCardLayoutViewProps) {
+  const entryControlsRef = useSpotlightTarget("entry-controls");
+  const insightsControlsRef = useSpotlightTarget("insights-controls");
   const theme = useTheme();
-  const { tabBarEnabled } = useTabBarModePreference();
+  const { tabBarEnabled, hideLabels } = useTabBarModePreference();
   const tabBarHeight = useTabBarHeight();
+  // Hiding navigation for an overlay must not change the resting card split.
+  // A disabled tab bar still uses the separate tabBarEnabled branch below.
+  const lastTabBarHeight = useRef(tabBarHeight);
+  if (tabBarHeight > 0) lastTabBarHeight.current = tabBarHeight;
+  const layoutTabBarHeight = tabBarHeight || lastTabBarHeight.current;
   const { bottom: safeBottom } = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const {
@@ -351,14 +384,11 @@ export function GestureDualCardLayoutView({
   const [expandedControls, setExpandedControls] = useState<ExpandedControl[]>([]);
   const pendingScreenHeightRef = useRef<number | null>(null);
   const resolvedBottomNavigationClearance = tabBarEnabled
-    ? tabBarHeight + safeBottom + CUSTOM_TAB_BAR_BOTTOM_GAP
+    ? layoutTabBarHeight + safeBottom + CUSTOM_TAB_BAR_BOTTOM_GAP
     : Math.max(safeBottom, MIN_SYSTEM_BOTTOM_CLEARANCE);
+  // The handle zone centers the grip between the card edge and tab bar.
   const resolvedBottomClearance =
-    resolvedBottomNavigationClearance +
-    HANDLE_HEIGHT +
-    (tabBarEnabled
-      ? COLLAPSED_BOTTOM_HANDLE_GAP
-      : COLLAPSED_BOTTOM_HANDLE_GAP_NO_TAB_BAR);
+    resolvedBottomNavigationClearance + HANDLE_HEIGHT;
   const initialScreenHeight = Math.max(1, windowHeight);
   const initialTopOpenStop = Math.max(
     APP_HEADER_FALLBACK_HEIGHT + MIN_CARD_GAP,
@@ -558,22 +588,18 @@ export function GestureDualCardLayoutView({
     (height: number) => {
       if (height <= 0) return;
 
-      const nextHeight = Math.max(1, height);
-      if (Math.abs(topChromeHeight.value - nextHeight) <= 0.5) return;
-
-      topChromeHeight.value = nextHeight;
-      if (!hasLaidOutRef.current) return;
-
-      const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
-      const target =
-        activeTabValue.value === 1
-          ? bottomOpenStop
-          : activeTabValue.value === 2
-            ? topOpenStop
-            : defaultStop;
-
-      cancelAnimation(topHeightValue);
-      topHeightValue.value = withTiming(target, SETTLE_CONFIG);
+      // Layout measurements and their resulting snap target must be read
+      // together on the UI thread; a JS write can still expose the old height.
+      runOnUI((nextHeight: number, laidOut: boolean) => {
+        if (Math.abs(topChromeHeight.value - nextHeight) <= 0.5) return;
+        topChromeHeight.value = nextHeight;
+        if (!laidOut) return;
+        const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
+        const target = activeTabValue.value === 1 ? bottomOpenStop
+          : activeTabValue.value === 2 ? topOpenStop : defaultStop;
+        cancelAnimation(topHeightValue);
+        topHeightValue.value = withTiming(target, SETTLE_CONFIG);
+      })(Math.max(1, height), hasLaidOutRef.current);
     },
     [activeTabValue, getStops, topChromeHeight, topHeightValue],
   );
@@ -728,7 +754,7 @@ export function GestureDualCardLayoutView({
     return Gesture.Pan()
       .activeOffsetY([-10, 10])
       .failOffsetX([-18, 18])
-      .onBegin(() => {
+      .onStart(() => {
         cancelAnimation(topHeightValue);
         dragStartHeight.value = topHeightValue.value;
         topDragging.value = 1;
@@ -757,6 +783,7 @@ export function GestureDualCardLayoutView({
         );
       })
       .onFinalize(() => {
+        if (!topDragging.value) return;
         const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
         const topRange = topOpenStop - defaultStop;
         const bottomRange = defaultStop - bottomOpenStop;
@@ -806,7 +833,7 @@ export function GestureDualCardLayoutView({
     return Gesture.Pan()
       .activeOffsetY([-10, 10])
       .failOffsetX([-18, 18])
-      .onBegin(() => {
+      .onStart(() => {
         cancelAnimation(topHeightValue);
         dragStartHeight.value = topHeightValue.value;
         bottomDragging.value = 1;
@@ -852,6 +879,7 @@ export function GestureDualCardLayoutView({
         );
       })
       .onFinalize(() => {
+        if (!bottomDragging.value) return;
         const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
         const topRange = topOpenStop - defaultStop;
         const bottomRange = defaultStop - bottomOpenStop;
@@ -941,7 +969,9 @@ export function GestureDualCardLayoutView({
     const topHeight = topHeightValue.value;
 
     return {
-      height: topHeight,
+      // Expanded Insights scrolls behind the floating pills. The collapsed
+      // Home summary keeps its original height above the transaction controls.
+      height: topHeight + CONTROL_BAR_HEIGHT * insightsExpansion.value,
     };
   });
 
@@ -1042,10 +1072,11 @@ export function GestureDualCardLayoutView({
       interpolate(insightsExpansion.value, [0.25, 1], [0, 1], "clamp"),
   }));
 
-  const collapsedDockItemWidth = Math.max(
-    0,
-    (windowWidth - CONTROL_BAR_SIDE_PADDING * 2) / 5,
-  );
+  const addControlWidth = hideLabels ? 52 : 88;
+  const collapsedDockItemWidth = Math.max(44, Math.min(64,
+    (windowWidth - CONTROL_BAR_SIDE_PADDING * 2 - 16 - addControlWidth) / 4,
+  ));
+  const collapsedSearchWidth = hideLabels ? 52 : collapsedDockItemWidth;
   const expandedSearchWidth = Math.max(
     56,
     windowWidth - CONTROL_BAR_SIDE_PADDING * 2,
@@ -1055,7 +1086,7 @@ export function GestureDualCardLayoutView({
     width: interpolate(
       effectiveSearchProgress.value,
       [0, 1],
-      [collapsedDockItemWidth, 0],
+      [collapsedDockItemWidth * 3, 0],
       "clamp",
     ),
     opacity: 1 - effectiveSearchProgress.value,
@@ -1075,7 +1106,7 @@ export function GestureDualCardLayoutView({
     width: interpolate(
       effectiveSearchProgress.value,
       [0, 1],
-      [collapsedDockItemWidth, expandedSearchWidth],
+      [collapsedSearchWidth, expandedSearchWidth],
       "clamp",
     ),
   }));
@@ -1086,7 +1117,7 @@ export function GestureDualCardLayoutView({
         translateX: interpolate(
           effectiveSearchProgress.value,
           [0, 1],
-          [(collapsedDockItemWidth - 34) / 2 - 14, 0],
+          [(collapsedSearchWidth - 34) / 2 - 14, 0],
           "clamp",
         ),
       },
@@ -1112,14 +1143,16 @@ export function GestureDualCardLayoutView({
     ],
   }));
 
-  const dockDividerStyle = useAnimatedStyle(() => ({
+  const collapsingAddStyle = useAnimatedStyle(() => ({
+    width: interpolate(effectiveSearchProgress.value, [0, 1], [addControlWidth, 0], "clamp"),
     opacity: 1 - effectiveSearchProgress.value,
   }));
+  const groupedDockStyle = useAnimatedStyle(() => ({
+    gap: interpolate(effectiveSearchProgress.value, [0, 1], [8, 0], "clamp"),
+  }));
 
-  // Tracks both the seam position AND the seam's own height (see
-  // getControlBarSpace) so the bar's footprint always exactly matches the
-  // gap bottomCardAnimatedStyle has carved out for it — no separate
-  // "visible vs not" state to fall out of sync with the drag.
+  // Pin the controls to the bottom of the top area. In expanded Insights
+  // the scroll viewport extends underneath this transparent overlay.
   const controlBarAnimatedStyle = useAnimatedStyle(() => {
     const { bottomOpenStop, defaultStop, topOpenStop } = getStops();
     const topHeight = topHeightValue.value;
@@ -1213,76 +1246,29 @@ export function GestureDualCardLayoutView({
             </Animated.View>
           </GestureDetector>
           <Animated.View
+            pointerEvents="box-none"
             style={[
               styles.controlBar,
-              { backgroundColor: palette.screen },
+              { backgroundColor: "transparent" },
               controlBarAnimatedStyle,
             ]}
           >
             <Animated.View
-              pointerEvents={topCardOpen ? "none" : "auto"}
+              pointerEvents={topCardOpen ? "none" : "box-none"}
               accessibilityElementsHidden={topCardOpen}
               importantForAccessibility={topCardOpen ? "no-hide-descendants" : "auto"}
-              style={[
-                styles.controlDock,
-                {
-                  backgroundColor: palette.dock,
-                  borderColor: theme.colors.outlineVariant,
-                },
-                dockMountStyle,
-              ]}
+              ref={entryControlsRef}
+              collapsable={false}
+              style={[styles.groupedDock, groupedDockStyle, dockMountStyle]}
             >
-              <Animated.View
-                style={[
-                  styles.controlDockDivider,
-                  { backgroundColor: theme.colors.outlineVariant },
-                  { left: "20%" },
-                  dockDividerStyle,
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.controlDockDivider,
-                  { backgroundColor: theme.colors.outlineVariant },
-                  { left: "40%" },
-                  dockDividerStyle,
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.controlDockDivider,
-                  { backgroundColor: theme.colors.outlineVariant },
-                  { left: "60%" },
-                  dockDividerStyle,
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.controlDockDivider,
-                  { backgroundColor: theme.colors.outlineVariant },
-                  { left: "80%" },
-                  dockDividerStyle,
-                ]}
-              />
-              <Animated.View
-                pointerEvents={searchOpen ? "none" : "auto"}
-                style={[styles.dockItem, collapsingDockItemStyle]}
-              >
-                <ControlButton {...resolvedControlButtons.left} />
+              <Animated.View pointerEvents={searchOpen ? "none" : "auto"}
+                accessibilityElementsHidden={searchOpen} importantForAccessibility={searchOpen ? "no-hide-descendants" : "auto"}
+                style={[styles.actionPill, { backgroundColor: palette.dock, borderColor: theme.colors.outlineVariant }, collapsingDockItemStyle]}>
+                <ControlButton {...resolvedControlButtons.left} hideLabel={hideLabels} />
+                <ControlButton {...resolvedControlButtons.leftMiddle} hideLabel={hideLabels} />
+                <ControlButton {...resolvedControlButtons.right} hideLabel={hideLabels} />
               </Animated.View>
-              <Animated.View
-                pointerEvents={searchOpen ? "none" : "auto"}
-                style={[styles.dockItem, collapsingDockItemStyle]}
-              >
-                <ControlButton {...resolvedControlButtons.leftMiddle} />
-              </Animated.View>
-              <Animated.View
-                pointerEvents={searchOpen ? "none" : "auto"}
-                style={[styles.dockItem, collapsingDockItemStyle]}
-              >
-                <ControlButton {...resolvedControlButtons.middle} />
-              </Animated.View>
-              <Animated.View style={[styles.dockItem, searchDockItemStyle]}>
+              <Animated.View style={[styles.actionPill, { backgroundColor: palette.dock, borderColor: theme.colors.outlineVariant }, searchDockItemStyle]}>
                 {resolvedControlButtons.rightMiddle.search &&
                 showSearchInput ? (
                   <Pressable
@@ -1347,6 +1333,7 @@ export function GestureDualCardLayoutView({
                 ) : (
                   <ControlButton
                     {...resolvedControlButtons.rightMiddle}
+                    hideLabel={hideLabels}
                     onPress={() => {
                       resolvedControlButtons.rightMiddle.onPress?.();
                       setSearchOpen(true);
@@ -1354,26 +1341,39 @@ export function GestureDualCardLayoutView({
                   />
                 )}
               </Animated.View>
-              <Animated.View
-                pointerEvents={searchOpen ? "none" : "auto"}
-                style={[styles.dockItem, collapsingDockItemStyle]}
-              >
-                <ControlButton {...resolvedControlButtons.right} />
+              <Animated.View pointerEvents={searchOpen ? "none" : "auto"}
+                accessibilityElementsHidden={searchOpen} importantForAccessibility={searchOpen ? "no-hide-descendants" : "auto"}
+                style={[{ height: 52, borderRadius: 26, overflow: "hidden" }, collapsingAddStyle]}>
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={resolvedControlButtons.middle.accessibilityLabel ?? "Add transaction"}
+                  disabled={resolvedControlButtons.middle.disabled}
+                  onPress={resolvedControlButtons.middle.onPress}
+                  style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    gap: 6, paddingHorizontal: 12, borderRadius: 26, backgroundColor: theme.colors.primary,
+                    opacity: resolvedControlButtons.middle.disabled ? 0.45 : pressed ? 0.72 : 1 })}>
+                  <MaterialCommunityIcons name={resolvedControlButtons.middle.icon} size={20} color={theme.colors.onPrimary} />
+                  {!hideLabels ? <Text numberOfLines={1} style={{ ...typography.editorial.sectionLabel, fontSize: 18, lineHeight: 22, color: theme.colors.onPrimary }}>
+                    {resolvedControlButtons.middle.label ?? "Add"}
+                  </Text> : null}
+                </Pressable>
               </Animated.View>
             </Animated.View>
             <Animated.View
-              pointerEvents={topCardOpen ? "auto" : "none"}
+              pointerEvents={topCardOpen ? "box-none" : "none"}
               accessibilityElementsHidden={!topCardOpen}
               importantForAccessibility={topCardOpen ? "auto" : "no-hide-descendants"}
-              style={[styles.controlDock, styles.expandedDock, {
-                backgroundColor: palette.dock,
-                borderColor: theme.colors.outlineVariant,
-              }, expandedDockStyle]}
+              ref={insightsControlsRef}
+              collapsable={false}
+              style={[styles.expandedDock, { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, height: 52 }, expandedDockStyle]}
             >
-              {expandedControls.map((control, index) => <React.Fragment key={control.label}>
-                {index > 0 ? <View style={{ height: 30, width: StyleSheet.hairlineWidth, backgroundColor: theme.colors.outlineVariant }} /> : null}
-                <ControlButton {...control} />
-              </React.Fragment>)}
+              {[...new Set(expandedControls.map(control => control.group ?? "default"))].map(group =>
+                <View key={group} style={{ flexDirection: "row", alignItems: "center", height: 48,
+                  borderRadius: 24, padding: 2, backgroundColor: palette.dock,
+                  borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.outlineVariant }}>
+                  {expandedControls.filter(control => (control.group ?? "default") === group).map(control =>
+                    <ExpandedPillButton key={control.label} control={control}
+                      expandedWidth={Math.min(132, Math.max(80, windowWidth - CONTROL_BAR_SIDE_PADDING * 2 - 66 - (expandedControls.length - 2) * 44))} />)}
+                </View>)}
             </Animated.View>
           </Animated.View>
         </Animated.View>
@@ -1423,6 +1423,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   controlBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -1433,6 +1438,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 0,
+  },
+  groupedDock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: 52,
+  },
+  actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 52,
+    borderRadius: 26,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   controlDock: {
     alignItems: "center",
@@ -1535,6 +1555,9 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   appHeader: {
+    // Preserve the full header even while the Transactions tab clips it.
+    minHeight: 62,
+    flexShrink: 0,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",

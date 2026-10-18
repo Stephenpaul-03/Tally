@@ -1,3 +1,4 @@
+import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InsightsScreen } from "@/modules/Insights/InsightsScreen";
 import { useAppShell } from "@/components/AppShellContext";
@@ -1473,10 +1474,10 @@ export default function Transactions({
   useEffect(() => {
     if (!isFocused) return;
 
-    setTabBarHidden(filtersVisible);
+    setTabBarHidden(filtersVisible || sortVisible);
 
     return () => setTabBarHidden(false);
-  }, [filtersVisible, isFocused, setTabBarHidden]);
+  }, [filtersVisible, sortVisible, isFocused, setTabBarHidden]);
 
   const [selectedDateOverride, setSelectedDateOverride] = React.useState<
     string | null
@@ -1815,7 +1816,7 @@ export default function Transactions({
   const transactionCard = useMemo(
     () => (
       <View style={local.transactionCardWrap}>
-        <View style={local.transactionCardHeader}>
+        <SpotlightTarget id="transaction-heading" style={local.transactionCardHeader}>
           <Text
             numberOfLines={1}
             style={[
@@ -1825,7 +1826,7 @@ export default function Transactions({
           >
             Transactions
           </Text>
-        </View>
+        </SpotlightTarget>
         <FlatList
           style={local.transactionList}
           data={monthSections}
@@ -1866,7 +1867,8 @@ export default function Transactions({
     >
       <StatusBar
         style={theme.dark ? "light" : "dark"}
-        backgroundColor={theme.colors.error}
+        backgroundColor="transparent"
+        translucent
       />
       <View
         style={[
@@ -1935,6 +1937,7 @@ export default function Transactions({
       </View>
 
       <TransactionModal
+        nested={shellActiveTab === "insights"}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         defaultType={modalDefaultType}

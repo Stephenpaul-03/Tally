@@ -1,27 +1,18 @@
-/**
- * useImportExport.ts
- *
- * Import / export hook with optional AES-256-GCM encryption.
- *
- * New additions vs the original:
- *  • ExportOptions.encrypt?: boolean  — set to true to encrypt the export
- *  • buildImportPreview auto-detects encrypted envelopes and decrypts before
- *    parsing (fully backwards-compatible with plain JSON backups)
- *
- * Dependencies added:
- *  • expo-crypto ~13.0.2  →  npx expo install expo-crypto
- *  • ./CryptoUtils        →  Utils/CryptoUtils.ts  (in this PR)
- *  • ./UsePasswordPrompt  →  Hooks/UsePasswordPrompt.ts  (in this PR)
- */
+import { getCategoryIconKey } from "@/utils/Helpers";
+import { validateImport, ImportSavedError, ImportValidationError, type ImportProblem, type ImportRow, type ImportCatalog } from "@/modules/Core/import/validation";
+import { SQLiteFinanceRepository } from "@/modules/Core/Repository/SQLiteRepo";
+/** JSON transaction import/export with optional encrypted backups. */
 
 import { toast } from "@/components/toast/ToastProvider";
 import {
+    getActiveWorkspaceId,
     financeRepository,
     workspaceRepository,
 } from "@/modules/Core/Repository/Index";
 import {
-    fetchTransactions,
-    importTransactions,
+    loadTransactions,
+    fetchAccounts,
+    fetchCategories,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { AppDispatch } from "@/modules/Core/Store";
 import {
@@ -29,15 +20,10 @@ import {
     encryptJson,
     isEncryptedEnvelope,
 } from "@/utils/CryptoUtils";
-import {
-    normalizeAccount,
-    normalizeDate,
-    normalizeType,
-} from "@/utils/Normalizers";
 import type {
     Transaction,
     TransactionFilters,
-    TransactionType,
+    TransactionFormData,
 } from "@/utils/Types";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -64,14 +50,17 @@ export type ImportPreview = {
   mimeType?: string;
   transactionCount: number;
   uri: string;
-  normalizedTransactions: any[];
+  normalizedTransactions: TransactionFormData[];
+  rows: ImportRow[];
+  catalog: ImportCatalog;
+  workspaceId: string;
   /** True when the source file was encrypted and has been decrypted. */
   wasEncrypted: boolean;
 };
 
 export type ImportPreviewResult =
   | { canceled: true }
-  | { error: string }
+  | { error: string; problems?: ImportProblem[] }
   | { preview: ImportPreview };
 
 export type ExportOptions = {
@@ -111,8 +100,6 @@ export function useImportExport(
   dispatch: AppDispatch,
   handleApplyFilters: (filters: TransactionFilters) => void,
   nonDeletedTransactions: Transaction[],
-  incomeCategories: string[],
-  expenseCategories: string[],
   options?: ImportExportOptions,
 ) {
   const RESET_FILTERS: TransactionFilters = {
@@ -176,157 +163,25 @@ export function useImportExport(
     });
   };
 
-  const coerceJsonValue = (value: any): any => {
-    if (typeof value !== "string") return value;
-    const sanitized = sanitizeJsonText(value);
-    if (!sanitized) return value;
-    if (!sanitized.startsWith("{") && !sanitized.startsWith("[")) return value;
+  const importFromReviewedList = async (rows: ImportRow[], workspaceId: string) => {
+    if (getActiveWorkspaceId() !== workspaceId) throw new Error("Workspace changed. Choose the file again in the workspace you want to import into.");
+    const repository = new SQLiteFinanceRepository(workspaceId);
+    const count = await repository.importReviewedTransactions(rows);
     try {
-      return JSON.parse(sanitized);
-    } catch {
-      return value;
-    }
-  };
-
-  const extractTransactions = (raw: any): any[] | null => {
-    const data = coerceJsonValue(raw);
-    if (Array.isArray(data)) return data;
-    if (!data || typeof data !== "object") return null;
-    const candidates = [
-      (data as any).transactions,
-      (data as any).transaction,
-      (data as any).items,
-      (data as any).data,
-      (data as any).rows,
-    ];
-    for (const cand of candidates) {
-      const c = coerceJsonValue(cand);
-      if (Array.isArray(c)) return c;
-    }
-    return null;
-  };
-
-  const normalizeAmount = (value: unknown): number | null => {
-    if (typeof value === "number")
-      return Number.isFinite(value) ? Math.abs(value) : null;
-    if (typeof value !== "string") return null;
-    const cleaned = value.replace(/[^0-9.-]/g, "");
-    const parsed = Number(cleaned);
-    return Number.isFinite(parsed) ? Math.abs(parsed) : null;
-  };
-
-  const resolveCategory = (raw: unknown, type: TransactionType): string => {
-    const fallback = type === "income" ? "Other Income" : "Other Expense";
-    if (typeof raw !== "string" || !raw.trim()) return fallback;
-    const trimmed = raw.trim();
-    const knownCategories =
-      type === "income" ? incomeCategories : expenseCategories;
-    const exact = knownCategories.find(
-      (c) => c.toLowerCase() === trimmed.toLowerCase(),
-    );
-    if (exact) return exact;
-    const partial = knownCategories.find(
-      (c) =>
-        c.toLowerCase().includes(trimmed.toLowerCase()) ||
-        trimmed.toLowerCase().includes(c.toLowerCase()),
-    );
-    if (partial) return partial;
-    return fallback;
-  };
-
-  const normalizeTransactionsForImport = (items: any[]) => {
-    return items
-      .map((t) => {
-        if (!t || typeof t !== "object") return null;
-        const type = normalizeType(
-          (t as any).type ?? (t as any).transactionType,
-        );
-        if (!type) return null;
-        const date = normalizeDate(
-          (t as any).date ?? (t as any).transactionDate,
-        );
-        if (!date) return null;
-        const amount =
-          typeof (t as any).amount === "number"
-            ? Math.abs((t as any).amount)
-            : normalizeAmount((t as any).amount ?? (t as any).value);
-        if (!Number.isFinite(amount as number)) return null;
-        const categoryRaw =
-          (t as any).category ?? (t as any).Category ?? (t as any).categoryName;
-        const category = resolveCategory(categoryRaw, type);
-        const titleRaw =
-          (t as any).title ?? (t as any).name ?? (t as any).transactionName;
-        const title =
-          typeof titleRaw === "string" && titleRaw.trim()
-            ? titleRaw.trim()
-            : category;
-        const accountRaw =
-          (t as any).account ??
-          (t as any).accountType ??
-          (t as any).paymentMethod;
-        const account = normalizeAccount(accountRaw);
-        return {
-          ...t,
-          type,
-          date,
-          amount: amount as number,
-          category,
-          title,
-          account,
-        };
-      })
-      .filter(Boolean) as any[];
-  };
-
-  const finalizeImport = async (successCount: number, failCount: number) => {
-    await dispatch(fetchTransactions() as any);
-    handleApplyFilters(RESET_FILTERS);
-    if (failCount > 0) {
-      toast.success(`Imported ${successCount}, failed ${failCount}`);
-    } else {
-      toast.success(`Imported ${successCount} transactions!`);
-    }
-  };
-
-  const importFromNormalizedList = async (normalized: any[]) => {
-    if (financeRepository) {
-      let successCount = 0;
-      let failCount = 0;
-      for (const t of normalized) {
-        try {
-          await financeRepository.addTransaction(t);
-          successCount++;
-        } catch (err) {
-          failCount++;
-          console.warn("Failed to import transaction:", t.title, err);
-        }
+      const [transactions, income, expense, accounts] = await Promise.all([
+        repository.getTransactions(), repository.getCategories("income"), repository.getCategories("expense"), repository.getAccounts(),
+      ]);
+      if (getActiveWorkspaceId() === workspaceId) {
+        dispatch(loadTransactions(transactions));
+        dispatch(fetchCategories.fulfilled({ type: "income", categories: income }, "import", "income"));
+        dispatch(fetchCategories.fulfilled({ type: "expense", categories: expense }, "import", "expense"));
+        dispatch(fetchAccounts.fulfilled(accounts, "import", undefined));
+        handleApplyFilters(RESET_FILTERS);
       }
-      await finalizeImport(successCount, failCount);
-    } else {
-      dispatch(importTransactions(normalized as any));
-      handleApplyFilters(RESET_FILTERS);
-      toast.success(`Imported ${normalized.length} transactions!`);
+    } catch {
+      throw new ImportSavedError(count);
     }
-  };
-
-  const parseAndValidate = (
-    rawData: any,
-  ): { normalized: any[] } | { error: string } => {
-    const extracted = extractTransactions(rawData);
-    if (!extracted)
-      return {
-        error:
-          "Invalid JSON format. Expected { transactions: [...] } or a flat [] array.",
-      };
-    if (extracted.length === 0)
-      return { error: "No transactions found in the file." };
-    const normalized = normalizeTransactionsForImport(extracted);
-    if (normalized.length === 0)
-      return {
-        error:
-          "No valid transactions found. Each item needs at least: date, amount, type.",
-      };
-    return { normalized };
+    toast.success(`Imported ${count} transactions!`);
   };
 
   // ─── Import ──────────────────────────────────────────────────────────────────
@@ -406,21 +261,35 @@ export function useImportExport(
       }
 
       // ── Parse & validate ───────────────────────────────────────────────
-      const parseResult = parseAndValidate(dataToValidate);
-      if ("error" in parseResult) return { error: parseResult.error };
+      const workspaceId = getActiveWorkspaceId();
+      const repository = new SQLiteFinanceRepository(workspaceId);
+      const [income, expense, accounts] = await Promise.all([
+        repository.getCategories("income"), repository.getCategories("expense"), repository.getAccounts(),
+      ]);
+      const categories = [...income, ...expense];
+      const catalog: ImportCatalog = {
+        incomeCategories: income.map(c => c.name), expenseCategories: expense.map(c => c.name), accounts: accounts.map(a => a.name),
+        categoryIcons: Object.fromEntries(categories.filter(c => c.icon).map(c => [getCategoryIconKey(c.type, c.name), c.icon!])),
+        categoryColors: Object.fromEntries(categories.filter(c => c.color).map(c => [getCategoryIconKey(c.type, c.name), c.color!])),
+        accountIcons: Object.fromEntries(accounts.filter(a => a.icon).map(a => [a.name.toLowerCase(), a.icon!])),
+        accountColors: Object.fromEntries(accounts.filter(a => a.color).map(a => [a.name.toLowerCase(), a.color!])),
+      };
+      const rows = validateImport(dataToValidate, catalog);
 
       return {
         preview: {
           fileName: asset.name ?? "backup.json",
           fileSize: asset.size,
           mimeType: asset.mimeType,
-          transactionCount: parseResult.normalized.length,
+          transactionCount: rows.length,
           uri: assetUri,
-          normalizedTransactions: parseResult.normalized,
+          normalizedTransactions: rows.map(row => row.transaction),
+          rows, catalog, workspaceId,
           wasEncrypted,
         },
       };
     } catch (error) {
+      if (error instanceof ImportValidationError) return { error: error.message, problems: error.problems };
       console.error("Import preview error:", error);
       return {
         error: "Failed to read that file. Please try again with a JSON backup.",
@@ -436,12 +305,10 @@ export function useImportExport(
         Alert.alert("Import Error", previewResult.error);
         return;
       }
-      await importFromNormalizedList(
-        previewResult.preview.normalizedTransactions,
-      );
+      await importFromReviewedList(previewResult.preview.rows, previewResult.preview.workspaceId);
     } catch (error) {
       console.error("Import error:", error);
-      Alert.alert("Error", "Failed to import data. Please try again.");
+      Alert.alert("Import Error", error instanceof Error ? error.message : "Failed to import data. Please try again.");
     }
   };
 
@@ -627,6 +494,6 @@ export function useImportExport(
     importTransactions: handleImport,
     exportTransactions: handleExport,
     buildImportPreview,
-    confirmImportPreview: importFromNormalizedList,
+    confirmImportPreview: importFromReviewedList,
   };
 }

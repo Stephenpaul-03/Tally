@@ -51,7 +51,7 @@ function SheetShell({
 
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
-  const { tabBarEnabled, setTabBarEnabled } = useTabBarModePreference();
+  const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } = useTabBarModePreference();
   const {
     minimalIconsEnabled,
     handleMinimalIconsToggle,
@@ -113,6 +113,23 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
                     ? theme.colors.onPrimary
                     : theme.colors.surface
                 }
+              />
+            }
+          />
+          <ActionRow
+            icon="format-text"
+            label="Hide labels"
+            description="Use icons only for Home and Transactions controls and bottom navigation"
+            onPress={() => setHideLabels(!hideLabels)}
+            theme={theme}
+            showChevron={false}
+            rightElement={
+              <Switch
+                value={hideLabels}
+                onValueChange={setHideLabels}
+                accessibilityLabel="Hide labels"
+                trackColor={{ false: theme.colors.outlineVariant, true: theme.colors.primary }}
+                thumbColor={hideLabels ? theme.colors.onPrimary : theme.colors.surface}
               />
             }
           />

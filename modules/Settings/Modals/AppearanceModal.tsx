@@ -40,9 +40,11 @@ type AppearanceSectionProps = {
   themeOptions: ThemeOption[];
   trueBlack: boolean;
   onTrueBlackChange: (enabled: boolean) => void;
+  disabled?: boolean;
+  compact?: boolean;
 };
 
-function AppearanceSection({
+export function AppearanceSection({
   activeModeId,
   onModeSelect,
   themeId,
@@ -50,6 +52,8 @@ function AppearanceSection({
   themeOptions,
   trueBlack,
   onTrueBlackChange,
+  disabled = false,
+  compact = false,
 }: AppearanceSectionProps) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = React.useState(0);
@@ -59,16 +63,20 @@ function AppearanceSection({
       : undefined;
   const primary = theme.colors.primary;
 
-  return (
+  const content = (
     <>
       <SectionLabel label="Main theme" />
-      <SheetCard theme={theme} style={appearanceStyles.cardContent}>
+      <SheetCard theme={theme} style={[appearanceStyles.cardContent, compact && { marginBottom: 8 }]}>
         <View style={SettingsStyles.segRow}>
           {MODE_OPTIONS.map((opt) => {
             const active = activeModeId === opt.id;
             return (
               <Pressable
                 key={opt.id}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityLabel={`${opt.label} theme`}
+                accessibilityState={{ selected: active, disabled }}
                 onPress={() => onModeSelect(opt.id)}
                 style={[
                   SettingsStyles.seg,
@@ -113,6 +121,10 @@ function AppearanceSection({
           ]}
         />
         <Pressable
+          disabled={disabled}
+          accessibilityRole="switch"
+          accessibilityLabel="AMOLED dark mode"
+          accessibilityState={{ checked: trueBlack, disabled }}
           onPress={() => onTrueBlackChange(!trueBlack)}
           style={({ pressed }) => [
             SettingsStyles.row,
@@ -147,12 +159,12 @@ function AppearanceSection({
               </Text>
             </View>
           </View>
-          <Switch value={trueBlack} onValueChange={onTrueBlackChange} />
+          <Switch accessibilityLabel="AMOLED dark mode" disabled={disabled} value={trueBlack} onValueChange={onTrueBlackChange} />
         </Pressable>
       </SheetCard>
 
       <SectionLabel label="Accent colors" />
-      <SheetCard theme={theme} style={appearanceStyles.cardContent}>
+      <SheetCard theme={theme} style={[appearanceStyles.cardContent, compact && { marginBottom: 8 }]}>
         <View
           style={appearanceStyles.accentGrid}
           onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
@@ -162,6 +174,10 @@ function AppearanceSection({
             return (
               <Pressable
                 key={id}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityLabel={`${preset.label} accent`}
+                accessibilityState={{ selected: active, disabled }}
                 onPress={() => onThemeSelect(id)}
                 style={[
                   appearanceStyles.accentCard,
@@ -209,6 +225,7 @@ function AppearanceSection({
       </SheetCard>
     </>
   );
+  return compact ? <View style={{ gap: 10 }}>{content}</View> : content;
 }
 
 function SheetShell({

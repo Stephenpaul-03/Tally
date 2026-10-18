@@ -137,6 +137,7 @@ export interface SchedulerNotificationContent {
 }
 
 export type SchedulerTriggerSpec =
+  | { kind: "immediate"; channelId: NotificationChannelId }
   | {
       kind: "daily";
       channelId: NotificationChannelId;

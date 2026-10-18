@@ -1,3 +1,5 @@
+import { sortCategories } from "@/utils/category-order";
+import { CategoryBulkDeleteModal } from "../Components/BulkDeleteModal";
 import { useStagger } from "@/components/animations/UseStagger";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SortOptionSheet } from "@/components/SortOptionSheet";
@@ -89,6 +91,7 @@ function CategoryListContent({
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const workspaceDefaults = getWorkspaceDefaults(activeWorkspace?.id ?? "personal");
   const [sortField, setSortField] = React.useState<CategorySortField>(
     workspaceDefaults.categorySortField,
@@ -115,15 +118,11 @@ function CategoryListContent({
 
   const buildPage = React.useCallback(
     (type: TransactionType) => {
-      const fallbackName = type === "income" ? "Other Income" : "Other Expense";
       const rawCategories =
         type === "income"
           ? management.incomeCategories
           : management.expenseCategories;
-      const ordered = [
-        ...rawCategories.filter((n) => n !== fallbackName),
-        ...rawCategories.filter((n) => n === fallbackName),
-      ].filter((name) =>
+      const ordered = rawCategories.filter((name) =>
         normalizedQuery
           ? [
               name,
@@ -137,7 +136,7 @@ function CategoryListContent({
           : true,
       );
 
-      return [...ordered].sort((a, b) => {
+      return sortCategories(ordered, name => name, (a, b) => {
         const result =
           sortField === "name"
             ? a.localeCompare(b)
@@ -212,6 +211,10 @@ function CategoryListContent({
   );
 
   const sortAccessory = !pickerMode ? (
+    <View style={{ flexDirection: "row", gap: 8 }}>
+    <TouchableRipple accessibilityLabel="Delete multiple categories" onPress={() => setBulkDeleteOpen(true)} borderless style={{ width: 32, height: 32, borderRadius: 99, alignItems: "center", justifyContent: "center" }}>
+      <MaterialCommunityIcons name="checkbox-multiple-marked-outline" size={20} color={c.onSurfaceVariant} />
+    </TouchableRipple>
     <TouchableRipple
       onPress={() => setSortOpen(true)}
       borderless
@@ -233,6 +236,7 @@ function CategoryListContent({
         color={c.onSurfaceVariant}
       />
     </TouchableRipple>
+    </View>
   ) : undefined;
   const headerSearchWidth = Math.min(240, Math.max(150, width - 190));
   const searchAccessory = useSettingsHeader ? undefined : (
@@ -418,6 +422,7 @@ function CategoryListContent({
           </Pressable>
         </View>
       )}
+      {!pickerMode ? <CategoryBulkDeleteModal visible={bulkDeleteOpen} onDismiss={() => setBulkDeleteOpen(false)} management={management} /> : null}
       <SortOptionSheet
         visible={sortOpen}
         onDismiss={() => setSortOpen(false)}

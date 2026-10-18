@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ONBOARDING_DRAFT_KEY } from "@/modules/Onboarding/storage";
 import { ActionRow } from "@/components/ActionRow";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { SheetCard } from "@/components/SheetCard";
@@ -66,11 +68,12 @@ export function DataScreen() {
         await dispatch(resetWorkspaceDataAsync()).unwrap();
         await dispatch(fetchWorkspaces()).unwrap();
         clearWorkspaceDefaults();
+        await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
         toast.success("Tally reset");
         navigation.getParent()?.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: "Transactions" }],
+            routes: [{ name: "OnboardingGate" }],
           }),
         );
       }

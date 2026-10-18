@@ -1,3 +1,4 @@
+import { isSpotlightTourActive } from "@/modules/Onboarding/tourNavigation";
 import {
   createNavigationContainerRef,
 } from "@react-navigation/native";
@@ -6,6 +7,12 @@ import type { NotificationNavigationTarget } from "@/src/services/notifications/
 import type { RootParamList } from "./types";
 
 export const navigationRef = createNavigationContainerRef<RootParamList>();
+
+function isSetupOpen() {
+  const state = navigationRef.getRootState();
+  const route = state?.routes[state.index ?? 0];
+  return route?.name === "OnboardingGate" || route?.name === "Onboarding";
+}
 
 const pendingTargets: NotificationNavigationTarget[] = [];
 
@@ -19,7 +26,7 @@ function performNavigation(target: NotificationNavigationTarget) {
 export function navigateToNotificationTarget(
   target: NotificationNavigationTarget,
 ) {
-  if (!navigationRef.isReady()) {
+  if (!navigationRef.isReady() || isSetupOpen() || isSpotlightTourActive()) {
     pendingTargets.push(target);
     return;
   }
@@ -28,7 +35,7 @@ export function navigateToNotificationTarget(
 }
 
 export function flushPendingNavigationTargets() {
-  if (!navigationRef.isReady()) {
+  if (!navigationRef.isReady() || isSetupOpen() || isSpotlightTourActive()) {
     return;
   }
 

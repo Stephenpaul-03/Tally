@@ -84,6 +84,7 @@ interface TransactionModalProps {
   defaultType?: TransactionType;
   initialAmount?: string | null;
   initialDate?: string | null;
+  nested?: boolean;
 }
 
 const KEYPAD_ROWS = [
@@ -326,6 +327,7 @@ export function TransactionModal({
   defaultType = "expense",
   initialAmount = null,
   initialDate = null,
+  nested = false,
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const theme = useTheme<MD3Theme>();
@@ -608,6 +610,7 @@ export function TransactionModal({
     defaultTransactionCurrency.code,
     defaultTransactionCurrency.name,
     defaultTransactionCurrency.symbol,
+    noteWidthAnimation,
   ]);
 
   React.useEffect(() => {
@@ -662,6 +665,8 @@ export function TransactionModal({
 
   const closeWithAnimation = React.useCallback(
     (afterClose: () => void) => {
+      // Nested transaction pages use the sheet's slide transition as one unit.
+      if (nested) { afterClose(); return; }
       if (closeAnimationRunningRef.current) return;
       closeAnimationRunningRef.current = true;
 
@@ -700,7 +705,7 @@ export function TransactionModal({
         afterClose();
       }, 245);
     },
-    [cardEntrance, cardSectionEntrances, headerEntrance],
+    [cardEntrance, cardSectionEntrances, headerEntrance, nested],
   );
 
   const handleRequestClose = React.useCallback(() => {
@@ -959,6 +964,13 @@ export function TransactionModal({
     cardEntrance.stopAnimation();
     cardSectionEntrances.forEach((animation) => animation.stopAnimation());
 
+    if (nested) {
+      headerEntrance.setValue(1);
+      cardEntrance.setValue(1);
+      cardSectionEntrances.forEach((animation) => animation.setValue(1));
+      return;
+    }
+
     if (!isOpen) {
       Animated.parallel([
         Animated.timing(headerEntrance, {
@@ -1020,7 +1032,7 @@ export function TransactionModal({
         ),
       ]),
     ]).start();
-  }, [cardEntrance, cardSectionEntrances, headerEntrance, isOpen]);
+  }, [cardEntrance, cardSectionEntrances, headerEntrance, isOpen, nested]);
 
   useEffect(() => {
     Animated.spring(modeTransition, {
@@ -1679,6 +1691,8 @@ export function TransactionModal({
       {isMobileLayout ? (
         <AnimatedPaperModal
           visible={isOpen}
+          animationDuration={nested ? 280 : 500}
+          dismissDuration={nested ? 220 : 300}
           onDismiss={handleRequestClose}
           presentation="sheet"
           escapeEnabled={!isDatePickerOpen}
@@ -1699,6 +1713,8 @@ export function TransactionModal({
       ) : (
         <AnimatedPaperModal
           visible={isOpen}
+          animationDuration={nested ? 280 : 500}
+          dismissDuration={nested ? 220 : 300}
           onDismiss={handleRequestClose}
           presentation="modal"
           escapeEnabled={!isDatePickerOpen}

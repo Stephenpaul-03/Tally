@@ -23,12 +23,13 @@ type Props = {
   onChange: (currency: WorkspaceCurrency) => void;
   theme: MD3Theme;
   label?: string;
+  disabled?: boolean;
   variant?: "default" | "editorial";
   renderTrigger?: (args: { open: () => void }) => React.ReactNode;
 };
 
 const currencyData =
-  require("../node_modules/@youssefprodev/rn-currency-picker/src/constants/CommonCurrency.json") as Record<
+  require("@/data/currencies.json") as Record<
     string,
     CurrencyItem
   >;
@@ -67,6 +68,7 @@ export function CurrencyPickerField({
   onChange,
   theme,
   label = "Currency",
+  disabled = false,
   variant = "default",
   renderTrigger,
 }: Props) {
@@ -102,6 +104,9 @@ export function CurrencyPickerField({
         renderTrigger({ open: () => setVisible(true) })
       ) : (
         <Pressable
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${currency.code}, ${currency.name}`}
           onPress={() => setVisible(true)}
           style={({ pressed }) => ({
             borderRadius: isEditorial ? 0 : 16,

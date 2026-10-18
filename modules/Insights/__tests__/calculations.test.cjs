@@ -15,7 +15,7 @@ const compiled = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
 const calculationModule = new Module(filename, module);
 calculationModule._compile(compiled, filename);
 const { calculateInsights, changeLabel, shiftMonth, daysInMonth, total,
-  amountChangeLabel, getSpendingObservation } = calculationModule.exports;
+  amountChangeLabel, availableComparisonMonths, getSpendingObservation } = calculationModule.exports;
 const now = new Date(2026, 8, 12);
 function row(date, amount, overrides = {}) {
   return { id: date + amount, date, amount, type: "expense", category: "Food",
@@ -192,4 +192,52 @@ test("completed years include December and distinguish missing entries from reco
   assert.equal(result.year.months[1].incomeCount, 1);
   assert.equal(result.year.months[0].incomeCount, 0);
   assert.equal(result.year.months.some(month => month.future || month.isPartial), false);
+});
+
+test("income history distinguishes recorded zero from missing income and excludes other currencies", () => {
+  const result = calculate([
+    row("2026-09-01", 0, { type: "income" }),
+    row("2026-08-01", 1200, { type: "income" }),
+    row("2026-07-01", 500, { type: "income", currencyCode: "USD" }),
+    row("2026-06-01", 100),
+  ]);
+  assert.equal(result.trend.at(-1).incomeCount, 1);
+  assert.equal(result.trend.at(-1).income, 0);
+  assert.equal(result.trend.at(-2).incomeCount, 1);
+  assert.equal(result.trend.at(-2).income, 1200);
+  assert.equal(result.trend.at(-3).incomeCount, 0);
+  assert.equal(result.trend.at(-4).incomeCount, 0);
+});
+
+
+test("selected comparison month supports nonadjacent months and year boundaries", () => {
+  const rows = [row("2026-09-12", 100), row("2026-08-12", 999),
+    row("2025-12-12", 40), row("2025-12-13", 400)];
+  const result = calculateInsights(rows, "2026-09", "INR", "INR", true, now, "2025-12");
+  assert.equal(result.previousExpense, 40);
+  assert.equal(result.comparisonMonth, "2025-12");
+  assert.equal(result.expenseCategories[0].previous, 40);
+  assert.equal(result.accounts[0].previousExpense, 40);
+  assert.match(result.comparisonLabel, /December 2025.*days 1–12/);
+  assert.match(result.comparisonDescription, /December 2025/);
+  assert.equal(result.trend.at(-1).month, "2026-09");
+});
+test("a current-month comparison baseline excludes future entries", () => {
+  const result = calculateInsights([row("2026-07-31", 100), row("2026-09-12", 20), row("2026-09-13", 999)],
+    "2026-07", "INR", "INR", true, now, "2026-09");
+  assert.equal(result.expense, 100);
+  assert.equal(result.previousExpense, 20);
+  assert.match(result.comparisonDescription, /1–12 September 2026/);
+});
+test("comparison picker includes only other recorded months in the selected currency", () => {
+  const rows = [row("2026-09-01", 100), row("2026-08-01", 0), row("2026-08-02", 10),
+    row("2025-12-01", 10, { type: "income" }), row("2026-07-01", 20, { deleted: true }),
+    row("2026-06-01", 30, { currencyCode: "USD" }), row("2026-10-01", 40),
+    row("2026-05-01", NaN), row("invalid", 10)];
+  assert.deepEqual(availableComparisonMonths(rows, "2026-09", "INR", "INR", now), ["2026-08", "2025-12"]);
+  assert.deepEqual(availableComparisonMonths(rows, "2026-09", "USD", "INR", now), ["2026-06"]);
+});
+test("amount comparisons name the selected month", () => {
+  assert.equal(amountChangeLabel(100, 40, value => `₹${value}`, "December 2025"), "₹60 more than December 2025");
+  assert.equal(amountChangeLabel(40, 40, String, "December 2025"), "The same recorded amount as December 2025");
 });

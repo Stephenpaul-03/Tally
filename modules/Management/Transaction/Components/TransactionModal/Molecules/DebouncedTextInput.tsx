@@ -4,7 +4,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 interface DebouncedTextInputProps extends Omit<
   React.ComponentProps<typeof TextInput>,
-  "value" | "onChangeText" | "onBlur"
+  "value" | "onChangeText" | "onBlur" | "ref"
 > {
   initialValue: string;
   onBlur: (v: string) => void;
@@ -19,6 +19,12 @@ export const DebouncedTextInput = React.forwardRef<
   ref,
 ) {
   const [local, setLocal] = useState(initialValue);
+  // Paper exposes an imperative handle, while RN's inherited ref prop expects
+  // a native input. A callback safely forwards the common handle to our caller.
+  const forwardInputRef = React.useCallback((input: React.ElementRef<typeof TextInput> | null) => {
+    if (typeof ref === "function") ref(input);
+    else if (ref) ref.current = input;
+  }, [ref]);
 
   useEffect(() => {
     setLocal(initialValue);
@@ -28,7 +34,7 @@ export const DebouncedTextInput = React.forwardRef<
 
   return (
     <TextInput
-      ref={ref}
+      ref={forwardInputRef}
       {...props}
       value={local}
       onChangeText={(v) => {

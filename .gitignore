@@ -3,6 +3,15 @@
 # dependencies
 node_modules/
 
+# private local recovery snapshots
+/.local-backups/
+
+# Switzer must be obtained directly from Fontshare; retain local copies only
+/assets/fonts/Switzer-*.ttf
+/assets/fonts/Switzer-*.otf
+/assets/fonts/Switzer-*.woff
+/assets/fonts/Switzer-*.woff2
+
 # Expo
 .expo/
 dist/
@@ -13,6 +22,7 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -33,8 +43,28 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local environment and credentials
+.env
+.env.*
+!.env.example
+local.properties
+key.properties
+credentials.json
+
+# build outputs and local finance data
+*.apk
+*.aab
+*.ipa
+*.hprof
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+__pycache__/
+*.pyc
 
 # typescript
 *.tsbuildinfo

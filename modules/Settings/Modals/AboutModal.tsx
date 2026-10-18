@@ -1,3 +1,5 @@
+import { useOnboardingTour } from "@/modules/Onboarding/SpotlightTour";
+import { navigationRef } from "@/navigation/RootNavigation";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
@@ -12,6 +14,7 @@ import {
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { SettingsStyles } from "../Styles";
+import { DeveloperModal } from "./DeveloperModal";
 
 type Props = {
   visible: boolean;
@@ -20,6 +23,23 @@ type Props = {
 
 export function AboutModal({ visible, onDismiss }: Props) {
   const theme = useTheme();
+  const { start: startTour } = useOnboardingTour();
+  const versionTaps = React.useRef(0);
+  const [developerVisible, setDeveloperVisible] = React.useState(false);
+  React.useEffect(() => {
+    if (!visible) {
+      versionTaps.current = 0;
+      setDeveloperVisible(false);
+    }
+  }, [visible]);
+  const onVersionPress = () => {
+    if (!__DEV__) return;
+    versionTaps.current += 1;
+    if (versionTaps.current === 7) {
+      versionTaps.current = 0;
+      setDeveloperVisible(true);
+    }
+  };
   const appVersion = Constants.expoConfig?.version ?? "0.1.0";
   const [betaContactScenario, setBetaContactScenario] =
     React.useState<BetaContactScenario | null>(null);
@@ -37,6 +57,8 @@ export function AboutModal({ visible, onDismiss }: Props) {
         visible={visible}
         onDismiss={onDismiss}
         presentation="sheet"
+        dismissable={!developerVisible}
+        escapeEnabled={!developerVisible}
         contentContainerStyle={{
           backgroundColor: theme.colors.background,
           borderTopLeftRadius: 40,
@@ -103,7 +125,7 @@ export function AboutModal({ visible, onDismiss }: Props) {
               icon="information-outline"
               label="Version"
               description="Installed app build"
-              onPress={() => undefined}
+              onPress={onVersionPress}
               theme={theme}
               showChevron={false}
               rightElement={
@@ -121,6 +143,22 @@ export function AboutModal({ visible, onDismiss }: Props) {
           </SheetCard>
         </ScrollView>
       </AnimatedPaperModal>
+
+      <DeveloperModal
+        visible={visible && developerVisible}
+        onDismiss={() => setDeveloperVisible(false)}
+        onPreviewTour={() => {
+          setDeveloperVisible(false);
+          onDismiss();
+          startTour({ preview: true });
+          if (navigationRef.isReady()) navigationRef.resetRoot({ index: 0, routes: [{ name: "Transactions" }] });
+        }}
+        onPreviewOnboarding={() => {
+          setDeveloperVisible(false);
+          onDismiss();
+          if (navigationRef.isReady()) navigationRef.navigate("Onboarding", { preview: true });
+        }}
+      />
 
       <BetaContactModal
         visible={betaContactScenario !== null}

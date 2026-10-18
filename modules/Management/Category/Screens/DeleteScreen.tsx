@@ -146,7 +146,7 @@ function CategoryDeleteContent({
       </View>
 
       {/* Reassign destinations */}
-      {deleteDestinations.length > 0 && (
+      {management.deleteAffectCount > 0 && deleteDestinations.length > 0 && (
         <>
           <SectionLabel label="Move transactions to"/>
           <View
@@ -242,7 +242,7 @@ function CategoryDeleteContent({
                 color: c.error,
               }}
             >
-              Delete
+              {management.isDeleting ? "Deleting…" : "Delete"}
             </Text>
           </Pressable>
         </View>

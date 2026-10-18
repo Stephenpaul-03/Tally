@@ -12,14 +12,13 @@ import {
   useNotifications,
 } from "@/src/services/notifications";
 import { THEME_PRESETS, type ThemeId } from "@/theme/presets";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert } from "react-native";
 import type { ModeOption } from "./Modals/AppearanceModal";
 
 export function useSettings() {
   const dispatch = useAppDispatch();
   const notifications = useNotifications();
-  const { reconcileSchedules } = notifications;
 
   const { themeId, setThemeId, trueBlack, setTrueBlack } = useAppTheme();
   const {
@@ -66,10 +65,6 @@ export function useSettings() {
       selectedTime: date,
     };
   })();
-
-  useEffect(() => {
-    void reconcileSchedules();
-  }, [reconcileSchedules]);
 
   const handleModeSelect = (id: ModeOption) => {
     if (id === "system") resetToSystem();
@@ -276,9 +271,9 @@ export function useSettings() {
         setNotificationAccessPromptOpen(true);
         return;
       }
-      toast.success("Test notification sent");
-    } catch {
-      toast.error("Couldn't send test notification");
+      toast.info("Test requested. Check your notification shade.");
+    } catch (error) {
+      Alert.alert("Notification test failed", error instanceof Error ? error.message : "Couldn't send test notification");
     }
   };
 

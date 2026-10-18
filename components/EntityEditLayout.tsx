@@ -1,3 +1,4 @@
+import { matchesIconSearch } from "@/utils/icon-search";
 import {
   CurrencyPickerField,
   type WorkspaceCurrency,
@@ -8,14 +9,8 @@ import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  setStatusBarBackgroundColor,
-  setStatusBarStyle,
-  setStatusBarTranslucent,
-} from "expo-status-bar";
 import React from "react";
 import {
-  Platform,
   Pressable,
   TextInput as RNTextInput,
   ScrollView,
@@ -65,9 +60,10 @@ export type EntityEditLayoutProps = {
   showHeader?: boolean;
   showPreview?: boolean;
   showPreviewName?: boolean;
-  presentation?: "screen" | "modal";
+  presentation?: "screen" | "modal" | "inline";
   visible?: boolean;
   dismissable?: boolean;
+  disabled?: boolean;
 
   // Submit
   canSubmit: boolean;
@@ -125,6 +121,7 @@ export function EntityEditLayout({
   usedIcons = [],
   iconGrid,
   namePlaceholder = "Enter a name",
+  nameLabel = "Name",
   emptyPreviewLabel = "Name",
   headerSubtitle,
   showHeader = true,
@@ -133,6 +130,7 @@ export function EntityEditLayout({
   presentation = "modal",
   visible = true,
   dismissable = true,
+  disabled: editorDisabled = false,
   canSubmit,
   isEditing,
   submitLabelCreate = "Add",
@@ -211,13 +209,13 @@ export function EntityEditLayout({
   const iconSearchMatches = React.useMemo(() => {
     const query = iconQuery.trim().toLowerCase();
     return query
-      ? orderedIcons.filter((icon) => icon.toLowerCase().includes(query))
+      ? orderedIcons.filter((icon) => matchesIconSearch(icon, query))
       : orderedIcons;
   }, [iconQuery, orderedIcons]);
   const iconSearchRemainder = React.useMemo(() => {
     const query = iconQuery.trim().toLowerCase();
     return query
-      ? orderedIcons.filter((icon) => !icon.toLowerCase().includes(query))
+      ? orderedIcons.filter((icon) => !matchesIconSearch(icon, query))
       : [];
   }, [iconQuery, orderedIcons]);
   const iconHasMore = orderedIcons.length > iconColumns * visiblePickerRows;
@@ -298,29 +296,15 @@ export function EntityEditLayout({
     </View>
   );
 
-  React.useEffect(() => {
-    if (!showHeader) return undefined;
-
-    setStatusBarStyle("light");
-    if (Platform.OS === "android") {
-      setStatusBarTranslucent(false);
-      setStatusBarBackgroundColor(background, true);
-    }
-
-    return () => {
-      setStatusBarStyle("auto");
-      if (Platform.OS === "android") {
-        setStatusBarBackgroundColor(background, true);
-      }
-    };
-  }, [background, previewColor, showHeader]);
-
   const renderIconButton = (icon: string) => {
     const selected = icon === localIcon;
-    const disabled = usedIconSet.has(icon) && !selected;
+    const disabled = editorDisabled || (usedIconSet.has(icon) && !selected);
     return (
       <Pressable
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={`Icon: ${icon.replace(/-/g, " ")}`}
+        accessibilityState={{ selected, disabled }}
         key={icon}
         onPress={() => onChangeIcon(icon)}
         style={({ pressed }) => ({
@@ -344,44 +328,8 @@ export function EntityEditLayout({
     );
   };
 
-  const content = (
-    <>
-      {showHeader ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: -top,
-            left: 0,
-            right: 0,
-            height: top,
-            backgroundColor: background,
-            zIndex: 10,
-          }}
-        />
-      ) : null}
-      <KeyboardAwareScrollView
-        bounces={outerScrollEnabled}
-        bottomOffset={bottom + 50}
-        contentContainerStyle={{
-          flexGrow: presentation === "screen" ? 1 : 0,
-        }}
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={(_contentWidth, contentHeight) =>
-          setOuterContentHeight(contentHeight)
-        }
-        onLayout={(event) =>
-          setOuterViewportHeight(event.nativeEvent.layout.height)
-        }
-        overScrollMode={outerScrollEnabled ? "auto" : "never"}
-        scrollEnabled={outerScrollEnabled}
-        showsVerticalScrollIndicator={false}
-        style={{
-          ...(presentation === "screen" ? { flex: 1 } : {}),
-          backgroundColor: background,
-        }}
-      >
-        <View style={{ flex: 1, justifyContent: "flex-start" }}>
+  const editorBody = (
+        <View style={{ flex: presentation === "inline" ? undefined : 1, justifyContent: "flex-start" }}>
           {showHeader ? (
             <View
               style={{
@@ -454,7 +402,7 @@ export function EntityEditLayout({
                   marginBottom: 8,
                 }}
               >
-                Name
+                {nameLabel}
               </Text>
               <View
                 style={{
@@ -468,6 +416,8 @@ export function EntityEditLayout({
                 }}
               >
                 <RNTextInput
+                  accessibilityLabel={nameLabel}
+                  editable={!editorDisabled}
                   maxLength={nameLimit}
                   onChangeText={(value) =>
                     onChangeName(value.slice(0, nameLimit))
@@ -712,10 +662,13 @@ export function EntityEditLayout({
               >
                 {orderedColors.map((color) => {
                   const selected = color === localColor;
-                  const disabled = usedColorSet.has(color) && !selected;
+                  const disabled = editorDisabled || (usedColorSet.has(color) && !selected);
                   return (
                     <Pressable
                       disabled={disabled}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Color ${color}`}
+                      accessibilityState={{ selected, disabled }}
                       key={color}
                       onPress={() => onChangeColor(color)}
                       style={({ pressed }) => ({
@@ -809,6 +762,7 @@ export function EntityEditLayout({
                         Owner
                       </Text>
                       <RNTextInput
+                        editable={!editorDisabled}
                         maxLength={ownerNameLimit}
                         onChangeText={(value) =>
                           onChangeOwnerName(value.slice(0, ownerNameLimit))
@@ -886,9 +840,51 @@ export function EntityEditLayout({
             )}
           </View>
         </View>
+  );
+
+  const content = (
+    <>
+      {showHeader ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: -top,
+            left: 0,
+            right: 0,
+            height: top,
+            backgroundColor: background,
+            zIndex: 10,
+          }}
+        />
+      ) : null}
+      <KeyboardAwareScrollView
+        bounces={outerScrollEnabled}
+        bottomOffset={bottom + 50}
+        contentContainerStyle={{
+          flexGrow: presentation === "screen" ? 1 : 0,
+        }}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={(_contentWidth, contentHeight) =>
+          setOuterContentHeight(contentHeight)
+        }
+        onLayout={(event) =>
+          setOuterViewportHeight(event.nativeEvent.layout.height)
+        }
+        overScrollMode={outerScrollEnabled ? "auto" : "never"}
+        scrollEnabled={outerScrollEnabled}
+        showsVerticalScrollIndicator={false}
+        style={{
+          ...(presentation === "screen" ? { flex: 1 } : {}),
+          backgroundColor: background,
+        }}
+      >
+        {editorBody}
       </KeyboardAwareScrollView>
     </>
   );
+
+  if (presentation === "inline") return editorBody;
 
   if (presentation === "modal") {
     return (

@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectTransactions, selectCategoryBudgets, selectOverallBudget,
   selectCategoryColors, selectCategoryIcons } from "@/modules/Core/Slices/TransactionSlice";
-import { calculateInsights, monthKey } from "../calculations";
+import { availableComparisonMonths, calculateInsights, monthKey } from "../calculations";
 
 export function useInsights(workspaceCurrency: string, expanded = true) {
   const transactions = useAppSelector(selectTransactions);
@@ -12,6 +12,7 @@ export function useInsights(workspaceCurrency: string, expanded = true) {
   const icons = useAppSelector(selectCategoryIcons);
   const colors = useAppSelector(selectCategoryColors);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedComparisonMonth, setComparisonMonth] = useState<string | null>(null);
   const [selectedCurrency, setCurrency] = useState(workspaceCurrency);
   const matchedDays = true;
   const currencies = useMemo(() => [...new Set([workspaceCurrency,
@@ -30,9 +31,13 @@ export function useInsights(workspaceCurrency: string, expanded = true) {
     const listener = AppState.addEventListener("change", state => { if (state === "active") refresh(); });
     return () => { clearInterval(timer); listener.remove(); };
   }, []);
-  const data = useMemo(() => calculateInsights(transactions, month, currency, workspaceCurrency, matchedDays, new Date(today)),
-    [transactions, month, currency, workspaceCurrency, matchedDays, today]);
+  const comparisonMonths = useMemo(() => availableComparisonMonths(transactions, month, currency, workspaceCurrency, new Date(today)),
+    [transactions, month, currency, workspaceCurrency, today]);
+  const comparisonMonth = selectedComparisonMonth && comparisonMonths.includes(selectedComparisonMonth) ? selectedComparisonMonth : null;
+  const data = useMemo(() => calculateInsights(transactions, month, currency, workspaceCurrency, matchedDays, new Date(today), comparisonMonth ?? undefined),
+    [transactions, month, currency, workspaceCurrency, matchedDays, today, comparisonMonth]);
   const canCompareBudget = month === currentMonth && currency === workspaceCurrency;
   return { data, transactions, categoryBudgets, overallBudget, icons, colors,
+    comparisonMonths, comparisonMonth, setComparisonMonth,
     month, setMonth, currency, setCurrency, currencies, matchedDays, currentMonth, canCompareBudget };
 }

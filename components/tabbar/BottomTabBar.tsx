@@ -1,3 +1,4 @@
+import { colorTreatment } from "@/theme/colorTreatment";
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import {
   useSetTabBarHeight,
@@ -113,6 +114,8 @@ function RaisedActionButton({
     }).start();
   };
   const theme = useTheme();
+  const { hideLabels } = useTabBarModePreference();
+  const iconOnly = hideLabels || !action.label;
 
   return (
     <Animated.View
@@ -135,16 +138,17 @@ function RaisedActionButton({
         <Animated.View
           style={[
             styles.actionPill,
+            iconOnly && styles.actionCircle,
             {
               backgroundColor: primaryColor,
               transform: [{ scale: pressScale }],
             },
           ]}
         >
-          {action.icon({ color: theme.colors.onPrimary, size: 14 })}
-          <Text style={[styles.actionLabel, { color: theme.colors.onPrimary }]}>
+          {action.icon({ color: theme.colors.onPrimary, size: iconOnly ? 20 : 14 })}
+          {!iconOnly ? <Text style={[styles.actionLabel, { color: theme.colors.onPrimary }]}>
             {action.label.toUpperCase()}
-          </Text>
+          </Text> : null}
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -188,6 +192,7 @@ function TabButton({
     onPress();
   };
 
+  const { hideLabels } = useTabBarModePreference();
   const iconColor = focused ? activeColor : inactiveColor;
   const labelColor = focused ? activeColor : inactiveColor;
 
@@ -213,12 +218,12 @@ function TabButton({
       <Animated.View style={[mountStyle, styles.tabContentLayer]}>
         <Animated.View style={styles.tabInner}>
           {route.icon({ color: iconColor, size: 22 })}
-          <Text
+          {!hideLabels ? <Text
             numberOfLines={1}
             style={[styles.tabLabel, { color: labelColor }]}
           >
             {route.title.toUpperCase()}
-          </Text>
+          </Text> : null}
         </Animated.View>
       </Animated.View>
     </Pressable>
@@ -301,7 +306,8 @@ function BasicTabBar({
   }, [hidden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inactiveColor = theme.colors.onBackground + 40;
-  const activeColor = theme.colors.onPrimary;
+  const activeTint = colorTreatment(theme.colors.primary, theme.dark, true, theme.colors.elevation.level1);
+  const activeColor = activeTint.foregroundColor;
 
   // Geometry helpers shared by the settle animation and the drag gesture.
   const getTabWidth = useCallback(() => {
@@ -473,7 +479,9 @@ function BasicTabBar({
           style={[
             styles.activePill,
             {
-              backgroundColor: theme.colors.primary,
+              backgroundColor: activeTint.backgroundColor,
+              borderWidth: 1,
+              borderColor: activeTint.borderColor,
               transform: [{ translateX: pillLeft }],
               width: pillWidth,
             },
@@ -686,6 +694,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 2,
     borderRadius: 999,
+  },
+  actionCircle: {
+    width: ACTION_PILL_HEIGHT,
+    height: ACTION_PILL_HEIGHT,
+    borderRadius: ACTION_PILL_HEIGHT / 2,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    gap: 0,
+    justifyContent: "center",
   },
   actionLabel: {
     ...typography.editorial.sectionLabel,

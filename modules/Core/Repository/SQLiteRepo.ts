@@ -1,4 +1,8 @@
+import { sortCategories } from "@/utils/category-order";
+import { validateImport, needsReview, type ImportRow } from "@/modules/Core/import/validation";
+import { initializeOnboarding, isOnboardingComplete, resetOnboarding, saveOnboarding, getTourProgress, saveTourProgress, type OnboardingSetup } from "../../Onboarding/storage";
 import * as SQLite from "expo-sqlite";
+import { createSampleTransactions, SAMPLE_ID_PREFIX } from "../../Insights/sampleData";
 import { createTransaction, formatAccountLabel } from "../../../utils/Helpers";
 import {
     Account,
@@ -267,7 +271,9 @@ const db = SQLite.openDatabaseSync("finance.db");
 // Export db for debugging purposes
 export const financeDb = db;
 
-const seedWorkspacesSql = DEFAULT_WORKSPACES.map(
+// New installations start with one workspace. Existing workspaces are preserved.
+const INITIAL_WORKSPACES = DEFAULT_WORKSPACES.slice(0, 1);
+const seedWorkspacesSql = INITIAL_WORKSPACES.map(
   (workspace) =>
     `('${workspace.id}', '${workspace.name}', '${workspace.icon}', '${workspace.color}', '${workspace.currencyCode}', '${workspace.currencySymbol}', '${workspace.currencyName}')`,
 ).join(",\n      ");
@@ -465,6 +471,22 @@ const migrateWorkspaceUniqueConstraints = () => {
 };
 
 export class SQLiteWorkspaceRepository {
+  async isOnboardingComplete() {
+    return isOnboardingComplete(db);
+  }
+
+  async completeOnboarding(input: OnboardingSetup) {
+    saveOnboarding(db, input);
+  }
+
+  async getOnboardingTourProgress() {
+    return getTourProgress(db);
+  }
+
+  async saveOnboardingTourProgress(step: number | null) {
+    await saveTourProgress(db, step);
+  }
+
   async getWorkspaces(): Promise<Workspace[]> {
     const columns = getTableColumns("workspaces");
     const createdOrder = columns.has("created_at") ? "created_at ASC," : "";
@@ -809,6 +831,7 @@ try {
     "SELECT COUNT(*) AS count FROM workspaces;",
   );
   const count = countRow?.count ?? 0;
+  initializeOnboarding(db, count);
   if (count === 0) {
     db.execSync(`
       INSERT OR IGNORE INTO workspaces (id, name, icon, color, currency_code, currency_symbol, currency_name) VALUES
@@ -903,16 +926,48 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     return rows.map(mapTransactionRow);
   }
 
+  // Import the reviewed batch atomically, including explicitly requested new items.
+  async importReviewedTransactions(rows: ImportRow[]): Promise<number> {
+    if (!rows.length) throw new Error("No transactions to import.");
+    await db.withExclusiveTransactionAsync(async transaction => {
+      const income = await transaction.getAllAsync<{ name: string }>("SELECT name FROM categories WHERE workspace_id = ? AND type = 'income' AND is_deleted = 0", [this.workspaceId]);
+      const expense = await transaction.getAllAsync<{ name: string }>("SELECT name FROM categories WHERE workspace_id = ? AND type = 'expense' AND is_deleted = 0", [this.workspaceId]);
+      const accounts = await transaction.getAllAsync<{ name: string }>("SELECT name FROM accounts WHERE workspace_id = ? AND is_deleted = 0", [this.workspaceId]);
+      const catalog = { incomeCategories: income.map(c => c.name), expenseCategories: expense.map(c => c.name), accounts: accounts.map(a => a.name) };
+      validateImport(rows.map(row => row.transaction), catalog);
+      if (rows.some(row => needsReview(row, catalog))) throw new Error("Some categories or payment accounts still need review. Nothing was imported.");
+      for (const row of rows) {
+        const tx = row.transaction;
+        try {
+          if (row.createCategory) {
+            await transaction.runAsync("INSERT INTO categories (workspace_id, name, type, is_deleted) VALUES (?, ?, ?, 0) ON CONFLICT(workspace_id, name, type) DO UPDATE SET is_deleted = 0", [this.workspaceId, tx.category, tx.type]);
+          }
+          if (row.createAccount && tx.account) {
+            await transaction.runAsync("INSERT INTO accounts (workspace_id, name, is_deleted) VALUES (?, ?, 0) ON CONFLICT(workspace_id, name) DO UPDATE SET is_deleted = 0", [this.workspaceId, tx.account]);
+          }
+          const category = await transaction.getFirstAsync<{ id: number }>("SELECT id FROM categories WHERE workspace_id = ? AND name = ? AND type = ? AND is_deleted = 0", [this.workspaceId, tx.category, tx.type]);
+          if (!category) throw new Error("Category no longer exists.");
+          const data = createTransaction({ ...tx, category_id: category.id });
+          await transaction.runAsync(`INSERT INTO transactions
+            (id, workspace_id, title, amount, date, category_id, type, account, currency_code, currency_symbol, currency_name, notes, tags, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [data.id, this.workspaceId, data.title, data.amount, data.date, category.id, data.type, data.account || null,
+              data.currencyCode ?? null, data.currencySymbol ?? null, data.currencyName ?? null, data.notes ?? null, serializeTags(data.tags), data.createdBy, data.createdAt, data.updatedAt]);
+        } catch (error) {
+          throw new Error(`Row ${row.rowNumber}: ${error instanceof Error ? error.message : "Could not save transaction"}. Nothing was imported.`);
+        }
+      }
+    });
+    return rows.length;
+  }
+
   // --- Insert a new transaction ---
   async addTransaction(txData: TransactionFormData): Promise<Transaction> {
-    console.log("[addTransaction] Input:", txData);
     const categoryId = await this.getCategoryId(txData.category, txData.type);
-    console.log("[addTransaction] Category ID:", categoryId);
     const newTransaction = createTransaction({
       ...txData,
       category_id: categoryId,
     });
-    console.log("[addTransaction] Created:", newTransaction);
 
     await db.runAsync(
       `INSERT INTO transactions
@@ -939,6 +994,46 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     );
 
     return newTransaction;
+  }
+
+  async setInsightsSampleData(enabled: boolean): Promise<number> {
+    if (!__DEV__) throw new Error("Sample data is available in development builds only.");
+    const workspace = await db.getFirstAsync<Workspace>(
+      `SELECT currency_code AS currencyCode, currency_symbol AS currencySymbol,
+       currency_name AS currencyName FROM workspaces WHERE id = ?`, [this.workspaceId],
+    );
+    if (!workspace) throw new Error("Workspace not found");
+    const categories = enabled ? await db.getAllAsync<Category>(
+      "SELECT id, name, type FROM categories WHERE workspace_id = ? AND is_deleted = 0 ORDER BY id",
+      [this.workspaceId],
+    ) : [];
+    const accounts = enabled ? await this.getAccounts() : [];
+    const samples = enabled ? createSampleTransactions({
+      incomeCategories: categories.filter(row => row.type === "income").map(row => row.name),
+      expenseCategories: categories.filter(row => row.type === "expense").map(row => row.name),
+      accounts: accounts.map(row => row.name), currency: workspace,
+    }) : [];
+    // Replace in one transaction so retries never duplicate samples or leave half a dataset.
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.runAsync(
+        "DELETE FROM transactions WHERE workspace_id = ? AND substr(id, 1, ?) = ?",
+        [this.workspaceId, SAMPLE_ID_PREFIX.length, SAMPLE_ID_PREFIX],
+      );
+      for (const [index, sample] of samples.entries()) {
+        const category = categories.find(row => row.name === sample.category && row.type === sample.type)!;
+        await transaction.runAsync(
+          `INSERT INTO transactions
+           (id, workspace_id, title, amount, date, category_id, type, account,
+            currency_code, currency_symbol, currency_name, notes, tags, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [SAMPLE_ID_PREFIX + this.workspaceId + ":" + index, this.workspaceId,
+            sample.title, sample.amount, sample.date, category.id, sample.type, sample.account,
+            sample.currencyCode!, sample.currencySymbol!, sample.currencyName!,
+            sample.notes!, JSON.stringify(sample.tags), "Sample data"],
+        );
+      }
+    });
+    return samples.length;
   }
 
   // --- Update an existing transaction ---
@@ -1058,10 +1153,10 @@ export class SQLiteFinanceRepository implements FinanceRepository {
         "SELECT * FROM categories WHERE workspace_id = ? AND type = ? AND is_deleted = 0",
         [this.workspaceId, type],
       );
-      return newRows;
+      return sortCategories(newRows, row => row.name);
     }
 
-    return rows;
+    return sortCategories(rows, row => row.name);
   }
 
   // --- Get category by name ---
@@ -1143,6 +1238,37 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     }
 
     return updated;
+  }
+
+  async getCategoryUsage(type: "income" | "expense"): Promise<{ name: string; count: number }[]> {
+    const rows = await db.getAllAsync<{ name: string; count: number }>(
+      `SELECT c.name, COUNT(t.id) AS count FROM categories c LEFT JOIN transactions t
+       ON t.category_id = c.id AND t.workspace_id = c.workspace_id AND t.type = c.type
+       WHERE c.workspace_id = ? AND c.type = ? AND c.is_deleted = 0 GROUP BY c.id`, [this.workspaceId, type]);
+    return sortCategories(rows, row => row.name);
+  }
+
+  async deleteCategories(type: "income" | "expense", names: string[], destination?: string): Promise<void> {
+    const selected = [...new Set(names)];
+    if (!selected.length) throw new Error("Select at least one category.");
+    const fallback = type === "income" ? "Other Income" : "Other Expense";
+    if (selected.includes(fallback)) throw new Error(`${fallback} is kept as your fallback category.`);
+    await db.withExclusiveTransactionAsync(async transaction => {
+      const rows = await transaction.getAllAsync<{ id: number; name: string }>(
+        "SELECT id, name FROM categories WHERE workspace_id = ? AND type = ? AND is_deleted = 0", [this.workspaceId, type]);
+      const deleting = rows.filter(row => selected.includes(row.name));
+      if (deleting.length !== selected.length) throw new Error("Some categories changed. Refresh the list and try again.");
+      const counts = await transaction.getAllAsync<{ category_id: number; count: number }>(
+        "SELECT category_id, COUNT(*) AS count FROM transactions WHERE workspace_id = ? AND type = ? GROUP BY category_id", [this.workspaceId, type]);
+      const affected = counts.filter(row => deleting.some(category => category.id === row.category_id)).reduce((sum, row) => sum + row.count, 0);
+      const target = rows.find(row => row.name === destination && !selected.includes(row.name));
+      if (affected && !target) throw new Error("Choose a remaining category for the existing transactions. Nothing was deleted.");
+      for (const category of deleting) {
+        if (target) await transaction.runAsync("UPDATE transactions SET category_id = ? WHERE workspace_id = ? AND category_id = ? AND type = ?", [target.id, this.workspaceId, category.id, type]);
+        await transaction.runAsync("DELETE FROM category_budgets WHERE workspace_id = ? AND category_id = ?", [this.workspaceId, category.id]);
+        await transaction.runAsync("UPDATE categories SET is_deleted = 1 WHERE workspace_id = ? AND id = ?", [this.workspaceId, category.id]);
+      }
+    });
   }
 
   // --- Soft-delete a category ---
@@ -1458,20 +1584,23 @@ export class SQLiteFinanceRepository implements FinanceRepository {
   }
 
   async resetWorkspaceData(): Promise<void> {
-    await db.runAsync("DELETE FROM transactions");
-    await db.runAsync("DELETE FROM category_budgets");
-    await db.runAsync("DELETE FROM budgets");
-    await db.runAsync("DELETE FROM categories");
-    await db.runAsync("DELETE FROM accounts");
-    await db.runAsync("DELETE FROM workspaces");
-    db.execSync(`
-      INSERT OR IGNORE INTO workspaces (id, name, icon, color, currency_code, currency_symbol, currency_name) VALUES
-        ${seedWorkspacesSql};
-    `);
-    for (const workspace of DEFAULT_WORKSPACES) {
-      await seedDefaultCategoriesForWorkspace(workspace.id);
-      await seedDefaultAccountsForWorkspace(workspace.id);
-    }
+    await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM transactions");
+      await db.runAsync("DELETE FROM category_budgets");
+      await db.runAsync("DELETE FROM budgets");
+      await db.runAsync("DELETE FROM categories");
+      await db.runAsync("DELETE FROM accounts");
+      await db.runAsync("DELETE FROM workspaces");
+      db.execSync(`
+        INSERT INTO workspaces (id, name, icon, color, currency_code, currency_symbol, currency_name) VALUES
+          ${seedWorkspacesSql};
+      `);
+      for (const workspace of INITIAL_WORKSPACES) {
+        await seedDefaultCategoriesForWorkspace(workspace.id);
+        await seedDefaultAccountsForWorkspace(workspace.id);
+      }
+      resetOnboarding(db);
+    });
   }
 
   // Intentional no-op: Redux-to-SQLite migration is handled at the app

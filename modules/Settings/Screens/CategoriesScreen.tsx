@@ -84,7 +84,7 @@ export function CategoriesScreen() {
     localName.trim().length <= NAME_LIMIT &&
     localIcon.length > 0 &&
     localColor.length > 0;
-  const canConfirmDelete = Boolean(localDest) && localDest !== deletingName;
+  const canConfirmDelete = !management.isDeleting && (management.deleteAffectCount === 0 || (Boolean(localDest) && localDest !== deletingName));
 
   const modalWidth = useMemo(() => Math.min(680, width - 48), [width]);
   const iconGrid = useMemo(() => {

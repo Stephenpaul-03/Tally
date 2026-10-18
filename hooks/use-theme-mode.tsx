@@ -4,7 +4,7 @@ import React from "react";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export type ThemeMode = "light" | "dark";
-type ThemePreference = ThemeMode | "system";
+export type ThemePreference = ThemeMode | "system";
 
 type ThemeModeContextValue = {
   /** Resolved theme mode (system or overridden). */
@@ -21,7 +21,7 @@ type ThemeModeContextValue = {
   resetToSystem: () => void;
 };
 
-const STORAGE_KEY = "themeModePreference";
+export const THEME_MODE_STORAGE_KEY = "themeModePreference";
 
 const ThemeModeContext = React.createContext<ThemeModeContextValue | null>(null);
 
@@ -42,7 +42,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const stored = await AsyncStorage.getItem(THEME_MODE_STORAGE_KEY);
         if (!isMounted) return;
         if (isThemePreference(stored)) {
           setOverrideMode(stored === "system" ? null : stored);
@@ -61,7 +61,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
     if (!isHydrated) return;
     const nextPreference: ThemePreference = overrideMode ?? "system";
     const id = setTimeout(() => {
-      void AsyncStorage.setItem(STORAGE_KEY, nextPreference);
+      void AsyncStorage.setItem(THEME_MODE_STORAGE_KEY, nextPreference);
     }, 150);
     return () => clearTimeout(id);
   }, [isHydrated, overrideMode]);

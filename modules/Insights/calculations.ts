@@ -19,10 +19,10 @@ export const monthLabel = (key: string) => {
 export const dateRangeLabel = (key: string, days: number) =>
   `${days === 1 ? "1" : `1–${days}`} ${monthLabel(key)}`;
 export const amountChangeLabel = (
-  current: number, previous: number, money: (value: number) => string,
+  current: number, previous: number, money: (value: number) => string, period = "last month",
 ) => {
-  if (current === previous) return "The same recorded amount as last month";
-  return `${money(Math.abs(current - previous))} ${current > previous ? "more" : "less"} than last month`;
+  if (current === previous) return `The same recorded amount as ${period}`;
+  return `${money(Math.abs(current - previous))} ${current > previous ? "more" : "less"} than ${period}`;
 };
 export const total = (rows: Transaction[]) =>
   Number(rows.reduce((sum, row) => sum + Math.abs(row.amount), 0).toFixed(10));
@@ -41,6 +41,14 @@ export function incomePosition(income: number, expense: number) {
 export const percentLabel = (value: number) =>
   `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 
+export function availableComparisonMonths(transactions: Transaction[], month: string, currency: string, workspaceCurrency: string, now = new Date()) {
+  const today = `${monthKey(now)}-${String(now.getDate()).padStart(2, "0")}`;
+  return [...new Set(transactions.filter(row => !row.deleted && Number.isFinite(row.amount)
+    && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(row.date)
+    && row.date <= today && (row.currencyCode || workspaceCurrency) === currency)
+    .map(row => row.date.slice(0, 7)))].filter(key => key !== month).sort((a, b) => b.localeCompare(a));
+}
+
 export type Group = {
   name: string; amount: number; previous: number; count: number; previousCount: number;
   share: number; transactions: Transaction[];
@@ -58,13 +66,14 @@ export function groupRows(current: Transaction[], previous: Transaction[], field
 }
 export function calculateInsights(
   transactions: Transaction[], month: string, currency: string,
-  workspaceCurrency: string, matchedDays: boolean, now = new Date(),
+  workspaceCurrency: string, matchedDays: boolean, now = new Date(), comparisonMonth?: string,
 ) {
   const currentMonth = monthKey(now);
   const elapsed = month === currentMonth ? now.getDate() : daysInMonth(month);
-  const previousMonth = shiftMonth(month, -1);
+  const previousMonth = comparisonMonth ?? shiftMonth(month, -1);
   const previousDays = matchedDays && month === currentMonth
-    ? Math.min(elapsed, daysInMonth(previousMonth)) : daysInMonth(previousMonth);
+    ? Math.min(elapsed, daysInMonth(previousMonth))
+    : previousMonth === currentMonth ? now.getDate() : daysInMonth(previousMonth);
   const valid = transactions.filter(row => !row.deleted && Number.isFinite(row.amount)
     && /^\d{4}-\d{2}-\d{2}$/.test(row.date)
     && (row.currencyCode || workspaceCurrency) === currency);
@@ -92,7 +101,7 @@ export function calculateInsights(
   const yearIncome = Number(yearMonths.reduce((sum, row) => sum + row.income, 0).toFixed(10));
   const yearExpense = Number(yearMonths.reduce((sum, row) => sum + row.expense, 0).toFixed(10));
   return {
-    current, previous, income: incomeTotal, expense: expenseTotal,
+    current, previous, comparisonMonth: previousMonth, income: incomeTotal, expense: expenseTotal,
     ...incomePosition(incomeTotal, expenseTotal),
     year: { label: year, months: yearMonths, income: yearIncome, expense: yearExpense,
       ...incomePosition(yearIncome, yearExpense), isCurrent: year === currentMonth.slice(0, 4) },
@@ -102,7 +111,7 @@ export function calculateInsights(
     periodLabel: dateRangeLabel(month, elapsed),
     periodCaption: month === currentMonth && elapsed < daysInMonth(month)
       ? elapsed === 1 ? "Day 1" : `Days 1–${elapsed}` : "Full month",
-    comparisonDescription: month === currentMonth
+    comparisonDescription: month === currentMonth || previousMonth === currentMonth
       ? `Comparing ${dateRangeLabel(month, elapsed)} with ${dateRangeLabel(previousMonth, previousDays)}`
       : `Compared with ${monthLabel(previousMonth)}`,
     incomeCategories: groupRows(income, previousIncome, "category"),
@@ -128,6 +137,7 @@ export function calculateInsights(
       return { month: key, income: total(rows.filter(row => row.type === "income")),
         expense: total(rows.filter(row => row.type === "expense")),
         expenseCount: rows.filter(row => row.type === "expense").length,
+        incomeCount: rows.filter(row => row.type === "income").length,
         isPartial: key === currentMonth && elapsed < daysInMonth(key) };
     }),
     comparisonLabel: `${monthLabel(previousMonth)} · ${previousDays === daysInMonth(previousMonth) ? "full month" : `days 1–${previousDays}`}`,

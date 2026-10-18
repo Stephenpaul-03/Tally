@@ -1,23 +1,17 @@
 import React, { useEffect } from "react";
 import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
-  FadeInDown, LinearTransition, ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming,
+  FadeInDown, LinearTransition, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export const insightLayout = LinearTransition.duration(220).reduceMotion(ReduceMotion.System);
 
 export function MotionPressable({ style, children, ...props }: Omit<PressableProps, "style" | "children"> & {
   style?: StyleProp<ViewStyle>; children: React.ReactNode;
 }) {
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const spring = { damping: 22, stiffness: 360, reduceMotion: ReduceMotion.System };
-  return <AnimatedPressable {...props} style={[style, animatedStyle]}
-    onPressIn={event => { scale.value = withSpring(0.98, spring); props.onPressIn?.(event); }}
-    onPressOut={event => { scale.value = withSpring(1, spring); props.onPressOut?.(event); }}>
+  return <Pressable {...props} style={({ pressed }) => [style, pressed && { opacity: 0.65 }]}>
     {children}
-  </AnimatedPressable>;
+  </Pressable>;
 }
 
 export function Reveal({ children, delay = 0, style }: {

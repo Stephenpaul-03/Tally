@@ -5,6 +5,7 @@ import React from "react";
 export type TabBarMode = "basic";
 const STORAGE_KEY = "appTabBarMode";
 const ENABLED_STORAGE_KEY = "appTabBarEnabled";
+const HIDE_LABELS_STORAGE_KEY = "appHideControlLabels";
 const DEFAULT_MODE: TabBarMode = "basic";
 const DEFAULT_ENABLED = true;
 
@@ -15,9 +16,11 @@ function isTabBarMode(value: string): value is TabBarMode {
 type TabBarModePreferenceContextValue = {
   tabBarMode: TabBarMode;
   tabBarEnabled: boolean;
+  hideLabels: boolean;
   isHydrated: boolean;
   setTabBarMode: (mode: TabBarMode) => void;
   setTabBarEnabled: (enabled: boolean) => void;
+  setHideLabels: (hidden: boolean) => void;
 };
 
 const TabBarModePreferenceContext =
@@ -32,20 +35,23 @@ export function TabBarModePreferenceProvider({
     React.useState<TabBarMode>(DEFAULT_MODE);
   const [tabBarEnabled, setTabBarEnabledState] =
     React.useState(DEFAULT_ENABLED);
+  const [hideLabels, setHideLabels] = React.useState(false);
   const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        const [storedMode, storedEnabled] = await Promise.all([
+        const [storedMode, storedEnabled, storedHideLabels] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(ENABLED_STORAGE_KEY),
+          AsyncStorage.getItem(HIDE_LABELS_STORAGE_KEY),
         ]);
         if (!isMounted) return;
         if (storedMode && isTabBarMode(storedMode))
           setTabBarModeState(storedMode);
         else setTabBarModeState(DEFAULT_MODE);
+        setHideLabels(storedHideLabels === "true");
         setTabBarEnabledState(
           storedEnabled == null ? DEFAULT_ENABLED : storedEnabled === "true",
         );
@@ -64,10 +70,11 @@ export function TabBarModePreferenceProvider({
       void Promise.all([
         AsyncStorage.setItem(STORAGE_KEY, tabBarMode),
         AsyncStorage.setItem(ENABLED_STORAGE_KEY, String(tabBarEnabled)),
+        AsyncStorage.setItem(HIDE_LABELS_STORAGE_KEY, String(hideLabels)),
       ]);
     }, 250);
     return () => clearTimeout(id);
-  }, [tabBarEnabled, tabBarMode, isHydrated]);
+  }, [tabBarEnabled, tabBarMode, hideLabels, isHydrated]);
 
   const setTabBarMode = React.useCallback((mode: TabBarMode) => {
     setTabBarModeState(mode);
@@ -81,6 +88,8 @@ export function TabBarModePreferenceProvider({
     () => ({
       tabBarMode,
       tabBarEnabled,
+      hideLabels,
+      setHideLabels,
       isHydrated,
       setTabBarMode,
       setTabBarEnabled,
@@ -88,6 +97,8 @@ export function TabBarModePreferenceProvider({
     [
       tabBarMode,
       tabBarEnabled,
+      hideLabels,
+      setHideLabels,
       isHydrated,
       setTabBarMode,
       setTabBarEnabled,

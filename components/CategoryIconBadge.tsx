@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 
@@ -20,12 +19,10 @@ export function CategoryIconBadge({ icon, color, style }: {
   color: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const theme = useTheme();
   const { minimalIconsEnabled } = useAddonPrefs();
   return <View style={[styles.badge, {
-    backgroundColor: minimalIconsEnabled ? theme.colors.background : darkenHex(color),
-    borderColor: minimalIconsEnabled ? theme.colors.elevation.level1 : undefined,
-    borderWidth: minimalIconsEnabled ? 1 : 0,
+    backgroundColor: minimalIconsEnabled ? "transparent" : darkenHex(color),
+    borderWidth: 0,
   }, style]}>
     <MaterialCommunityIcons name={icon} size={20}
       color={minimalIconsEnabled ? color : "#FFFFFF"} style={styles.icon} accessible={false} />

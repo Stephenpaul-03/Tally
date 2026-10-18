@@ -20,7 +20,8 @@
         "monochromeImage": "./assets/images/icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.stephenpaul.tally"
+      "package": "com.stephenpaul.tally",
+      "versionCode": 1
     },
     "web": {
       "output": "single",
@@ -54,7 +55,8 @@
         }
       ],
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      "./plugins/withAndroidRelease"
     ],
     "experiments": {
       "reactCompiler": true

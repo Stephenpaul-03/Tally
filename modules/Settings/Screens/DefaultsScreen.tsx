@@ -203,7 +203,7 @@ type CurrencyItem = {
 };
 
 const currencyData =
-  require("../../../node_modules/@youssefprodev/rn-currency-picker/src/constants/CommonCurrency.json") as Record<
+  require("@/data/currencies.json") as Record<
     string,
     CurrencyItem
   >;

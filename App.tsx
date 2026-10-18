@@ -1,8 +1,5 @@
 import { TabBarProvider } from "@/components/tabbar/TabBarContext";
-import {
-  ToastProvider,
-  pushOffsetAnimValue,
-} from "@/components/toast/ToastProvider";
+import { ToastProvider } from "@/components/toast/ToastProvider";
 import { AddonPrefsProvider } from "@/hooks/use-addon-prefs";
 import { AppThemeProvider, useAppTheme } from "@/hooks/use-app-theme";
 import {
@@ -26,7 +23,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { Animated, Platform, StyleSheet } from "react-native";
+import { AppState, Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { PaperProvider } from "react-native-paper";
@@ -39,17 +36,6 @@ import { BiometricLockOverlay } from "./overlays/BiometricLockOverlay";
 
 void SplashScreen.preventAutoHideAsync();
 
-// Reads module-level value directly — no context, no re-renders, ever
-function PushedAppContent({ children }: { children: React.ReactNode }) {
-  return (
-    <Animated.View
-      style={{ flex: 1, transform: [{ translateY: pushOffsetAnimValue }] }}
-    >
-      {children}
-    </Animated.View>
-  );
-}
-
 function AppInner() {
   const themeMode = useThemeMode();
   const { mode } = themeMode;
@@ -58,7 +44,10 @@ function AppInner() {
   useEffect(() => {
     void notificationService.initializeAsync();
     const detach = notificationService.attachListeners();
-    return detach;
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") void notificationService.initializeAsync();
+    });
+    return () => { detach(); subscription.remove(); };
   }, []);
 
   const paperTheme = getPaperTheme({ mode, themeId, trueBlack });
@@ -73,35 +62,33 @@ function AppInner() {
   }, [paperTheme.dark]);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <KeyboardProvider>
-        <PaperProvider theme={paperTheme}>
-          <NavigationContainer
-            onReady={flushPendingNavigationTargets}
-            ref={navigationRef}
-            theme={navigationTheme}
-          >
-            <ToastProvider>
-              <TabBarProvider>
-                <SafeAreaProvider>
-                  <PushedAppContent>
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: paperTheme.colors.background }]}>
+      <SafeAreaProvider>
+        <KeyboardProvider>
+          <PaperProvider theme={paperTheme}>
+            <NavigationContainer
+              onReady={flushPendingNavigationTargets}
+              ref={navigationRef}
+              theme={navigationTheme}
+            >
+              <ToastProvider>
+                <TabBarProvider>
+                  <View style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
                     <AppNavigator />
                     {biometricLock.isLocked ? (
                       <BiometricLockOverlay
                         isAuthenticating={biometricLock.isAuthenticating}
-                        onUnlock={() => {
-                          void biometricLock.unlock();
-                        }}
+                        onUnlock={() => { void biometricLock.unlock(); }}
                       />
                     ) : null}
-                    <StatusBar style="auto" />
-                  </PushedAppContent>
-                </SafeAreaProvider>
-              </TabBarProvider>
-            </ToastProvider>
-          </NavigationContainer>
-        </PaperProvider>
-      </KeyboardProvider>
+                    <StatusBar style={paperTheme.dark ? "light" : "dark"} translucent backgroundColor="transparent" />
+                  </View>
+                </TabBarProvider>
+              </ToastProvider>
+            </NavigationContainer>
+          </PaperProvider>
+        </KeyboardProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

@@ -1,7 +1,8 @@
+import { ImportReviewModal } from "../import/ImportReview";
+import { ImportSavedError, needsReview, type ImportProblem } from "@/modules/Core/import/validation";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { usePasswordPrompt } from "@/components/PasswordPrompt";
-import { toast } from "@/components/toast/ToastProvider";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
 import type { ImportPreview } from "@/hooks/use-import-export";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -160,7 +161,7 @@ function EmptyState({
       <Text
         style={[styles.dropSubtitle, { color: theme.colors.onSurfaceVariant }]}
       >
-        {isLoading ? "Checking contents" : "JSON backups exported from Nest"}
+        {isLoading ? "Checking contents" : "JSON transaction files and Tally backups"}
       </Text>
 
       {!isLoading ? (
@@ -298,7 +299,7 @@ function FilePreviewCard({
 function SummaryCard({ preview }: { preview: ImportPreview }) {
   const theme = useTheme();
   const summary = React.useMemo(
-    () => buildSummary(preview.normalizedTransactions as Transaction[]),
+    () => buildSummary(preview.normalizedTransactions),
     [preview],
   );
 
@@ -434,7 +435,9 @@ export function BackupImportModal({
   const { promptPassword, PasswordPromptModal } = usePasswordPrompt();
   const dataTransfer = useDataTransferControls(undefined, { promptPassword });
 
+  const [validationError, setValidationError] = React.useState<{ message: string; problems?: ImportProblem[] } | null>(null);
   const [preview, setPreview] = React.useState<ImportPreview | null>(null);
+  const [reviewOpen, setReviewOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isPickingFile, setIsPickingFile] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
@@ -442,14 +445,18 @@ export function BackupImportModal({
   const handleDismiss = React.useCallback(() => {
     // A preview is temporary. Closing the sheet without importing must not
     // leave the previously selected backup attached when it is reopened.
+    if (isImporting) return;
     setConfirmOpen(false);
+    setReviewOpen(false);
+    setValidationError(null);
     setPreview(null);
     onDismiss();
-  }, [onDismiss]);
+  }, [isImporting, onDismiss]);
 
   React.useEffect(() => {
     if (!visible) {
       setConfirmOpen(false);
+      setReviewOpen(false);
       setPreview(null);
     }
   }, [visible]);
@@ -458,16 +465,18 @@ export function BackupImportModal({
     if (isPickingFile) return;
     try {
       setIsPickingFile(true);
+      setValidationError(null);
       setPreview(null);
 
       const result = await dataTransfer.buildImportPreview();
 
       if ("canceled" in result) return;
       if ("error" in result) {
-        toast.error(result.error);
+        setValidationError({ message: result.error, problems: result.problems });
         return;
       }
       setPreview(result.preview);
+      setReviewOpen(result.preview.rows.some(row => needsReview(row, result.preview.catalog)));
     } finally {
       setIsPickingFile(false);
     }
@@ -476,19 +485,22 @@ export function BackupImportModal({
     if (!preview || isImporting) return false;
     try {
       setIsImporting(true);
-      await dataTransfer.confirmImportPreview(preview.normalizedTransactions);
+      await dataTransfer.confirmImportPreview(preview.rows, preview.workspaceId);
       setConfirmOpen(false);
+      setReviewOpen(false);
       setPreview(null);
-      handleDismiss();
+      onDismiss();
       return true;
     } catch (e) {
       console.error("Import failed:", e);
-      toast.error("Couldn't import that backup");
+      setConfirmOpen(false);
+      if (e instanceof ImportSavedError) setPreview(null);
+      setValidationError({ message: e instanceof Error ? e.message : "Couldn't import that backup" });
       return false;
     } finally {
       setIsImporting(false);
     }
-  }, [dataTransfer, handleDismiss, isImporting, preview]);
+  }, [dataTransfer, onDismiss, isImporting, preview]);
 
   return (
     <AnimatedPaperModal
@@ -513,7 +525,7 @@ export function BackupImportModal({
           ]}
         />
       </View>
-      <SettingsHeader title="Restore Backup" onBack={handleDismiss} modal />
+      <SettingsHeader title="Import data" onBack={handleDismiss} modal />
 
       <ScrollView
         contentContainerStyle={[
@@ -534,6 +546,10 @@ export function BackupImportModal({
           />
         )}
 
+        {preview ? <View style={{ paddingVertical: 12, gap: 8 }}>
+          <Text style={{ color: theme.colors.onSurfaceVariant }}>{preview.rows.some(row => needsReview(row, preview.catalog)) ? `${preview.rows.filter(row => needsReview(row, preview.catalog)).length} transactions need attention` : "All transactions are ready to import"}</Text>
+          <Button mode="outlined" icon="clipboard-check-outline" onPress={() => setReviewOpen(true)}>Review transactions</Button>
+        </View> : null}
         {/* Summary or hints */}
         {preview ? (
           <SummaryCard preview={preview} />
@@ -586,7 +602,7 @@ export function BackupImportModal({
       >
         <Button
           mode="contained"
-          onPress={preview ? () => setConfirmOpen(true) : handleSelectFile}
+          onPress={preview ? () => preview.rows.some(row => needsReview(row, preview.catalog)) ? setReviewOpen(true) : setConfirmOpen(true) : handleSelectFile}
           disabled={isPickingFile || isImporting}
           loading={isPickingFile || isImporting}
           style={styles.ctaBtn}
@@ -594,21 +610,28 @@ export function BackupImportModal({
           labelStyle={styles.ctaBtnLabel}
         >
           {preview
-            ? "Import backup"
+            ? preview.rows.some(row => needsReview(row, preview.catalog)) ? "Review transactions" : "Import transactions"
             : isPickingFile
               ? "Opening…"
               : "Choose file"}
         </Button>
       </View>
 
+      {preview ? <ImportReviewModal visible={reviewOpen} onDismiss={() => setReviewOpen(false)} rows={preview.rows} catalog={preview.catalog}
+        onChange={rows => setPreview({ ...preview, rows, normalizedTransactions: rows.map(row => row.transaction) })} /> : null}
       {PasswordPromptModal}
+      <AlertModal isOpen={!!validationError} title="Import needs attention" message={validationError?.message}
+        confirmLabel="Got it" onConfirm={() => setValidationError(null)} onCancel={() => setValidationError(null)} icon="alert-circle-outline">
+        {validationError?.problems ? <View style={{ gap: 10 }}>{validationError.problems.map((problem, index) =>
+          <Text key={index} style={{ color: theme.colors.onSurface }}>{problem.rowNumber ? `Row ${problem.rowNumber}: ` : ""}{problem.message}</Text>)}</View> : null}
+      </AlertModal>
 
       <AlertModal
         isOpen={confirmOpen}
-        title="Import this backup?"
+        title="Import these transactions?"
         message={
           preview
-            ? `You're about to add ${preview.transactionCount} transactions from "${preview.fileName}" to your account.`
+            ? `You're about to add ${preview.transactionCount} transactions from "${preview.fileName}" to this workspace.`
             : "You're about to import the selected backup file."
         }
         confirmLabel="Slide to import"
@@ -616,7 +639,7 @@ export function BackupImportModal({
         onConfirm={handleConfirmImport}
         onCancel={() => setConfirmOpen(false)}
         confirmMode="slide"
-        confirmDisabled={!preview || isImporting}
+        confirmDisabled={!preview || isImporting || preview.rows.some(row => needsReview(row, preview.catalog))}
         icon="file-import-outline"
       />
     </AnimatedPaperModal>

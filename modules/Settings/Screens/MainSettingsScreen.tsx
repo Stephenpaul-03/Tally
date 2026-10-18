@@ -1,3 +1,4 @@
+import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { ActionRow } from "@/components/ActionRow";
 import { SheetCard } from "@/components/SheetCard";
 import { useAppSelector } from "@/hooks/Redux";
@@ -496,45 +497,47 @@ export function MainSettingsScreen() {
               />
             </SheetCard>
 
-            <SectionLabel label="Management" />
-            <SheetCard theme={theme}>
-              <ActionRow
-                icon="tag-multiple-outline"
-                label="Categories"
-                description="Personalize your transaction categories"
-                onPress={() => navigation.navigate("Categories")}
-                theme={theme}
-              />
-              <ActionRow
-                icon="wallet-outline"
-                label="Accounts"
-                description="Manage where your money lives"
-                onPress={() => navigation.navigate("Accounts")}
-                theme={theme}
-              />
-              <ActionRow
-                icon="wallet-plus-outline"
-                label="Budget"
-                description="Set monthly budget and category limits"
-                onPress={() => navigation.navigate("Budget")}
-                theme={theme}
-              />
-              <ActionRow
-                icon="tune-variant"
-                label="Defaults"
-                description="Currency, account, and category defaults"
-                onPress={() => navigation.navigate("Defaults")}
-                theme={theme}
-              />
-              <ActionRow
-                icon="database-outline"
-                label="Data"
-                description="Create or restore transaction backups"
-                onPress={() => navigation.navigate("Data")}
-                theme={theme}
-              />
-            </SheetCard>
+            <SpotlightTarget id="settings-management">
+              <SectionLabel label="Management" />
+              <SheetCard theme={theme}>
+                <ActionRow
+                  icon="tag-multiple-outline"
+                  label="Categories"
+                  description="Personalize your transaction categories"
+                  onPress={() => navigation.navigate("Categories")}
+                  theme={theme}
+                />
+                <ActionRow
+                  icon="wallet-outline"
+                  label="Accounts"
+                  description="Manage where your money lives"
+                  onPress={() => navigation.navigate("Accounts")}
+                  theme={theme}
+                />
+                <ActionRow
+                  icon="wallet-plus-outline"
+                  label="Budget"
+                  description="Set monthly budget and category limits"
+                  onPress={() => navigation.navigate("Budget")}
+                  theme={theme}
+                />
+                <ActionRow
+                  icon="tune-variant"
+                  label="Defaults"
+                  description="Currency, account, and category defaults"
+                  onPress={() => navigation.navigate("Defaults")}
+                  theme={theme}
+                />
+                <ActionRow
+                  icon="database-outline"
+                  label="Data"
+                  description="Create or restore transaction backups"
+                  onPress={() => navigation.navigate("Data")}
+                  theme={theme}
+                />
+              </SheetCard>
 
+            </SpotlightTarget>
             <SectionLabel label="Preferences" />
             <SheetCard theme={theme}>
               <ActionRow

@@ -1,0 +1,17 @@
+name: Feature idea
+description: Suggest an improvement to Tally.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Tell us about the workflow or friction you are experiencing.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: Describe how you would like it to work, including any alternatives you considered.
+    validations:
+      required: true

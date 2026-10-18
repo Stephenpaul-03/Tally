@@ -1,12 +1,11 @@
 import type { RootParamList } from "@/navigation/types";
 import { typography } from "@/theme/typography";
-import { headerInsetCollapseAnimValue } from "@/components/toast/ToastProvider";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { NavigationProp } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import React from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
 type HeaderShellProps = {
@@ -38,17 +37,8 @@ export function HeaderShell({
         { backgroundColor: backgroundColor ?? theme.colors.elevation.level0 },
       ]}
     >
-      <Animated.View
-        style={[
-          styles.navRow,
-          {
-            paddingTop: headerInsetCollapseAnimValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [10, 0],
-            }),
-          },
-        ]}
-      >
+      <View style={styles.navRow}>
+
         <Pressable
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -73,7 +63,7 @@ export function HeaderShell({
         </View>
 
         <View style={styles.rightSlot}>{right}</View>
-      </Animated.View>
+      </View>
       {bottom ? <View style={styles.bottomSlot}>{bottom}</View> : null}
     </View>
   );
@@ -90,6 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 8,
+    paddingTop: 10,
   },
   navTitleWrap: {
     position: "absolute",

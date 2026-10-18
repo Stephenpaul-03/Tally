@@ -19,8 +19,8 @@ const INCOME_CATEGORY_ICON_MAP: Record<string, string> =
   options.defaultCategoryIcons.income;
 const EXPENSE_CATEGORY_ICON_MAP: Record<string, string> =
   options.defaultCategoryIcons.expense;
-const INCOME_FALLBACK_ICONS = options.categoryIcons;
-const EXPENSE_FALLBACK_ICONS = options.categoryIcons;
+const INCOME_FALLBACK_ICONS = options.fallbackCategoryIcons;
+const EXPENSE_FALLBACK_ICONS = options.fallbackCategoryIcons;
 const ACCOUNT_ICON_MAP: Record<string, string> = options.defaultAccountIcons;
 const ACCOUNT_COLOR_MAP: Record<string, string> = options.defaultAccountColors;
 const ACCOUNT_PICKER_ICONS = options.accountIcons;
@@ -365,8 +365,8 @@ export function getAccountColor(
   return CATEGORY_COLOR_OPTIONS[fallbackIndex];
 }
 
-export function formatAccountLabel(account: string): string {
-  const trimmed = account.trim();
+export function formatAccountLabel(account: string | null | undefined): string {
+  const trimmed = account?.trim() ?? "";
   if (!trimmed) return "";
   const normalized = trimmed.toLowerCase();
   const known = DEFAULT_ACCOUNTS.find(

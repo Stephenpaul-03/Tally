@@ -1,3 +1,4 @@
+import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { useAccountModalState } from "@/modules/Management/Account/Hooks";
 import { AccountDeleteModal } from "@/modules/Management/Account/Screens/DeleteScreen";
@@ -7,7 +8,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { SettingsStackParamList } from "../Navigation";
 
 export function AccountsScreen() {
@@ -43,7 +43,7 @@ export function AccountsScreen() {
   } = useAccountModalState(management, () => navigation.goBack());
 
   return (
-    <SafeAreaView
+    <SettingsPage
       style={{
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -92,6 +92,6 @@ export function AccountsScreen() {
         onClose={handleBack}
         theme={theme}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }

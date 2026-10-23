@@ -1,3 +1,5 @@
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
@@ -35,7 +37,7 @@ export function ReassignRow({
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <View
+      {(theme as ExtendedMD3Theme).expressive ? <CategoryIconBadge categoryName={dest} icon={destIcon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]} color={destColor} /> : (      <View
         style={{
           width: 36,
           height: 36,
@@ -51,6 +53,7 @@ export function ReassignRow({
           color={isSelected ? theme.colors.onPrimary : destColor}
         />
       </View>
+)}
       <View style={{ flex: 1, gap: 1 }}>
         <Text
           style={{

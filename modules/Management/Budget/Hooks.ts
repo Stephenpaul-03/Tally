@@ -10,7 +10,6 @@ import {
   selectExpenseTransactions,
   selectOverallBudget,
   updateCategoryBudgetAsync,
-  updateOverallBudgetAsync,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { getCategoryColor, getCategoryIconName } from "@/utils/Helpers";
 import React from "react";
@@ -79,20 +78,14 @@ export function useBudgetManagement() {
         color: getCategoryColor(category, "expense", categoryColors),
       };
     });
-  }, [categories, categoryBudgets, categoryColors, categoryIcons, expenseTransactions, monthKey]);
-
-  const saveOverall = React.useCallback(
-    async (value: string) => {
-      const amount = parseAmount(value);
-      try {
-        await dispatch(updateOverallBudgetAsync(amount)).unwrap();
-      } catch (error) {
-        console.error("Couldn't save budget:", error);
-        toast.error("Couldn't save budget");
-      }
-    },
-    [dispatch],
-  );
+  }, [
+    categories,
+    categoryBudgets,
+    categoryColors,
+    categoryIcons,
+    expenseTransactions,
+    monthKey,
+  ]);
 
   const saveCategory = React.useCallback(
     async (categoryName: string, value: string) => {
@@ -132,7 +125,6 @@ export function useBudgetManagement() {
     categoryBudgets,
     budgetSummary,
     categoryEntries,
-    saveOverall,
     saveCategory,
     clearCategory,
   };

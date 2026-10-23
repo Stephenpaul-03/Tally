@@ -1,14 +1,22 @@
+import { Gesture } from "react-native-gesture-handler";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootParamList } from "@/navigation/types";
+import { TonalSummaryTile } from "./components/TonalSummaryTile";
+import { categoryTone } from "@/theme/sage";
+import { ExpressiveOverview } from "./components/ExpressiveOverview";
+import { ActivityTypeToggle } from "./components/ActivityTypeToggle";
+import { ComparisonSheet } from "./sheets/ComparisonSheet";
+import { dailyActivityDetail } from "./dailyActivityDetail";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { useAppShell } from "@/components/AppShellContext";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import {
   useExpandedControls,
   useInsightsHeading,
-  type ExpandedControl,
 } from "@/components/ExpandedControlsContext";
 import { useInsightsExpansion } from "@/components/InsightsExpansionContext";
 import { useTabBarHeight } from "@/components/tabbar/TabBarContext";
-import { TypeToggle } from "@/components/TypeToggle";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import {
   openAddModal,
@@ -21,20 +29,16 @@ import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { getAccountColor, getAccountIconName } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import Animated, {
   interpolate,
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  amountChangeLabel,
-  calculateInsights,
-  monthLabel,
-  type Group,
-} from "./calculations";
+import { calculateInsights, monthLabel, type Group } from "./calculations";
 import {
   ActivityHeatmap,
   YearMonthlyTotals,
@@ -44,47 +48,56 @@ import { InsightsEmptyState } from "./components/InsightsEmptyState";
 import { CardEmptyState } from "./components/CardEmptyState";
 import { CategorySection } from "./components/CategorySection";
 import { MotionPressable } from "./components/Motion";
-import { IncomeUsage, InsightCard, MoneyHero } from "./components/Overview";
-import {
-  BudgetProgress,
-  Chip,
-  ContextNote,
-  Muted,
-  styles,
-  TextAction,
-} from "./components/Primitives";
+import { InsightCard, MoneyHero } from "./components/Overview";
+import { Chip, styles } from "./components/Primitives";
 import { useInsights } from "./hooks/useInsights";
-import { ComparisonMonths, ControlOption, ControlsSheet } from "./sheets/ControlsSheet";
+import { MonthPickerSheet } from "@/modules/Main/MonthPickerSheet";
 import { DetailsSheet, type Detail } from "./sheets/DetailsSheet";
 import { formatInsightAmount } from "./Utils";
 
+type Panel = "months" | "compare" | "comparison-month";
 
-type Panel = "months" | "view" | "compare";
-
-export function InsightsScreen() {
+type InsightsProps = {
+  pagePan?: ReturnType<typeof Gesture.Pan>;
+  initialMonth?: string;
+  expressive?: boolean;
+  month?: string;
+  onMonthChange?: (month: string) => void;
+};
+export function InsightsScreen(props: InsightsProps = {}) {
   const workspace = useAppSelector(selectActiveWorkspace);
   if (!workspace) return null;
   return (
     <WorkspaceInsights
       key={workspace.id}
       workspaceCurrency={workspace.currencyCode}
+      {...props}
     />
   );
 }
 
 function WorkspaceInsights({
   workspaceCurrency,
-}: {
+  pagePan,
+  initialMonth,
+  expressive = false,
+  month,
+  onMonthChange,
+}: InsightsProps & {
   workspaceCurrency: string;
 }) {
   const { activeTab, requestTab } = useAppShell();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const dispatch = useAppDispatch();
   const theme = useTheme<ExtendedMD3Theme>();
   const tabBarHeight = useTabBarHeight();
   const { bottom } = useSafeAreaInsets();
-  const expanded = activeTab === "insights";
+  const expanded = expressive || activeTab === "insights";
   // Keep the same period and hero mounted as Home expands into Insights.
-  const a = useInsights(workspaceCurrency);
+  const a = useInsights(workspaceCurrency, true, { month, onMonthChange });
+  useEffect(() => {
+    if (initialMonth) a.setMonth(initialMonth);
+  }, [initialMonth]); // eslint-disable-line react-hooks/exhaustive-deps
   const expansion = useInsightsExpansion();
   const bodyMotion = useAnimatedStyle(() => ({
     opacity: expansion
@@ -95,18 +108,12 @@ function WorkspaceInsights({
   }));
   const scroll = useRef<ScrollView>(null);
   useEffect(() => {
+    if (expressive) scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [a.month, expressive]);
+  useEffect(() => {
     if (!expanded) scroll.current?.scrollTo({ y: 0, animated: true });
   }, [expanded]);
   const [panel, setPanel] = useState<Panel | null>(null);
-  const [pickerYear, setPickerYear] = useState(Number(a.month.slice(0, 4)));
-  const compare = a.comparisonMonth !== null;
-  const comparisonPeriod = monthLabel(a.data.comparisonMonth);
-  const hasConfiguredBudgets = (Number.isFinite(a.overallBudget) && a.overallBudget > 0)
-    || Object.values(a.categoryBudgets).some(amount => Number.isFinite(amount) && amount > 0);
-  const [selectedViewMode, setViewMode] = useState<"amounts" | "income" | "budget">(
-    "amounts",
-  );
-  const viewMode = selectedViewMode === "budget" && !hasConfiguredBudgets ? "amounts" : selectedViewMode;
   const accountIcons = useAppSelector(selectAccountIcons);
   const accountColors = useAppSelector(selectAccountColors);
   const [browse, setBrowse] = useState<"expense" | "income" | "year" | null>(
@@ -122,52 +129,32 @@ function WorkspaceInsights({
     registerHeading?.({
       label: monthLabel(a.month),
       onPress: () => {
-        setPickerYear(Number(a.month.slice(0, 4)));
         setPanel("months");
       },
     });
     return () => registerHeading?.(null);
   }, [registerHeading, a.month]);
-  const controls = useMemo<ExpandedControl[]>(
-    () => [
-      ...([
-        ["amounts", "Amounts", "cash"], ["income", "Income use", "chart-donut"], ["budget", "Budgets", "wallet-outline"],
-      ] as const).filter(([key]) => key !== "budget" || hasConfiguredBudgets).map(([key, label, icon]) => ({
-        label, icon, group: "views", compact: true, selected: viewMode === key,
-        accessibilityLabel: `View: ${label}`, onPress: () => setViewMode(key),
-      })),
-      ...(a.currencies.length > 1 ? [{ label: "Currency", icon: "currency-usd" as const, group: "views", compact: true,
-        accessibilityLabel: `Currency: ${a.currency}`, onPress: () => setPanel("view") }] : []),
-      { label: "Compare", icon: "compare-horizontal", group: "compare", compact: true,
-        badgeIcon: compare ? "check" : undefined,
-        accessibilityLabel: `Compare months. ${a.comparisonMonth ? monthLabel(a.comparisonMonth) : "Off"}`,
-        onPress: () => setPanel("compare") },
-    ],
-    [viewMode, compare, a.comparisonMonth, a.currency, a.currencies.length, hasConfiguredBudgets],
-  );
   useEffect(() => {
-    registerControls?.(controls);
+    registerControls?.([
+      {
+        label: "Compare",
+        icon: "compare-horizontal",
+        onPress: () => setPanel("compare"),
+      },
+    ]);
     return () => registerControls?.([]);
-  }, [registerControls, controls]);
+  }, [registerControls]);
   const money = (value: number) => formatInsightAmount(value, a.currency);
   const hasEntries = a.data.current.length > 0;
   const hasYearEntries = a.data.year.months.some(
     (row) => row.incomeCount || row.expenseCount,
   );
-  const showExpenses =
-    a.data.hasSpending || (compare && a.data.hasPreviousSpending);
-  const showIncomeCard =
-    a.data.hasIncome || (compare && a.data.hasPreviousIncome);
+  const showExpenses = a.data.hasSpending;
+  const showIncomeCard = a.data.hasIncome;
   const hasBudget =
     a.canCompareBudget &&
     Number.isFinite(a.overallBudget) &&
     a.overallBudget > 0;
-  const spendingComparison = a.data.hasSpending
-    ? a.data.hasPreviousSpending
-      ? amountChangeLabel(a.data.expense, a.data.previousExpense, money, comparisonPeriod)
-      : `No spending recorded in ${comparisonPeriod}`
-    : "No spending recorded";
-
   const closeSheet = () => {
     setDetail(null);
     setPanel(null);
@@ -183,11 +170,6 @@ function WorkspaceInsights({
       title: "Monthly spending",
       description: a.data.periodLabel,
       summary: { label: "Spending recorded", value: money(a.data.expense) },
-      comparison: spendingComparison,
-      comparisonDescription:
-        a.data.hasSpending && a.data.hasPreviousSpending
-          ? a.data.comparisonDescription
-          : undefined,
       budget: hasBudget
         ? { amount: a.overallBudget, spent: a.data.expense }
         : undefined,
@@ -198,20 +180,9 @@ function WorkspaceInsights({
       title: "Monthly income",
       description: a.data.periodLabel,
       summary: { label: "Income recorded", value: money(a.data.income) },
-      comparison: a.data.hasPreviousIncome
-        ? amountChangeLabel(a.data.income, a.data.previousIncome, money, comparisonPeriod)
-        : `No income recorded in ${comparisonPeriod}`,
-      comparisonDescription: a.data.hasPreviousIncome
-        ? a.data.comparisonDescription
-        : undefined,
       transactions: a.data.current.filter((row) => row.type === "income"),
     });
   const showCategory = (group: Group, type: "income" | "expense") => {
-    const hasPrevious =
-      type === "expense"
-        ? a.data.hasPreviousSpending
-        : a.data.hasPreviousIncome;
-    const recorded = type === "expense" ? "spending" : "income";
     const budget =
       type === "expense" && a.canCompareBudget
         ? a.categoryBudgets[group.name]
@@ -235,18 +206,6 @@ function WorkspaceInsights({
         label: type === "expense" ? "Spending recorded" : "Income recorded",
         value: money(group.amount),
       },
-      comparison: !hasPrevious
-        ? `No ${recorded} recorded in ${comparisonPeriod}.`
-        : !group.count
-          ? `${money(group.previous)} recorded in ${comparisonPeriod}. No entries in this category this month.`
-          : !group.previousCount
-            ? `No ${recorded} recorded in this category in ${comparisonPeriod}.`
-            : group.amount === group.previous
-              ? "Same amount"
-              : `${money(Math.abs(group.amount - group.previous))} ${group.amount > group.previous ? "more" : "less"}`,
-      comparisonDescription: hasPrevious
-        ? `vs ${a.data.comparisonLabel}`
-        : undefined,
       budget:
         budget !== undefined && Number.isFinite(budget) && budget > 0
           ? { amount: budget, spent: group.amount }
@@ -263,7 +222,14 @@ function WorkspaceInsights({
       (left, right) =>
         right.expense - left.expense || left.name.localeCompare(right.name),
     );
-  const overview = (
+  const overview = expressive ? (
+    <ExpressiveOverview
+      data={a.data}
+      money={money}
+      onIncome={showIncome}
+      onSpending={showSpending}
+    />
+  ) : (
     <MoneyHero
       data={a.data}
       money={money}
@@ -272,104 +238,16 @@ function WorkspaceInsights({
     />
   );
 
-  const panelContent =
-    panel === "months" ? (
-      <View style={{ gap: 20 }}>
-        <View style={styles.row}>
-          <IconButton
-            icon="chevron-left"
-            label="Previous year"
-            onPress={() => setPickerYear(pickerYear - 1)}
-            disabled={pickerYear <= 1}
-          />
-          <Text style={{ ...typography.bodyStrong, fontSize: 20 }}>
-            {pickerYear}
-          </Text>
-          <IconButton
-            icon="chevron-right"
-            label="Next year"
-            onPress={() => setPickerYear(pickerYear + 1)}
-            disabled={pickerYear >= Number(a.currentMonth.slice(0, 4))}
-          />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {Array.from({ length: 12 }, (_, index) => {
-            const month = `${String(pickerYear).padStart(4, "0")}-${String(index + 1).padStart(2, "0")}`;
-            const selected = month === a.month;
-            return (
-              <MotionPressable
-                key={month}
-                onPress={() => selectMonth(month)}
-                disabled={month > a.currentMonth}
-                accessibilityRole="button"
-                accessibilityLabel={monthLabel(month)}
-                accessibilityState={{
-                  selected,
-                  disabled: month > a.currentMonth,
-                }}
-                style={{
-                  flexBasis: "30%",
-                  flexGrow: 1,
-                  minHeight: 52,
-                  padding: 10,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 14,
-                  backgroundColor: selected
-                    ? theme.colors.primary
-                    : theme.colors.elevation.level1,
-                  opacity: month > a.currentMonth ? 0.35 : 1,
-                }}
-              >
-                <Text
-                  style={{
-                    ...typography.bodyMedium,
-                    fontSize: 14,
-                    color: selected
-                      ? theme.colors.onPrimary
-                      : theme.colors.onSurface,
-                  }}
-                >
-                  {new Date(`${month}-01T00:00:00`).toLocaleDateString(
-                    undefined,
-                    { month: "short" },
-                  )}
-                </Text>
-              </MotionPressable>
-            );
-          })}
-        </View>
-        <TextAction
-          label="Go to this month"
-          onPress={() => selectMonth(a.currentMonth)}
-        />
-      </View>
-    ) : null;
-
-  const incomeComparison = !a.data.hasIncome
-    ? "No income recorded"
-    : a.data.hasPreviousIncome
-      ? amountChangeLabel(a.data.income, a.data.previousIncome, money, comparisonPeriod)
-      : `No income recorded in ${comparisonPeriod}`;
-  const comparisonNote = a.data.comparisonDescription;
-  const budgetNote =
-    a.currency !== workspaceCurrency
-      ? `Budgets are tracked in ${workspaceCurrency}.`
-      : !a.canCompareBudget
-        ? "Budgets apply to this month only."
-        : "No budget set";
   const categoryRows = (type: "expense" | "income", showAll = false) => (
     <CategorySection
       key={a.month + a.currency + type + (showAll ? "all" : "preview")}
+      expressive={expressive}
       type={type}
       groups={
         type === "expense" ? a.data.expenseCategories : a.data.incomeCategories
       }
-      comparison={compare}
-      comparisonPeriod={comparisonPeriod}
-      incomeTotal={viewMode === "income" ? a.data.income : 0}
       budgets={
-        type === "expense" && viewMode === "budget" && a.canCompareBudget
+        type === "expense" && showAll && a.canCompareBudget
           ? a.categoryBudgets
           : undefined
       }
@@ -403,32 +281,7 @@ function WorkspaceInsights({
               onMonth={selectMonth}
             />
           ) : (
-            <View style={{ gap: 12 }}>
-              {compare ? (
-                <ContextNote
-                  label={`Comparing with ${comparisonPeriod}`}
-                  description={comparisonNote}
-                  icon="compare-horizontal"
-                />
-              ) : null}
-              {browse === "expense" && viewMode === "budget" ? (
-                hasBudget ? (
-                  <BudgetProgress
-                    budget={a.overallBudget}
-                    spent={a.data.expense}
-                    money={money}
-                  />
-                ) : (
-                  <ContextNote label={budgetNote} icon="wallet-outline" />
-                )
-              ) : null}
-              {browse === "income" &&
-              viewMode === "income" &&
-              a.data.hasIncome ? (
-                <IncomeUsage data={a.data} money={money} />
-              ) : null}
-              {categoryRows(browse, true)}
-            </View>
+            <View style={{ gap: 12 }}>{categoryRows(browse, true)}</View>
           ),
       }
     : null;
@@ -449,19 +302,152 @@ function WorkspaceInsights({
         scrollEnabled={expanded}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 6,
-          paddingBottom: tabBarHeight + bottom + 32,
+          paddingHorizontal: expressive ? 16 : 20,
+          paddingTop: expressive ? 16 : 6,
+          paddingBottom:
+            (expressive ? Math.max(tabBarHeight, 76) : tabBarHeight) +
+            bottom +
+            32,
         }}
       >
-        <SpotlightTarget id="overview">{overview}</SpotlightTarget>
+        {expressive ? (
+          <>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                accessibilityRole="header"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={{
+                  fontSize: 34,
+                  fontWeight: "800",
+                  letterSpacing: -1,
+                  color: theme.colors.onSurface,
+                  flex: 1,
+                }}
+              >
+                Insights
+              </Text>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityLabel={`Choose month, ${monthLabel(a.month)}`}
+                onPress={() => {
+                  setPanel("months");
+                }}
+                style={{
+                  minHeight: 44,
+                  paddingHorizontal: 12,
+                  borderRadius: 24,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "800",
+                    color: theme.colors.onSurface,
+                  }}
+                >
+                  {new Date(`${a.month}-01T12:00:00`).toLocaleDateString(
+                    undefined,
+                    { month: "short", year: "numeric" },
+                  )}
+                </Text>
+                <MaterialCommunityIcons
+                  name="chevron-down"
+                  size={20}
+                  color={theme.colors.onSurface}
+                />
+              </MotionPressable>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityLabel="Compare insights"
+                onPress={() => setPanel("compare")}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="compare-horizontal"
+                  size={22}
+                  color={theme.colors.onSurface}
+                />
+              </MotionPressable>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityLabel="Settings"
+                onPress={() => navigation.navigate("Settings")}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: theme.colors.surfaceVariant,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="cog-outline"
+                  size={21}
+                  color={theme.colors.onSurface}
+                />
+              </MotionPressable>
+            </View>
+            {a.currencies.length > 1 ? (
+              <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
+                {a.currencies.map((code) => (
+                  <Chip
+                    key={code}
+                    label={code}
+                    selected={a.currency === code}
+                    onPress={() => a.setCurrency(code)}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : null}
+        {!expressive && a.currencies.length > 1 ? (
+          <View style={styles.chips}>
+            {a.currencies.map((code) => (
+              <Chip
+                key={code}
+                label={code}
+                selected={a.currency === code}
+                onPress={() => a.setCurrency(code)}
+              />
+            ))}
+          </View>
+        ) : null}
+        <SpotlightTarget
+          id="overview"
+          enabled={!expressive || activeTab === "insights"}
+        >
+          {overview}
+        </SpotlightTarget>
         {!hasEntries ? (
           <InsightsEmptyState
             expanded={expanded}
             hasOtherMonths={a.comparisonMonths.length > 0}
-            onAdd={() => dispatch(openAddModal({ type: "expense", date: null }))}
+            onAdd={() =>
+              dispatch(openAddModal({ type: "expense", date: null }))
+            }
             onChooseMonth={() => {
-              setPickerYear(Number(a.comparisonMonths[0].slice(0, 4)));
               setPanel("months");
             }}
           />
@@ -475,30 +461,13 @@ function WorkspaceInsights({
           {showExpenses ? (
             <>
               <InsightCard
-                title="Expenses"
+                index={0}
+                active={expressive || activeTab === "insights"}
+                initiallyVisible={expressive}
+                title="Spending"
                 icon="arrow-top-right"
                 color={theme.semantic.expense}
-                value={a.data.hasSpending ? money(a.data.expense) : undefined}
               >
-                {compare &&
-                (a.data.hasSpending || a.data.hasPreviousSpending) ? (
-                  <ContextNote
-                    label={spendingComparison}
-                    description={comparisonNote}
-                    icon="compare-horizontal"
-                  />
-                ) : null}
-                {viewMode === "budget" ? (
-                  hasBudget ? (
-                    <BudgetProgress
-                      budget={a.overallBudget}
-                      spent={a.data.expense}
-                      money={money}
-                    />
-                  ) : (
-                    <ContextNote label={budgetNote} icon="wallet-outline" />
-                  )
-                ) : null}
                 {categoryRows("expense")}
               </InsightCard>
             </>
@@ -506,108 +475,121 @@ function WorkspaceInsights({
           {showIncomeCard ? (
             <>
               <InsightCard
+                index={1}
+                active={expressive || activeTab === "insights"}
+                initiallyVisible={expressive}
                 title="Income"
                 icon="arrow-bottom-left"
                 color={theme.semantic.income}
-                value={a.data.hasIncome ? money(a.data.income) : undefined}
               >
-                {compare && (a.data.hasIncome || a.data.hasPreviousIncome) ? (
-                  <ContextNote
-                    label={incomeComparison}
-                    description={comparisonNote}
-                    icon="compare-horizontal"
-                  />
-                ) : null}
-                {viewMode === "income" && a.data.hasIncome ? (
-                  <IncomeUsage data={a.data} money={money} />
-                ) : null}
                 {categoryRows("income")}
               </InsightCard>
             </>
           ) : null}
           {accounts.length ? (
             <InsightCard
-              title="Payment accounts"
+              index={2}
+              active={expressive || activeTab === "insights"}
+              initiallyVisible={expressive}
+              title="Accounts"
               icon="wallet-outline"
               color={theme.dark ? "#C4A7F5" : "#7950B5"}
             >
-              <View>
-                {accounts.map((account) => (
-                  <MotionPressable
-                    key={account.name}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${account.name || "Unspecified account"}, ${money(account.expense)} spent. View entries.`}
-                    onPress={() =>
-                      setDetail({
-                        title: account.name || "Unspecified account",
-                        description: a.data.periodLabel,
-                        summary: {
-                          label: "Spent",
-                          value: money(account.expense),
-                        },
-                        transactions: account.transactions.filter(
-                          (row) => row.type === "expense",
-                        ),
-                      })
-                    }
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                      minHeight: 44,
-                      paddingVertical: 8,
-                    }}
-                  >
-                    <CategoryIconBadge
-                      icon={
-                        getAccountIconName(
-                          account.name,
-                          accountIcons,
-                        ) as React.ComponentProps<
-                          typeof MaterialCommunityIcons
-                        >["name"]
-                      }
-                      color={getAccountColor(account.name, accountColors)}
+              <View
+                style={{
+                  flexDirection: expressive ? "row" : "column",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                {accounts.map((account, index) => {
+                  const color = getAccountColor(account.name, accountColors);
+                  const icon = getAccountIconName(
+                    account.name,
+                    accountIcons,
+                  ) as React.ComponentProps<
+                    typeof MaterialCommunityIcons
+                  >["name"];
+                  const [background, foreground] = categoryTone(
+                    "",
+                    theme.dark,
+                    color,
+                  );
+                  const onPress = () =>
+                    setDetail({
+                      title: account.name || "Unspecified account",
+                      description: a.data.periodLabel,
+                      summary: {
+                        label: "Spent",
+                        value: money(account.expense),
+                      },
+                      transactions: account.transactions.filter(
+                        (row) => row.type === "expense",
+                      ),
+                    });
+                  return expressive ? (
+                    <TonalSummaryTile
+                      key={account.name}
+                      index={index}
+                      icon={icon}
+                      background={background}
+                      foreground={foreground}
+                      value={money(account.expense)}
+                      caption={account.name || "Unspecified account"}
+                      onPress={onPress}
                     />
-                    <Text
+                  ) : (
+                    <MotionPressable
+                      key={account.name}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${account.name || "Unspecified account"}, ${money(account.expense)} spent. View entries.`}
+                      onPress={onPress}
                       style={{
-                        ...typography.bodyMedium,
-                        fontSize: 14,
-                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                        minHeight: 44,
+                        paddingVertical: 8,
                       }}
                     >
-                      {account.name || "Unspecified account"}
-                    </Text>
-                    <Text style={{ ...typography.bodyMedium, fontSize: 14 }}>
-                      {money(account.expense)}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name="chevron-right"
-                      size={16}
-                      color={theme.colors.onSurfaceVariant}
-                    />
-                  </MotionPressable>
-                ))}
+                      <CategoryIconBadge icon={icon} color={color} />
+                      <Text
+                        style={{
+                          ...typography.bodyMedium,
+                          fontSize: 14,
+                          flex: 1,
+                        }}
+                      >
+                        {account.name || "Unspecified account"}
+                      </Text>
+                      <Text style={{ ...typography.bodyMedium, fontSize: 14 }}>
+                        {money(account.expense)}
+                      </Text>
+                      <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                    </MotionPressable>
+                  );
+                })}
               </View>
             </InsightCard>
           ) : null}
           {hasEntries ? (
             <InsightCard
-              title="Daily activity"
+              index={3}
+              active={expressive || activeTab === "insights"}
+              initiallyVisible={expressive}
+              title="Activity"
               icon="calendar-blank-outline"
               color={theme.dark ? "#67C8E8" : "#087FA3"}
               headerAction={
-                <View style={{ width: 176, maxWidth: "100%" }}>
-                  <TypeToggle
-                    value={activityType}
-                    onChange={setActivityType}
-                    mini
-                    radius={22}
-                    height={44}
-                    trackBackgroundColor={theme.colors.elevation.level1}
-                    borderWidth={0}
-                  />
-                </View>
+                <ActivityTypeToggle
+                  pagePan={pagePan}
+                  value={activityType}
+                  onChange={setActivityType}
+                />
               }
             >
               <View style={{ gap: 12 }}>
@@ -621,21 +603,7 @@ function WorkspaceInsights({
                     type={activityType}
                     money={money}
                     onDay={(day) =>
-                      setDetail({
-                        title: new Date(
-                          day.date + "T00:00:00",
-                        ).toLocaleDateString(undefined, {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        }),
-                        description: "Recorded entries",
-                        metrics: [
-                          { label: "Income", value: money(day.income) },
-                          { label: "Spent", value: money(day.expense) },
-                        ],
-                        transactions: day.transactions,
-                      })
+                      setDetail(dailyActivityDetail(day, activityType, money))
                     }
                   />
                 ) : (
@@ -662,7 +630,11 @@ function WorkspaceInsights({
           ) : null}
           {hasYearEntries ? (
             <InsightCard
-              title={a.data.year.label + " at a glance"}
+              index={4}
+              active={expressive || activeTab === "insights"}
+              initiallyVisible={expressive}
+              title="Yearly"
+              value={a.data.year.label}
               icon="chart-bar"
             >
               <YearOverview
@@ -673,115 +645,37 @@ function WorkspaceInsights({
               />
             </InsightCard>
           ) : null}
-
         </Animated.View>
       </ScrollView>
       {details}
-      <ControlsSheet
-        displayTitle={panel === "compare"}
-        visible={panel !== null}
-        title={
-          panel === "months"
-            ? "Choose a month"
-            : panel === "compare"
-              ? "Compare"
-              : "View"
-        }
+      <ComparisonSheet
+        visible={panel === "compare"}
         onClose={closeSheet}
-      >
-        {panel === "months" ? (
-          panelContent
-        ) : panel === "compare" ? (
-          <>
-            <ControlOption
-              label="Off"
-              icon="minus"
-              selected={!compare}
-              onPress={() => {
-                a.setComparisonMonth(null);
-                closeSheet();
-              }}
-            />
-            <ComparisonMonths months={a.comparisonMonths} selectedMonth={a.comparisonMonth}
-              onSelect={month => { a.setComparisonMonth(month); closeSheet(); }} />
-            {!a.comparisonMonths.length ? <ContextNote label="No other months to compare"
-              description="Add entries in another month to compare. Only months with data in the selected currency appear here." /> : null}
-            {compare ? <ContextNote label="Comparison period" description={comparisonNote} icon="compare-horizontal" /> : null}
-          </>
-        ) : (
-          <>
-            {(
-              [
-                ["amounts", "Amounts", "cash"],
-                ["income", "Income use", "chart-donut"],
-                ["budget", "Budgets", "wallet-outline"],
-              ] as const
-            ).filter(([key]) => key !== "budget" || hasConfiguredBudgets).map(([key, label, icon]) => (
-              <ControlOption
-                key={key}
-                label={label}
-                icon={icon}
-                selected={viewMode === key}
-                onPress={() => {
-                  setViewMode(key);
-                  closeSheet();
-                }}
-              />
-            ))}
-            {a.currencies.length > 1 ? (
-              <View style={{ gap: 10, paddingTop: 12 }}>
-                <Muted>Currency</Muted>
-                <View style={styles.chips}>
-                  {a.currencies.map((code) => (
-                    <Chip
-                      key={code}
-                      label={code}
-                      selected={a.currency === code}
-                      onPress={() => a.setCurrency(code)}
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-          </>
-        )}
-      </ControlsSheet>
-    </View>
-  );
-}
-
-function IconButton({
-  icon,
-  label,
-  onPress,
-  disabled = false,
-}: {
-  icon: "chevron-left" | "chevron-right";
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  const theme = useTheme();
-  return (
-    <MotionPressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={{
-        minWidth: 44,
-        minHeight: 44,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: disabled ? 0.3 : 1,
-      }}
-    >
-      <MaterialCommunityIcons
-        name={icon}
-        size={22}
-        color={theme.colors.onSurface}
+        data={a.data}
+        month={a.month}
+        budget={a.overallBudget}
+        canCompareBudget={a.canCompareBudget}
+        money={money}
+        onChooseMonth={() => setPanel("comparison-month")}
+        onSetBudget={() => {
+          closeSheet();
+          navigation.navigate("Settings", { section: "budget" });
+        }}
       />
-    </MotionPressable>
+      <MonthPickerSheet
+        disabledMonth={panel === "comparison-month" ? a.month : undefined}
+        maximumMonth={panel === "comparison-month" ? a.currentMonth : undefined}
+        visible={panel === "months" || panel === "comparison-month"}
+        month={panel === "comparison-month" ? a.data.comparisonMonth : a.month}
+        onChange={(value) => {
+          if (panel === "comparison-month") a.setComparisonMonth(value);
+          else selectMonth(value);
+        }}
+        onDismiss={() => {
+          if (panel === "comparison-month") setPanel("compare");
+          else closeSheet();
+        }}
+      />
+    </View>
   );
 }

@@ -1,13 +1,18 @@
+import { useMotionEnabled } from "@/components/animations/Motion";
+import { LazyModalContent } from "@/components/modal/LazyModalContent";
+import { DesignText } from "@/components/DesignText";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { ReactNode } from "react";
-import {
-    Animated,
-    PanResponder,
-    Platform,
-    ScrollView,
-    View,
-    useWindowDimensions,
-} from "react-native";
+import { Platform, ScrollView, View, useWindowDimensions } from "react-native";
+import Animated, {
+  cancelAnimation,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button, Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -42,6 +47,7 @@ type Props = {
 };
 
 type SlideConfirmProps = {
+  expressive?: boolean;
   label: string;
   disabled?: boolean;
   buttonColor: string;
@@ -59,205 +65,172 @@ function SlideConfirmControl({
   buttonColor,
   textColor,
   onConfirm,
+  expressive = false,
 }: SlideConfirmProps) {
-  const [trackWidth, setTrackWidth] = React.useState(0);
-  const translateX = React.useRef(new Animated.Value(0)).current;
-  const confirmedRef = React.useRef(false);
-
-  const maxTranslate = Math.max(trackWidth - THUMB_SIZE - TRACK_INSET * 2, 0);
-
-  const progress =
-    maxTranslate > 0
-      ? Animated.divide(translateX, maxTranslate)
-      : new Animated.Value(0);
-
-  const labelOpacity = progress.interpolate({
-    inputRange: [0, 0.35],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  const fillTranslateX =
-    maxTranslate > 0
-      ? translateX.interpolate({
-          inputRange: [0, maxTranslate],
-          outputRange: [-trackWidth + THUMB_SIZE + TRACK_INSET * 2, 0],
-          extrapolate: "clamp",
-        })
-      : new Animated.Value(-9999);
-
-  const chevron2Opacity = progress.interpolate({
-    inputRange: [0, 0.2, 0.5],
-    outputRange: [0.25, 0.6, 1],
-    extrapolate: "clamp",
-  });
-
-  const chevron3Opacity = progress.interpolate({
-    inputRange: [0, 0.4, 0.7],
-    outputRange: [0, 0.3, 1],
-    extrapolate: "clamp",
-  });
-
-  const resetThumb = React.useCallback(() => {
-    confirmedRef.current = false;
-    translateX.stopAnimation();
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 180,
-      friction: 18,
-    }).start();
-  }, [translateX]);
-
+  const travel = useSharedValue(0);
+  const trackWidth = useSharedValue(0);
+  const draggingFrom = useSharedValue(0);
+  const confirming = useSharedValue(false);
+  const reduced = !useMotionEnabled();
+  const reset = React.useCallback(() => {
+    confirming.value = false;
+    travel.value = withTiming(0, { duration: reduced ? 0 : 180 });
+  }, [confirming, reduced, travel]);
   React.useEffect(() => {
-    if (!disabled) return;
-    resetThumb();
-  }, [disabled, resetThumb]);
-
-  React.useEffect(() => {
-    translateX.setValue(0);
-  }, [resetThumb, trackWidth, translateX]);
-
-  const triggerConfirm = React.useCallback(async () => {
-    if (confirmedRef.current || disabled) return;
-    confirmedRef.current = true;
-
-    Animated.timing(translateX, {
-      toValue: maxTranslate,
-      duration: 160,
-      useNativeDriver: true,
-    }).start();
-
+    if (disabled) reset();
+  }, [disabled, reset]);
+  const confirm = React.useCallback(async () => {
     try {
-      const result = await onConfirm();
-      if (result === false) resetThumb();
+      if ((await onConfirm()) === false) reset();
     } catch {
-      resetThumb();
-    } finally {
-      confirmedRef.current = false;
+      reset();
     }
-  }, [disabled, maxTranslate, onConfirm, resetThumb, translateX]);
-
-  const panResponder = React.useMemo(() => {
-    if (disabled) return null;
-
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      onPanResponderGrant: () => {
-        translateX.stopAnimation();
-      },
-      onPanResponderMove: (_event, gesture) => {
-        translateX.setValue(Math.min(maxTranslate, Math.max(0, gesture.dx)));
-      },
-      onPanResponderRelease: (_event, gesture) => {
-        const shouldConfirm =
-          gesture.dx >= Math.max(80, maxTranslate * CONFIRM_THRESHOLD) ||
-          gesture.vx > 1.2;
-
-        if (shouldConfirm) {
-          void triggerConfirm();
-        } else {
-          resetThumb();
-        }
-      },
-      onPanResponderTerminate: () => resetThumb(),
+  }, [onConfirm, reset]);
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .activeOffsetX([-6, 6])
+    .failOffsetY([-14, 14])
+    .onStart(() => {
+      cancelAnimation(travel);
+      draggingFrom.value = travel.value;
+    })
+    .onUpdate((event) => {
+      if (confirming.value) return;
+      travel.value = Math.max(
+        0,
+        Math.min(
+          trackWidth.value - THUMB_SIZE - TRACK_INSET * 2,
+          draggingFrom.value + event.translationX,
+        ),
+      );
+    })
+    .onEnd(() => {
+      const maximum = Math.max(
+        0,
+        trackWidth.value - THUMB_SIZE - TRACK_INSET * 2,
+      );
+      if (
+        !confirming.value &&
+        maximum > 0 &&
+        travel.value >= maximum * CONFIRM_THRESHOLD
+      ) {
+        confirming.value = true;
+        travel.value = withTiming(maximum, { duration: reduced ? 0 : 120 });
+        runOnJS(confirm)();
+      } else if (!confirming.value)
+        travel.value = withTiming(0, { duration: reduced ? 0 : 180 });
+    })
+    .onFinalize(() => {
+      if (!confirming.value)
+        travel.value = withTiming(0, { duration: reduced ? 0 : 180 });
     });
-  }, [disabled, maxTranslate, resetThumb, triggerConfirm, translateX]);
-
+  const thumbMotion = useAnimatedStyle(() => ({
+    transform: [{ translateX: travel.value }],
+  }));
+  const labelMotion = useAnimatedStyle(() => ({
+    opacity: disabled
+      ? 0.4
+      : Math.max(0, 1 - travel.value / Math.max(1, trackWidth.value * 0.35)),
+  }));
+  const fillMotion = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX:
+          -trackWidth.value + THUMB_SIZE + TRACK_INSET * 2 + travel.value,
+      },
+    ],
+  }));
   return (
-    <View
-      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-      style={[styles.slideWrapper, disabled && styles.slideWrapperDisabled]}
-      {...(panResponder ? panResponder.panHandlers : {})}
-    >
+    <GestureDetector gesture={pan}>
       <View
+        onLayout={(event) => {
+          trackWidth.value = event.nativeEvent.layout.width;
+        }}
+        accessibilityLabel={`${label}: slide right to confirm`}
         style={[
-          styles.slideTrack,
-          { backgroundColor: buttonColor, opacity: disabled ? 0.4 : 0.14 },
-        ]}
-      />
-
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.slideFill,
-          {
-            backgroundColor: buttonColor,
-            opacity: disabled ? 0.3 : 0.22,
-            transform: [{ translateX: fillTranslateX }],
-          },
-        ]}
-      />
-
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.slideLabelWrap,
-          { opacity: disabled ? 0.4 : labelOpacity },
+          styles.slideWrapper,
+          expressive && { borderRadius: 28 },
+          disabled && styles.slideWrapperDisabled,
         ]}
       >
-        <Text
+        <View
           style={[
-            styles.slideLabel,
+            styles.slideTrack,
             {
-              ...typography.editorial.sectionLabel,
-              fontSize: 16,
-              color: buttonColor,
+              borderRadius: expressive ? 28 : 14,
+              backgroundColor: buttonColor,
+              opacity: 0.14,
             },
           ]}
-        >
-          {label}
-        </Text>
-      </Animated.View>
-
-      <View pointerEvents="none" style={styles.slideChevrons}>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={16}
-          color={buttonColor}
-          style={{ opacity: 0.35 }}
         />
-        <Animated.View style={{ opacity: chevron2Opacity }}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.slideFill,
+            {
+              borderRadius: expressive ? 28 : 14,
+              backgroundColor: buttonColor,
+              opacity: 0.22,
+            },
+            fillMotion,
+          ]}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.slideLabelWrap, labelMotion]}
+        >
+          <Text
+            style={[
+              styles.slideLabel,
+              {
+                color: buttonColor,
+                fontFamily: expressive ? "Figtree-700" : undefined,
+              },
+            ]}
+          >
+            {label}
+          </Text>
+        </Animated.View>
+        <View pointerEvents="none" style={styles.slideChevrons}>
           <MaterialCommunityIcons
-            name="chevron-right"
-            size={16}
+            name="chevron-double-right"
+            size={20}
             color={buttonColor}
           />
-        </Animated.View>
-        <Animated.View style={{ opacity: chevron3Opacity }}>
+        </View>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.slideThumb,
+            {
+              width: THUMB_SIZE,
+              height: THUMB_SIZE,
+              borderRadius: expressive ? 22 : 10,
+              backgroundColor: buttonColor,
+            },
+            thumbMotion,
+          ]}
+        >
           <MaterialCommunityIcons
-            name="chevron-right"
-            size={16}
-            color={buttonColor}
+            name="chevron-double-right"
+            size={20}
+            color={textColor}
           />
         </Animated.View>
       </View>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.slideThumb,
-          {
-            width: THUMB_SIZE,
-            height: THUMB_SIZE,
-            backgroundColor: disabled ? `${buttonColor}99` : buttonColor,
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="chevron-double-right"
-          size={20}
-          color={textColor}
-        />
-      </Animated.View>
-    </View>
+    </GestureDetector>
   );
 }
 
-export function AlertModal({
+export function AlertModal(props: Props) {
+  return (
+    <LazyModalContent visible={props.isOpen}>
+      <AlertModalContent {...props} />
+    </LazyModalContent>
+  );
+}
+
+function AlertModalContent({
   isOpen,
   title,
   message,
@@ -280,10 +253,13 @@ export function AlertModal({
   iconColor,
   titleColor,
 }: Props) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const expressive = Boolean(theme.expressive);
   const { width, height } = useWindowDimensions();
   const [displayOpen, setDisplayOpen] = React.useState(isOpen);
-  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   React.useEffect(() => {
     if (closeTimerRef.current) {
@@ -308,7 +284,7 @@ export function AlertModal({
     closeTimerRef.current = setTimeout(() => {
       closeTimerRef.current = null;
       onCancel();
-    }, 320);
+    }, 220);
   }, [displayOpen, onCancel]);
 
   const isMobile = !forceModal && (Platform.OS !== "web" || width < 768);
@@ -329,7 +305,7 @@ export function AlertModal({
         iconBg: theme.colors.primaryContainer,
         actionText: theme.colors.onPrimary,
         actionBg: theme.colors.primary,
-    };
+      };
   // Alerts use the same base surface as the rest of the app's sheets. Keeping
   // this as a real surface (instead of an elevation token) also makes the
   // open/close transition read consistently against the backdrop.
@@ -354,6 +330,15 @@ export function AlertModal({
           backgroundColor: modalBackgroundColor,
           width: isMobile ? undefined : modalWidth,
           maxHeight,
+          ...(expressive
+            ? {
+                borderWidth: 0,
+                borderRadius: isMobile ? 0 : 32,
+                ...(isMobile
+                  ? { borderTopLeftRadius: 40, borderTopRightRadius: 40 }
+                  : {}),
+              }
+            : {}),
         },
       ]}
     >
@@ -371,36 +356,72 @@ export function AlertModal({
       <View
         style={[
           styles.header,
-          { borderBottomColor: theme.colors.outlineVariant },
+          {
+            borderBottomColor: theme.colors.outlineVariant,
+            ...(expressive
+              ? {
+                  borderBottomWidth: 0,
+                  paddingHorizontal: 20,
+                  paddingTop: 16,
+                  paddingBottom: 8,
+                }
+              : {}),
+          },
         ]}
       >
         <View style={styles.headerLeft}>
-          <View style={[styles.headerIcon, { backgroundColor: tone.iconBg }]}>
-            <MaterialCommunityIcons name={icon} size={18} color={modalIconColor} />
+          <View
+            style={[
+              styles.headerIcon,
+              { backgroundColor: tone.iconBg },
+              expressive && { width: 48, height: 48, borderRadius: 18 },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={icon}
+              size={expressive ? 24 : 18}
+              color={modalIconColor}
+            />
           </View>
-          <Text
+          <DesignText
             variant="titleLarge"
-            numberOfLines={1}
+            numberOfLines={expressive ? 2 : 1}
             style={{
               ...typography.editorial.sectionLabel,
               color: titleColor ?? theme.colors.onSurface,
-              fontSize: 18,
+              fontSize: expressive ? 24 : 18,
+              ...(expressive
+                ? {
+                    fontFamily: "Figtree-800",
+                    fontWeight: "800",
+                    letterSpacing: -0.5,
+                    flexShrink: 1,
+                  }
+                : {}),
             }}
           >
             {title}
-          </Text>
+          </DesignText>
         </View>
 
-          <TouchableRipple
+        <TouchableRipple
           accessibilityRole="button"
           accessibilityLabel="Close"
           onPress={requestClose}
           borderless
-          style={styles.closeBtn}
+          style={[
+            styles.closeBtn,
+            expressive && {
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.colors.surfaceVariant,
+            },
+          ]}
         >
           <MaterialCommunityIcons
             name="close"
-            size={18}
+            size={expressive ? 22 : 18}
             color={theme.colors.onSurface}
           />
         </TouchableRipple>
@@ -409,18 +430,30 @@ export function AlertModal({
       {/* ScrollView lets content scroll up when the keyboard is open,
           ensuring the action buttons are always reachable. */}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          expressive && {
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: 20,
+            gap: 20,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
         {message ? (
           typeof message === "string" ? (
-            <Text
-              style={[styles.message, { color: theme.colors.onSurfaceVariant }]}
+            <DesignText
+              style={[
+                styles.message,
+                { color: theme.colors.onSurfaceVariant },
+                expressive && { fontSize: 15, lineHeight: 22 },
+              ]}
             >
               {message}
-            </Text>
+            </DesignText>
           ) : (
             message
           )
@@ -435,9 +468,23 @@ export function AlertModal({
                 <Button
                   mode="outlined"
                   onPress={requestClose}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                  textColor={getContrastColor(modalBackgroundColor)}
+                  style={[
+                    styles.actionButton,
+                    expressive && {
+                      borderRadius: 28,
+                      borderWidth: 0,
+                      backgroundColor: theme.colors.surfaceVariant,
+                    },
+                  ]}
+                  contentStyle={[
+                    styles.actionButtonContent,
+                    expressive && { minHeight: 56 },
+                  ]}
+                  textColor={
+                    expressive
+                      ? theme.colors.onSurface
+                      : getContrastColor(modalBackgroundColor)
+                  }
                 >
                   {cancelLabel}
                 </Button>
@@ -448,9 +495,20 @@ export function AlertModal({
                   mode="outlined"
                   onPress={onTertiary}
                   disabled={tertiaryDisabled}
-                  style={[styles.actionButton, styles.tertiaryButton]}
-                  contentStyle={styles.actionButtonContent}
-                  textColor={getContrastColor(modalBackgroundColor)}
+                  style={[
+                    styles.actionButton,
+                    styles.tertiaryButton,
+                    expressive && { borderRadius: 28 },
+                  ]}
+                  contentStyle={[
+                    styles.actionButtonContent,
+                    expressive && { minHeight: 56 },
+                  ]}
+                  textColor={
+                    expressive
+                      ? theme.colors.onSurface
+                      : getContrastColor(modalBackgroundColor)
+                  }
                 >
                   {tertiaryLabel}
                 </Button>
@@ -465,14 +523,18 @@ export function AlertModal({
               buttonColor={tone.actionBg}
               textColor={tone.actionText}
               onConfirm={onConfirm}
+              expressive={expressive}
             />
           ) : (
             <Button
               mode="contained"
               onPress={onConfirm}
               disabled={confirmDisabled}
-              style={styles.confirmButton}
-              contentStyle={styles.actionButtonContent}
+              style={[styles.confirmButton, expressive && { borderRadius: 28 }]}
+              contentStyle={[
+                styles.actionButtonContent,
+                expressive && { minHeight: 56 },
+              ]}
               buttonColor={tone.actionBg}
               textColor={tone.actionText}
             >

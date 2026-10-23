@@ -1,23 +1,32 @@
-import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import React, { type ReactNode, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
-  PanResponder,
   Platform,
-  StyleProp,
+  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
-  ViewStyle,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
-import { Modal, Portal, useTheme } from "react-native-paper";
+import { Portal, useTheme } from "react-native-paper";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEscapeToClose } from "../../hooks/use-escape-to-close";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 
 type Presentation = "modal" | "sheet";
-
 type Props = {
   visible: boolean;
   onDismiss: () => void;
@@ -36,6 +45,7 @@ type Props = {
   reduceMotion?: boolean;
 };
 
+/** One UI-thread timeline owns the panel, backdrop and drag. No nested Paper fade. */
 export function AnimatedPaperModal({
   visible,
   onDismiss,
@@ -49,327 +59,329 @@ export function AnimatedPaperModal({
   dismissable = true,
   keyboardAware = false,
   includeBottomInset = true,
-  animationDuration = 500,
-  dismissDuration = 300,
-  reduceMotion = false,
+  animationDuration = 280,
+  dismissDuration = 220,
+  reduceMotion: requestedReducedMotion = false,
 }: Props) {
+  const { animationsEnabled } = useAddonPrefs();
+  const systemReducedMotion = useReducedMotion();
+  const reduceMotion =
+    requestedReducedMotion || systemReducedMotion || !animationsEnabled;
   const { height } = useWindowDimensions();
-  const { bottom } = useSafeAreaInsets();
-  const paperTheme = useTheme();
-  const hiddenOffset = Math.max(0, Math.floor(height));
-  const progress = useRef(new Animated.Value(0)).current;
-  const backdropProgress = useRef(new Animated.Value(0)).current;
-  const sheetOffset = useRef(new Animated.Value(hiddenOffset)).current;
-  const gestureStartOffset = useRef(0);
+  const { top, bottom } = useSafeAreaInsets();
+  const theme = useTheme();
   const [rendered, setRendered] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const renderedRef = useRef(rendered);
+  const visibleRef = useRef(visible);
+  const dismissRef = useRef(onDismiss);
+  const generation = useRef(0);
+  const processedVisibility = useRef<boolean | null>(null);
+  const openingPending = useRef(visible);
+  const measured = useRef(0);
+  const lastChildren = useRef(children);
+  renderedRef.current = rendered;
+  visibleRef.current = visible;
+  dismissRef.current = onDismiss;
+  if (visible) lastChildren.current = children;
 
-  useEscapeToClose(visible && escapeEnabled, onDismiss);
+  const progress = useSharedValue(0);
+  const panelHeight = useSharedValue(height);
+  const travelDistance = useSharedValue(height);
+  const exitHeight = useSharedValue(height);
+  const closing = useSharedValue(false);
+  const gestureStart = useSharedValue(1);
+  const gestureX = useSharedValue(0);
+  const gestureY = useSharedValue(0);
+  const dragging = useSharedValue(false);
 
-  const combinedModalStyle = useMemo(() => {
-    if (presentation !== "sheet") {
-      return [{ zIndex, elevation: zIndex }, style];
-    }
-    return [
-      {
-        justifyContent: "flex-end",
-        marginTop: 0,
-        marginBottom: 0,
-        marginLeft: 0,
-        marginRight: 0,
-        zIndex,
-        elevation: zIndex,
-      },
-      style,
-    ] as any;
-  }, [presentation, style, zIndex]);
+  const requestDismiss = React.useCallback(() => {
+    if (!visibleRef.current || !dismissable) return;
+    if (keyboardAware) Keyboard.dismiss();
+    dismissRef.current();
+  }, [dismissable, keyboardAware]);
+  useEscapeToClose(visible && escapeEnabled, requestDismiss);
+
+  const completeClose = React.useCallback((token: number) => {
+    if (generation.current !== token || visibleRef.current) return;
+    openingPending.current = false;
+    setRendered(false);
+  }, []);
+  const open = React.useCallback(() => {
+    if (!openingPending.current) return;
+    openingPending.current = false;
+    closing.value = false;
+    progress.value = withTiming(1, {
+      duration: reduceMotion ? 0 : animationDuration,
+      easing: Easing.bezier(0.2, 0, 0, 1),
+    });
+  }, [animationDuration, reduceMotion, progress, closing]);
 
   useEffect(() => {
+    if (processedVisibility.current === visible) return;
+    const previous = processedVisibility.current;
+    processedVisibility.current = visible;
+    const token = ++generation.current;
     if (visible) {
-      setRendered(true);
-      progress.stopAnimation();
-      backdropProgress.stopAnimation();
-      sheetOffset.stopAnimation();
-      progress.setValue(0);
-      backdropProgress.setValue(0);
-      if (presentation === "sheet") sheetOffset.setValue(hiddenOffset);
-
-      Animated.parallel([
-        Animated.timing(progress, {
-          toValue: 1,
-          duration: reduceMotion ? 0 : animationDuration,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropProgress, {
-          toValue: 1,
-          duration: reduceMotion ? 0 : animationDuration,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheetOffset, {
-          toValue: 0,
-          duration: reduceMotion ? 0 : animationDuration,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // A quick reopen continues from the current pixel offset.
+      if (renderedRef.current && previous === false) {
+        const offset =
+          (1 - progress.value) *
+          (closing.value ? exitHeight.value : travelDistance.value);
+        progress.value = Math.max(
+          0,
+          Math.min(1, 1 - offset / Math.max(1, height)),
+        );
+      }
+      travelDistance.value = height;
+      closing.value = false;
+      if (!renderedRef.current) {
+        measured.current = 0;
+        openingPending.current = true;
+        progress.value = 0;
+        setRendered(true);
+      } else {
+        if (previous === false) openingPending.current = true;
+        if (measured.current > 0) open();
+      }
       return;
     }
-
-    progress.stopAnimation();
-    backdropProgress.stopAnimation();
-    sheetOffset.stopAnimation();
-    Animated.parallel([
-      Animated.timing(progress, {
-        toValue: 0,
+    if (!renderedRef.current) return;
+    if (keyboardAware) Keyboard.dismiss();
+    openingPending.current = false;
+    exitHeight.value =
+      progress.value < 1 ? travelDistance.value : panelHeight.value;
+    closing.value = true;
+    progress.value = withTiming(
+      0,
+      {
         duration: reduceMotion ? 0 : dismissDuration,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropProgress, {
-        toValue: 0,
-        duration: reduceMotion ? 0 : dismissDuration,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetOffset, {
-        toValue: hiddenOffset,
-        duration: reduceMotion ? 0 : dismissDuration,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) setRendered(false);
-    });
+        easing: Easing.bezier(0.4, 0, 1, 1),
+      },
+      (finished) => {
+        if (finished) runOnJS(completeClose)(token);
+      },
+    );
   }, [
-    backdropProgress,
-    hiddenOffset,
-    presentation,
-    progress,
-    sheetOffset,
     visible,
+    height,
+    travelDistance,
     animationDuration,
     dismissDuration,
     reduceMotion,
+    open,
+    progress,
+    panelHeight,
+    exitHeight,
+    closing,
+    keyboardAware,
+    completeClose,
   ]);
 
   useEffect(() => {
-    if (!keyboardAware || presentation !== "sheet" || !visible) {
+    if (!rendered) return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        requestDismiss();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [rendered, requestDismiss]);
+
+  useEffect(() => {
+    if (!rendered) {
       setKeyboardHeight(0);
       return;
     }
-
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSubscription = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
+    if (!keyboardAware || presentation !== "sheet") return;
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (event) => {
+        if (visibleRef.current) setKeyboardHeight(event.endCoordinates.height);
+      },
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        if (visibleRef.current) setKeyboardHeight(0);
+      },
+    );
     return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
+      show.remove();
+      hide.remove();
     };
-  }, [keyboardAware, presentation, visible]);
+  }, [keyboardAware, presentation, rendered]);
 
-  const sheetPanResponder = useMemo(() => {
-    if (presentation !== "sheet" || !dismissable) return null;
-
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (event, gesture) => {
-        const isDownwardSwipe =
-          gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx);
-        const startedNearHandle = event.nativeEvent.locationY <= 72;
-        return isDownwardSwipe && startedNearHandle;
-      },
-      onMoveShouldSetPanResponderCapture: () => false,
-      onPanResponderGrant: () => {
-        backdropProgress.stopAnimation();
-        sheetOffset.stopAnimation((value) => {
-          gestureStartOffset.current =
-            typeof value === "number" ? Math.max(0, value) : 0;
+  const pan = Gesture.Pan()
+    .enabled(presentation === "sheet" && dismissable && visible)
+    .manualActivation(true)
+    .onTouchesDown((event, manager) => {
+      const touch = event.changedTouches[0];
+      if (!touch || touch.y > 72) {
+        manager.fail();
+        return;
+      }
+      gestureX.value = touch.absoluteX;
+      gestureY.value = touch.absoluteY;
+    })
+    .onTouchesMove((event, manager) => {
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      const dy = touch.absoluteY - gestureY.value;
+      const dx = touch.absoluteX - gestureX.value;
+      if (dy > 8 && dy > Math.abs(dx)) manager.activate();
+      else if (dy < -8 || Math.abs(dx) > 18) manager.fail();
+    })
+    .onStart(() => {
+      cancelAnimation(progress);
+      const offset = (1 - progress.value) * travelDistance.value;
+      travelDistance.value = panelHeight.value;
+      progress.value = Math.max(0, 1 - offset / Math.max(1, panelHeight.value));
+      gestureStart.value = progress.value;
+      dragging.value = true;
+    })
+    .onUpdate((event) => {
+      progress.value = Math.max(
+        0,
+        Math.min(
+          1,
+          gestureStart.value -
+            event.translationY / Math.max(1, panelHeight.value),
+        ),
+      );
+    })
+    .onEnd((event, success) => {
+      dragging.value = false;
+      const threshold = Math.min(140, Math.max(48, panelHeight.value * 0.3));
+      if (
+        success &&
+        (event.translationY > threshold ||
+          (event.translationY > 0 && event.velocityY > 1200))
+      ) {
+        runOnJS(requestDismiss)();
+      } else
+        progress.value = withTiming(1, {
+          duration: reduceMotion ? 0 : 180,
+          easing: Easing.out(Easing.cubic),
         });
-      },
-      onPanResponderMove: (_event, gesture) => {
-        const nextTranslate = Math.min(
-          hiddenOffset,
-          Math.max(0, gestureStartOffset.current + gesture.dy),
-        );
-        sheetOffset.setValue(nextTranslate);
-        backdropProgress.setValue(
-          1 - Math.min(1, nextTranslate / Math.max(hiddenOffset, 1)),
-        );
-      },
-      onPanResponderRelease: (_event, gesture) => {
-        const shouldDismiss =
-          gesture.dy > Math.min(140, height * 0.18) || gesture.vy > 1.2;
-
-        if (shouldDismiss) {
-          onDismiss();
-        }
-
-        Animated.timing(sheetOffset, {
-          toValue: shouldDismiss ? hiddenOffset : 0,
-          duration: reduceMotion ? 0 : shouldDismiss ? 180 : 220,
-          easing: shouldDismiss
-            ? Easing.in(Easing.cubic)
-            : Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-        Animated.timing(backdropProgress, {
-          toValue: shouldDismiss ? 0 : 1,
-          duration: reduceMotion ? 0 : shouldDismiss ? 180 : 220,
-          easing: shouldDismiss
-            ? Easing.in(Easing.cubic)
-            : Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      },
-      onPanResponderTerminate: () => {
-        Animated.timing(sheetOffset, {
-          toValue: 0,
-          duration: reduceMotion ? 0 : 220,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-        Animated.timing(backdropProgress, {
-          toValue: 1,
-          duration: reduceMotion ? 0 : 220,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      },
+    })
+    .onFinalize(() => {
+      if (!dragging.value) return;
+      dragging.value = false;
+      progress.value = withTiming(1, {
+        duration: reduceMotion ? 0 : 180,
+        easing: Easing.out(Easing.cubic),
+      });
     });
-  }, [
-    dismissable,
-    reduceMotion,
-    height,
-    hiddenOffset,
-    onDismiss,
-    presentation,
-    backdropProgress,
-    sheetOffset,
-  ]);
-
-  const combinedContentContainerStyle = useMemo(() => {
-    if (presentation !== "sheet") return contentContainerStyle;
-    return [
-      {
-        alignSelf: "stretch",
-        width: "100%",
-        paddingBottom:
-          keyboardAware && keyboardHeight > 0
-            ? Math.max(bottom, keyboardHeight + 20)
-            : includeBottomInset
-              ? bottom
-              : 0,
-      },
-      contentContainerStyle,
-      {
-        borderTopLeftRadius: 40,
-        borderTopRightRadius: 40,
-        transform: [{ translateY: sheetOffset }],
-      },
-    ] as any;
-  }, [
-    bottom,
-    contentContainerStyle,
-    includeBottomInset,
-    keyboardAware,
-    keyboardHeight,
-    presentation,
-    sheetOffset,
-  ]);
-
-  const contentAnimationStyle = useMemo(
-    () =>
-      presentation === "sheet"
-        ? {
-            opacity: progress,
-          }
-        : {
-            opacity: progress,
-            transform: [
-              {
-                scale: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.98, 1],
-                }),
-              },
-            ],
-          },
-    [presentation, progress],
+  const backdropMotion = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const panelMotion = useAnimatedStyle(() =>
+    presentation === "sheet"
+      ? {
+          transform: [
+            {
+              translateY:
+                (1 - progress.value) *
+                (closing.value ? exitHeight.value : travelDistance.value),
+            },
+          ],
+        }
+      : {
+          opacity: progress.value,
+          transform: [
+            { translateY: (1 - progress.value) * 16 },
+            { scale: 0.94 + progress.value * 0.06 },
+          ],
+        },
   );
 
-  // Sheet modals avoid the keyboard by lifting the bottom-anchored container.
-  // Center modals still use KeyboardAvoidingView around their content.
-  const wrappedChildren =
-    keyboardAware && presentation !== "sheet" ? (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 24}
-      >
-        {children}
-      </KeyboardAvoidingView>
-    ) : (
-      children
-    );
-
-  // Paper stacks portals by registration order, not the zIndex of their children.
-  // Register only while presented (including the exit animation), so the next
-  // opened modal and its backdrop sit above the existing modal stack.
   if (!rendered) return null;
-
+  const presentedChildren = visible ? children : lastChildren.current;
   return (
     <Portal>
+      <View
+        accessibilityViewIsModal
+        onAccessibilityEscape={requestDismiss}
+        style={[StyleSheet.absoluteFillObject, { zIndex, elevation: zIndex }]}
+      >
         <Animated.View
           pointerEvents="none"
           style={[
             StyleSheet.absoluteFillObject,
-            {
-              backgroundColor: paperTheme.colors.backdrop,
-              opacity: backdropProgress,
-              zIndex: zIndex - 1,
-            },
+            { backgroundColor: theme.colors.backdrop },
+            backdropMotion,
           ]}
         />
-        <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { zIndex }]}>
-        <Modal
-          visible={rendered}
-          onDismiss={onDismiss}
-          dismissable={dismissable}
-          style={combinedModalStyle}
-          contentContainerStyle={combinedContentContainerStyle}
-          theme={{
-            ...paperTheme,
-            colors: { ...paperTheme.colors, backdrop: "transparent" },
-          }}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close modal"
+          importantForAccessibility="no"
+          onPress={requestDismiss}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View
+          pointerEvents="box-none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              justifyContent: presentation === "sheet" ? "flex-end" : "center",
+              marginTop: presentation === "sheet" ? 0 : top,
+              marginBottom: presentation === "sheet" ? 0 : bottom,
+            },
+            style,
+          ]}
         >
-          {presentation === "sheet" ? (
+          <GestureDetector gesture={pan}>
             <Animated.View
+              collapsable={false}
+              onLayout={(event) => {
+                const nextHeight = event.nativeEvent.layout.height;
+                if (nextHeight <= 0) return;
+                measured.current = nextHeight;
+                panelHeight.value = nextHeight;
+                if (visibleRef.current && openingPending.current) open();
+              }}
               style={[
-                { alignSelf: "stretch", flexShrink: 1 },
-                contentWrapperStyle,
-                contentAnimationStyle,
+                { flexShrink: 1 },
+                presentation === "sheet" && {
+                  alignSelf: "stretch",
+                  width: "100%",
+                  borderTopLeftRadius: 40,
+                  borderTopRightRadius: 40,
+                  maxHeight: height - top,
+                  paddingBottom:
+                    keyboardAware && keyboardHeight > 0
+                      ? Math.max(bottom, keyboardHeight + 20)
+                      : includeBottomInset
+                        ? bottom
+                        : 0,
+                },
+                contentContainerStyle,
+                panelMotion,
               ]}
-              {...(sheetPanResponder?.panHandlers ?? {})}
             >
-              {wrappedChildren}
+              <View
+                style={[
+                  { alignSelf: "stretch", flexShrink: 1 },
+                  contentWrapperStyle,
+                ]}
+              >
+                {keyboardAware && presentation !== "sheet" ? (
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 24}
+                  >
+                    {presentedChildren}
+                  </KeyboardAvoidingView>
+                ) : (
+                  presentedChildren
+                )}
+              </View>
             </Animated.View>
-          ) : (
-            <Animated.View style={contentAnimationStyle}>
-              {wrappedChildren}
-            </Animated.View>
-          )}
-        </Modal>
+          </GestureDetector>
         </View>
+      </View>
     </Portal>
   );
 }

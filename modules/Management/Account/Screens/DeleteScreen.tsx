@@ -165,7 +165,7 @@ function AccountDeleteContent({
                           getAnimStyle(animatedIndex),
                         ]}
                       >
-                        <CategoryTile
+                        <CategoryTile entityKind="account"
                           name={dest}
                           icon={management.getAccountIcon(dest)}
                           color={management.getAccountColor(dest)}

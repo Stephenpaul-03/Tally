@@ -1,7 +1,12 @@
+import { settingsShape } from "@/theme/settingsShape";
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
-import { Text, type MD3Theme } from "react-native-paper";
+import type { MD3Theme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
+import { typography } from "@/theme/typography";
 
 function darkenHex(hex: string, amount = 0.18) {
   const clean = hex.replace("#", "");
@@ -30,7 +35,9 @@ export function CategoryTile({
   pickerMode = false,
   onPress,
   theme,
+  entityKind = "category",
 }: {
+  entityKind?: "category" | "account";
   name: string;
   icon: string;
   color: string;
@@ -51,7 +58,7 @@ export function CategoryTile({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        borderRadius: 16,
+        borderRadius: settingsShape(theme)?.borderRadius ?? 16,
         paddingHorizontal: 14,
         paddingVertical: 10,
         backgroundColor: c.elevation.level1,
@@ -77,22 +84,36 @@ export function CategoryTile({
             flex: 1,
           }}
         >
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: useMinimalBadge ? c.background : darkenHex(color),
-            }}
-          >
-            <MaterialCommunityIcons
-              name={icon as any}
-              size={20}
-              color={useMinimalBadge ? displayColor : "#FFFFFF"}
+          {(theme as ExtendedMD3Theme).expressive ? (
+            <CategoryIconBadge
+              categoryName={entityKind === "category" ? name : undefined}
+              color={color}
+              icon={
+                icon as React.ComponentProps<
+                  typeof MaterialCommunityIcons
+                >["name"]
+              }
             />
-          </View>
+          ) : (
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: useMinimalBadge
+                  ? c.background
+                  : darkenHex(color),
+              }}
+            >
+              <MaterialCommunityIcons
+                name={icon as any}
+                size={20}
+                color={useMinimalBadge ? displayColor : "#FFFFFF"}
+              />
+            </View>
+          )}
           <View
             style={{
               flex: 1,
@@ -102,8 +123,8 @@ export function CategoryTile({
           >
             <Text
               style={{
-                fontSize: 12,
-                fontWeight: "700",
+                ...typography.bodyBold,
+                fontSize: (theme as ExtendedMD3Theme).expressive ? 14 : 12,
                 color: c.onSurface,
               }}
               numberOfLines={1}

@@ -56,7 +56,8 @@
       ],
       "expo-sqlite",
       "expo-asset",
-      "./plugins/withAndroidRelease"
+      "./plugins/withAndroidRelease",
+      "./plugins/withSystemNavigationBar"
     ],
     "experiments": {
       "reactCompiler": true

@@ -1,3 +1,7 @@
+import { useMotionEnabled } from "@/components/animations/Motion";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { useMainDesign } from "@/hooks/use-main-design";
+
 import { SpotlightTourProvider } from "@/modules/Onboarding/SpotlightTour";
 import {
   AppShellProvider,
@@ -27,7 +31,7 @@ import { OnboardingScreen } from "@/modules/Onboarding/OnboardingScreen";
 import { SettingsScreen } from "@/modules/Settings/Index";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import type { RootParamList } from "./types";
 
@@ -99,8 +103,20 @@ function ShellBottomBar() {
   );
 }
 
+function MainScreens() {
+  const { design } = useMainDesign();
+  return (
+    <>
+      <SharedTabHeaderProvider activeRouteName="Transactions">
+        <TransactionsScreen />
+        {design.layout === "classic" ? <ShellBottomBar /> : null}
+      </SharedTabHeaderProvider>
+    </>
+  );
+}
+
 function TransactionsStackScreen() {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const dispatch = useAppDispatch();
   const [isHydrated, setIsHydrated] = React.useState(false);
 
@@ -136,12 +152,7 @@ function TransactionsStackScreen() {
     );
   }
 
-  return (
-    <SharedTabHeaderProvider activeRouteName="Transactions">
-      <TransactionsScreen />
-      <ShellBottomBar />
-    </SharedTabHeaderProvider>
-  );
+  return <MainScreens />;
 }
 
 function SettingsStackScreen() {
@@ -149,13 +160,16 @@ function SettingsStackScreen() {
     // Settings has no bottom bar. Keep its empty state local so opening it
     // cannot erase the clearance of the still-mounted transaction screen.
     <TabBarProvider>
-      <SettingsScreen />
+      <View collapsable={false} style={{ flex: 1 }}>
+        <SettingsScreen />
+      </View>
     </TabBarProvider>
   );
 }
 
 function RootStackNavigator() {
-  const theme = useTheme();
+  const motionEnabled = useMotionEnabled();
+  const theme = useTheme<ExtendedMD3Theme>();
   return (
     <Stack.Navigator
       initialRouteName="OnboardingGate"
@@ -163,12 +177,23 @@ function RootStackNavigator() {
         headerShown: false,
         contentStyle: { backgroundColor: theme.colors.background },
         statusBarStyle: theme.dark ? "light" : "dark",
-        animation: "slide_from_right",
+        animation: !motionEnabled
+          ? "none"
+          : theme.expressive
+            ? Platform.OS === "ios"
+              ? "simple_push"
+              : "ios_from_right"
+            : "slide_from_right",
+        freezeOnBlur: false,
       }}
     >
       <Stack.Screen name="OnboardingGate" component={OnboardingGate} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-      <Stack.Screen name="Transactions" component={TransactionsStackScreen} options={{ freezeOnBlur: false }} />
+      <Stack.Screen
+        name="Transactions"
+        component={TransactionsStackScreen}
+        options={{ freezeOnBlur: false }}
+      />
       <Stack.Screen name="Settings" component={SettingsStackScreen} />
     </Stack.Navigator>
   );

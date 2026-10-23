@@ -8,7 +8,8 @@ import { getAccountColor, getAccountIconName, getCategoryColor, getCategoryIconN
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { FlatList, Pressable, ScrollView, View } from "react-native";
-import { Button, Switch, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, Switch, TextInput, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { applyImportChoice, categoryNames, exactName, needsAccount, needsCategory, needsReview, type ImportCatalog, type ImportRow } from "@/modules/Core/import/validation";
@@ -59,7 +60,7 @@ export function ImportReviewModal({ visible, onDismiss, rows, catalog, onChange 
     const isNew = category ? row.createCategory : row.createAccount;
     return <Pressable accessibilityRole="button" accessibilityLabel={`Row ${row.rowNumber}: choose ${category ? "category" : "payment account"}`}
       onPress={() => open(row, field)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, opacity: pressed ? .65 : 1 })}>
-      <CategoryIconBadge icon={(unresolved ? "alert-circle-outline" : iconFor(value, category, row)) as React.ComponentProps<typeof CategoryIconBadge>["icon"]} color={unresolved ? theme.colors.error : colorFor(value, category, row)} />
+      <CategoryIconBadge categoryName={category && !unresolved ? value : undefined} icon={(unresolved ? "alert-circle-outline" : iconFor(value, category, row)) as React.ComponentProps<typeof CategoryIconBadge>["icon"]} color={unresolved ? theme.colors.error : colorFor(value, category, row)} />
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={{ color: theme.colors.onSurface, fontWeight: "600" }}>{unresolved ? `Choose ${category ? "category" : "payment account"}` : value}</Text>
         <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>{unresolved ? original ? `From file: ${original}` : "Missing in file" : isNew ? "New · created when you import" : category ? "Category" : "Payment account"}</Text>

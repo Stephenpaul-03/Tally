@@ -23,23 +23,23 @@ export function useOnboardingTour() {
   return api;
 }
 
-export function useSpotlightTarget(id: TourTarget) {
+export function useSpotlightTarget(id: TourTarget, enabled = true) {
   const api = React.useContext(TourContext);
   const ref = React.useRef<View>(null);
   const register = api?.register;
-  React.useLayoutEffect(() => register?.(id, () => new Promise(resolve => {
+  React.useLayoutEffect(() => enabled ? register?.(id, () => new Promise(resolve => {
     if (!ref.current) { resolve(null); return; }
     const timeout = setTimeout(() => resolve(null), 200);
     ref.current.measureInWindow((x, y, width, height) => {
       clearTimeout(timeout);
       resolve(width > 0 && height > 0 ? { x, y, width, height } : null);
     });
-  })), [register, id]);
+  })) : undefined, [register, id, enabled]);
   return ref;
 }
 
-export function SpotlightTarget({ id, children, style }: { id: TourTarget; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  const ref = useSpotlightTarget(id);
+export function SpotlightTarget({ id, children, style, enabled = true }: { id: TourTarget; children: React.ReactNode; style?: StyleProp<ViewStyle>; enabled?: boolean }) {
+  const ref = useSpotlightTarget(id, enabled);
   return <View ref={ref} collapsable={false} style={style}>{children}</View>;
 }
 

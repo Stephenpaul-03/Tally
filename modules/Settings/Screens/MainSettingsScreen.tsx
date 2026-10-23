@@ -1,3 +1,5 @@
+import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
+import { useMainDesign } from "@/hooks/use-main-design";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { ActionRow } from "@/components/ActionRow";
 import { SheetCard } from "@/components/SheetCard";
@@ -5,12 +7,11 @@ import { useAppSelector } from "@/hooks/Redux";
 import { useAbstractSearch } from "@/hooks/use-abstract-search";
 import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { ScrollView, View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BetaContactModal,
   type BetaContactScenario,
@@ -62,6 +63,7 @@ type SearchableSettingsScreen = Exclude<keyof SettingsStackParamList, never>;
 
 export function MainSettingsScreen() {
   const theme = useTheme();
+  const { design } = useMainDesign();
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
@@ -70,7 +72,8 @@ export function MainSettingsScreen() {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [appearanceOpen, setAppearanceOpen] = React.useState(false);
   const [interfaceOpen, setInterfaceOpen] = React.useState(false);
-  const [workspacesOpen, setWorkspacesOpen] = React.useState(false);
+  const settingsRoute = useRoute<RouteProp<SettingsStackParamList, "SettingsHome">>();
+  const [workspacesOpen, setWorkspacesOpen] = React.useState(Boolean(settingsRoute.params?.openWorkspaces));
   const [backupExportOpen, setBackupExportOpen] = React.useState(false);
   const [backupImportOpen, setBackupImportOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
@@ -260,7 +263,22 @@ export function MainSettingsScreen() {
         icon: "palette-outline",
         label: "Appearance",
         description: "Personalize the look and feel of Tally",
-        keywords: ["preferences", "theme", "appearance", "colors", "accent"],
+        keywords: [
+          "preferences",
+          "theme",
+          "appearance",
+          "light",
+          "dark",
+          "system",
+        ],
+        onPress: openAppearanceModal,
+      },
+      {
+        id: "theme-style",
+        icon: "palette-swatch-outline",
+        label: "Theme style",
+        description: "Expressive and classic accent colors",
+        keywords: ["sage", "material", "colors", "theme", "style", "accent"],
         onPress: openAppearanceModal,
       },
       {
@@ -284,7 +302,14 @@ export function MainSettingsScreen() {
         icon: "view-dashboard-outline",
         label: "Interface",
         description: "Adjust navigation and visual interface options",
-        keywords: ["preferences", "interface", "icons", "bottom", "bar"],
+        keywords: [
+          "preferences",
+          "layout",
+          "interface",
+          "icons",
+          "bottom",
+          "bar",
+        ],
         onPress: openInterfaceModal,
       },
       {
@@ -426,14 +451,21 @@ export function MainSettingsScreen() {
     [],
   );
 
+  const visibleSettingsItems = React.useMemo(
+    () =>
+      settingsItems.filter(
+        (item) => design.layout === "classic" || item.id !== "bottom-bar",
+      ),
+    [settingsItems, design.layout],
+  );
   const filteredSettingsItems = useAbstractSearch(
-    settingsItems,
+    visibleSettingsItems,
     query,
     settingsSearchOptions,
   );
   const isSearching = query.trim().length > 0;
   return (
-    <SafeAreaView
+    <SettingsPage
       style={[
         SettingsStyles.safeArea,
         { backgroundColor: theme.colors.background },
@@ -536,7 +568,6 @@ export function MainSettingsScreen() {
                   theme={theme}
                 />
               </SheetCard>
-
             </SpotlightTarget>
             <SectionLabel label="Preferences" />
             <SheetCard theme={theme}>
@@ -654,6 +685,6 @@ export function MainSettingsScreen() {
         scenario={betaContactScenario ?? "support"}
         onDismiss={closeBetaContactModal}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }

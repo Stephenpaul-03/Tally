@@ -1,16 +1,15 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { toast } from "@/components/toast/ToastProvider";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import { DesignText } from "@/components/DesignText";
+import { ledgerMoney } from "@/modules/Main/presentation";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { palette } from "@/theme/color_palette";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  Text,
-  TouchableRipple,
-  useTheme,
-  type MD3Theme,
-} from "react-native-paper";
+import { Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import {
@@ -53,20 +52,27 @@ function TransactionRowComponent({
   secondaryLabelMode = "time",
   disableLongPress = false,
 }: TransactionRowProps) {
-  const theme = useTheme<MD3Theme>();
+  const theme = useTheme<ExtendedMD3Theme>();
   const dispatch = useAppDispatch();
+  const workspace = useAppSelector(selectActiveWorkspace);
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const isDraft = "isDraft" in transaction && transaction.isDraft;
   const isIncome = transaction.type === "income";
-  const amountColor = isIncome ? palette.status.success : palette.status.danger;
+  const amountColor = theme.expressive
+    ? theme.colors.onSurface
+    : isIncome
+      ? palette.status.success
+      : palette.status.danger;
   const amountPrefix = isIncome ? "+" : "-";
   const amount =
     isDraft && !transaction.amountInput.trim()
       ? "—"
-      : `${amountPrefix}${formatCurrencyWithSymbol(transaction.amount, "", false)}`;
+      : theme.expressive
+        ? `${isIncome ? "+" : "−"}${ledgerMoney(transaction.amount, transaction.currencyCode || workspace?.currencyCode || "INR", transaction.currencySymbol || ((transaction.currencyCode || workspace?.currencyCode) === workspace?.currencyCode ? workspace?.currencySymbol : undefined))}`
+        : `${amountPrefix}${formatCurrencyWithSymbol(transaction.amount, "", false)}`;
   const title =
     transaction.title?.trim() || transaction.category || "Untitled draft";
   const meta = transaction.category || "No category";
@@ -124,72 +130,150 @@ function TransactionRowComponent({
         onLongPress={disableLongPress ? undefined : handleLongPress}
         delayLongPress={350}
         rippleColor={theme.colors.surfaceVariant}
-        style={styles.touchable}
+        style={[
+          styles.touchable,
+          theme.expressive && {
+            borderRadius: 8,
+            ...(groupPosition === "last" || groupPosition === "single"
+              ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }
+              : {}),
+            backgroundColor: theme.dark
+              ? theme.colors.surfaceVariant
+              : theme.colors.background,
+          },
+        ]}
       >
-        <View style={styles.row}>
-          <View style={styles.left}>
-            <CategoryIconBadge icon={categoryIcon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
-              color={categoryColor} style={isDraft ? styles.draftIconCluster : undefined} />
-            <View style={styles.info}>
-              <Text
-                style={[styles.name, { color: theme.colors.onSurface }]}
+        {theme.expressive ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              minHeight: 64,
+              padding: 10,
+            }}
+          >
+            <CategoryIconBadge
+              categoryName={transaction.category}
+              icon={
+                categoryIcon as React.ComponentProps<
+                  typeof MaterialCommunityIcons
+                >["name"]
+              }
+              color={categoryColor}
+            />
+            <View style={{ flex: 1, minWidth: 0, opacity: isDraft ? 0.65 : 1 }}>
+              <DesignText
                 numberOfLines={1}
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: theme.colors.onSurface,
+                }}
               >
                 {title}
-              </Text>
-              <Text
-                style={[styles.meta, { color: theme.colors.onSurfaceVariant }]}
+              </DesignText>
+              <DesignText
                 numberOfLines={1}
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: theme.colors.onSurfaceVariant,
+                }}
               >
-                {meta}
-              </Text>
+                {[meta, secondaryMetaLabel].filter(Boolean).join(" · ")}
+              </DesignText>
             </View>
+            <DesignText
+              numberOfLines={1}
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: amountColor,
+                flexShrink: 1,
+              }}
+            >
+              {amount}
+            </DesignText>
           </View>
-          <View style={styles.right}>
-            <View style={styles.amountInfo}>
-              <Text
-                style={[styles.amount, { color: amountColor }]}
-                numberOfLines={1}
-              >
-                {amount}
-              </Text>
-              {secondaryMetaLabel ? (
+        ) : (
+          <View style={styles.row}>
+            <View style={styles.left}>
+              <CategoryIconBadge
+                icon={
+                  categoryIcon as React.ComponentProps<
+                    typeof MaterialCommunityIcons
+                  >["name"]
+                }
+                color={categoryColor}
+                style={isDraft ? styles.draftIconCluster : undefined}
+              />
+              <View style={styles.info}>
+                <Text
+                  style={[styles.name, { color: theme.colors.onSurface }]}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
                 <Text
                   style={[
-                    styles.time,
+                    styles.meta,
                     { color: theme.colors.onSurfaceVariant },
                   ]}
                   numberOfLines={1}
                 >
-                  {secondaryMetaLabel}
+                  {meta}
                 </Text>
-              ) : null}
+              </View>
             </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={16}
-              color={theme.colors.onSurfaceDisabled}
-              style={styles.chevron}
-            />
+            <View style={styles.right}>
+              <View style={styles.amountInfo}>
+                <Text
+                  style={[styles.amount, { color: amountColor }]}
+                  numberOfLines={1}
+                >
+                  {amount}
+                </Text>
+                {secondaryMetaLabel ? (
+                  <Text
+                    style={[
+                      styles.time,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {secondaryMetaLabel}
+                  </Text>
+                ) : null}
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={16}
+                color={theme.colors.onSurfaceDisabled}
+                style={styles.chevron}
+              />
+            </View>
           </View>
-        </View>
+        )}
       </TouchableRipple>
 
-      <AlertModal
-        isOpen={deleteConfirmOpen}
-        title={isDraft ? "Delete Draft" : "Delete Transaction"}
-        message={
-          isDraft
-            ? "This will remove the unsaved draft."
-            : "This will remove the transaction from your list."
-        }
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteConfirmOpen(false)}
-        destructive
-        confirmMode="slide"
-      />
+      {!disableLongPress ? (
+        <AlertModal
+          isOpen={deleteConfirmOpen}
+          title={isDraft ? "Delete Draft" : "Delete Transaction"}
+          message={
+            isDraft
+              ? "This will remove the unsaved draft."
+              : "This will remove the transaction from your list."
+          }
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          destructive
+          confirmMode="slide"
+        />
+      ) : null}
     </>
   );
 }
@@ -204,7 +288,8 @@ function areTransactionRowPropsEqual(
     previous.showDivider === next.showDivider &&
     previous.groupPosition === next.groupPosition &&
     previous.secondaryLabelMode === next.secondaryLabelMode &&
-    previous.disableLongPress === next.disableLongPress
+    previous.disableLongPress === next.disableLongPress &&
+    previous.onPressTransaction === next.onPressTransaction
   );
 }
 

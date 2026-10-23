@@ -1,3 +1,4 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { BackButton } from "@/components/backbutton/BackButton";
 import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
 import { typography } from "@/theme/typography";
@@ -34,6 +35,7 @@ export function AccountModalHeader({
   modal = false,
 }: AccountModalHeaderProps) {
   const c = theme.colors;
+  const expressive = (theme as ExtendedMD3Theme).expressive;
   const divider = c.outlineVariant;
 
   return (
@@ -48,18 +50,18 @@ export function AccountModalHeader({
             style={[
               CategoryManagementStyles.headerBtn,
               CategoryManagementStyles.headerBtnRound,
-              { backgroundColor: c.elevation.level1, borderColor: divider },
+              { backgroundColor: expressive ? c.surfaceVariant : c.elevation.level1, borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
             ]}
             accessibilityLabel="Close"
           >
             <MaterialCommunityIcons
               name="close"
-              size={20}
+              size={expressive ? 21 : 20}
               color={c.onSurfaceVariant}
             />
           </TouchableRipple>
         ) : (
-          <BackButton onPress={onBack} theme={theme} size={34} />
+          <BackButton onPress={onBack} theme={theme} size={expressive ? 44 : 34} />
         )
       ) : (
         <View
@@ -72,7 +74,7 @@ export function AccountModalHeader({
         >
           <MaterialCommunityIcons
             name={(iconName || "wallet-outline") as any}
-            size={17}
+            size={expressive ? 21 : 17}
             color={accentColor || c.primary}
           />
         </View>
@@ -113,12 +115,12 @@ export function AccountModalHeader({
           style={[
             CategoryManagementStyles.headerBtn,
             CategoryManagementStyles.headerBtnRound,
-            { backgroundColor: c.elevation.level1, borderColor: divider },
+            { backgroundColor: expressive ? c.surfaceVariant : c.elevation.level1, borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
           ]}
         >
           <MaterialCommunityIcons
             name="close"
-            size={17}
+            size={expressive ? 21 : 17}
             color={c.onSurfaceVariant}
           />
         </TouchableRipple>

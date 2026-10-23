@@ -1,7 +1,11 @@
+import { DesignText as Text } from "@/components/DesignText";
+import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { Text, TextInput, type MD3Theme } from "react-native-paper";
+import { FlatList, Pressable, View, useWindowDimensions } from "react-native";
+import { useTheme, type MD3Theme } from "react-native-paper";
 import { AnimatedPaperModal } from "./modal/modal";
 
 export type WorkspaceCurrency = {
@@ -28,11 +32,10 @@ type Props = {
   renderTrigger?: (args: { open: () => void }) => React.ReactNode;
 };
 
-const currencyData =
-  require("@/data/currencies.json") as Record<
-    string,
-    CurrencyItem
-  >;
+const currencyData = require("@/data/currencies.json") as Record<
+  string,
+  CurrencyItem
+>;
 
 export const DEFAULT_WORKSPACE_CURRENCY: WorkspaceCurrency = {
   code: "INR",
@@ -41,6 +44,164 @@ export const DEFAULT_WORKSPACE_CURRENCY: WorkspaceCurrency = {
 };
 
 const CURRENCIES = Object.values(currencyData) as CurrencyItem[];
+
+export function CurrencyPickerModal({
+  visible,
+  onDismiss,
+  currency,
+  onSelect,
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  currency: WorkspaceCurrency;
+  onSelect: (currency: WorkspaceCurrency) => void;
+}) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  const c = theme.colors;
+  const { height } = useWindowDimensions();
+  const { bottom } = useSafeAreaInsets();
+  const [query, setQuery] = React.useState("");
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!visible) {
+      setQuery("");
+      setSearchOpen(false);
+    }
+  }, [visible]);
+  const filtered = React.useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return CURRENCIES.filter(
+      (item) =>
+        !term || `${item.code} ${item.name}`.toLowerCase().includes(term),
+    );
+  }, [query]);
+  return (
+    <AnimatedPaperModal
+      visible={visible}
+      onDismiss={onDismiss}
+      presentation="sheet"
+      keyboardAware
+      includeBottomInset={false}
+      contentContainerStyle={{
+        backgroundColor: c.background,
+        borderTopLeftRadius: 40,
+        borderTopRightRadius: 40,
+        maxHeight: height * 0.86,
+        overflow: "hidden",
+      }}
+    >
+      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 8 }}>
+        <View
+          style={{
+            width: 44,
+            height: 4,
+            borderRadius: 4,
+            backgroundColor: c.outlineVariant,
+          }}
+        />
+      </View>
+      <SettingsHeader
+        title="Currency"
+        modal
+        onBack={onDismiss}
+        query={query}
+        onQueryChange={setQuery}
+        searchOpen={searchOpen}
+        onSearchOpenChange={setSearchOpen}
+        searchPlaceholder="Search currency"
+      />
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.code}
+        style={{ flexGrow: 0, flexShrink: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={12}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 4,
+          paddingBottom: Math.max(bottom, 16),
+          gap: 8,
+        }}
+        ListEmptyComponent={
+          <Text style={{ padding: 24, color: c.onSurfaceVariant }}>
+            No currencies found
+          </Text>
+        }
+        renderItem={({ item }) => {
+          const selected = item.code === currency.code;
+          const symbol = getDisplayCurrencySymbol(item);
+          return (
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${item.name}, ${item.code}`}
+              onPress={() =>
+                onSelect({ code: item.code, name: item.name, symbol })
+              }
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                minHeight: 72,
+                padding: 12,
+                borderRadius: theme.expressive ? 24 : 16,
+                backgroundColor: selected
+                  ? c.primaryContainer
+                  : c.elevation.level1,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 16,
+                  backgroundColor: selected ? c.primary : c.secondaryContainer,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    paddingHorizontal: 4,
+                    fontSize: 20,
+                    fontWeight: "700",
+                    color: selected ? c.onPrimary : c.onSecondaryContainer,
+                  }}
+                >
+                  {symbol}
+                </Text>
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontWeight: "700",
+                    fontSize: 14,
+                    color: c.onSurface,
+                  }}
+                >
+                  {item.name}
+                </Text>
+                <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
+                  {item.code}
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name={selected ? "check-circle" : "circle-outline"}
+                size={22}
+                color={selected ? c.primary : c.outline}
+              />
+            </Pressable>
+          );
+        }}
+      />
+    </AnimatedPaperModal>
+  );
+}
 
 function getDisplayCurrencySymbol(item: CurrencyItem) {
   try {
@@ -73,30 +234,8 @@ export function CurrencyPickerField({
   renderTrigger,
 }: Props) {
   const [visible, setVisible] = React.useState(false);
-  const [query, setQuery] = React.useState("");
   const c = theme.colors;
   const isEditorial = variant === "editorial";
-
-  const filteredCurrencies = React.useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return CURRENCIES;
-    return CURRENCIES.filter((item) => {
-      return (
-        item.code.toLowerCase().includes(normalized) ||
-        item.name.toLowerCase().includes(normalized)
-      );
-    });
-  }, [query]);
-
-  const handleSelect = (item: CurrencyItem) => {
-    onChange({
-      code: item.code,
-      name: item.name,
-      symbol: getDisplayCurrencySymbol(item),
-    });
-    setQuery("");
-    setVisible(false);
-  };
 
   return (
     <>
@@ -176,108 +315,15 @@ export function CurrencyPickerField({
         </Pressable>
       )}
 
-      <AnimatedPaperModal
+      <CurrencyPickerModal
         visible={visible}
         onDismiss={() => setVisible(false)}
-        presentation="sheet"
-        keyboardAware
-        contentContainerStyle={{
-          backgroundColor: c.elevation.level1,
-          borderTopLeftRadius: 40,
-          borderTopRightRadius: 40,
-          maxHeight: "82%",
-          overflow: "hidden",
+        currency={currency}
+        onSelect={(next) => {
+          onChange(next);
+          setVisible(false);
         }}
-      >
-        <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-          <View
-            style={{
-              alignSelf: "center",
-              width: 42,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: c.outlineVariant,
-              marginBottom: 14,
-            }}
-          />
-          <Text
-            style={{
-              color: c.onSurface,
-              fontSize: 18,
-              fontWeight: "800",
-              marginBottom: 12,
-            }}
-          >
-            Select currency
-          </Text>
-          <TextInput
-            mode="outlined"
-            placeholder="Search currency"
-            value={query}
-            onChangeText={setQuery}
-            left={<TextInput.Icon icon="magnify" />}
-            style={{ backgroundColor: c.elevation.level1, marginBottom: 12 }}
-          />
-        </View>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          scrollIndicatorInsets={{ bottom: 56 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 200 }}
-        >
-          {filteredCurrencies.map((item) => {
-            const selected = item.code === currency.code;
-            return (
-              <Pressable
-                key={item.code}
-                onPress={() => handleSelect(item)}
-                style={({ pressed }) => ({
-                  borderRadius: 14,
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  marginBottom: 6,
-                  backgroundColor: selected
-                    ? c.primaryContainer
-                    : pressed
-                      ? c.surfaceVariant
-                      : "transparent",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                })}
-              >
-                <Text style={{ fontSize: 18, width: 24 }}>
-                  {item.flag_emoji ?? "¤"}
-                </Text>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      color: c.onSurface,
-                      fontSize: 14,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {item.name}
-                  </Text>
-                  <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>
-                    {item.code}
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    color: selected ? c.primary : c.onSurfaceVariant,
-                    fontSize: 14,
-                    fontWeight: "800",
-                  }}
-                >
-                  {getDisplayCurrencySymbol(item)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </AnimatedPaperModal>
+      />
     </>
   );
 }

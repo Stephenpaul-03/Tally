@@ -10,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { Text, useTheme } from "react-native-paper";
 
 type UniversalSearchBarProps = {
@@ -46,7 +47,7 @@ export function UniversalSearchBar({
   containerStyle,
   animation,
 }: UniversalSearchBarProps) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const inputRef = React.useRef<TextInput>(null);
   const [isFocused, setIsFocused] = React.useState(false);
   const { width: windowWidth } = useWindowDimensions();
@@ -144,6 +145,12 @@ export function UniversalSearchBar({
       <Animated.View
         style={[
           styles.searchIconSlot,
+          theme.expressive && {
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            borderWidth: 0,
+          },
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
@@ -152,7 +159,7 @@ export function UniversalSearchBar({
       >
         <MaterialCommunityIcons
           name="magnify"
-          size={18}
+          size={theme.expressive ? 21 : 18}
           color={theme.colors.onSurfaceVariant}
         />
       </Animated.View>
@@ -180,7 +187,15 @@ export function UniversalSearchBar({
             onBlur={() => setIsFocused(false)}
             onFocus={() => setIsFocused(true)}
             placeholderTextColor={theme.colors.onSurfaceVariant}
-            style={[styles.input, { color: theme.colors.onSurface }]}
+            style={[
+              styles.input,
+              theme.expressive && {
+                fontSize: 16,
+                fontFamily: "Figtree-600",
+                minHeight: 44,
+              },
+              { color: theme.colors.onSurface },
+            ]}
           />
         </Animated.View>
       ) : (
@@ -193,7 +208,15 @@ export function UniversalSearchBar({
           onBlur={() => setIsFocused(false)}
           onFocus={() => setIsFocused(true)}
           placeholderTextColor={theme.colors.onSurfaceVariant}
-          style={[styles.input, { color: theme.colors.onSurface }]}
+          style={[
+            styles.input,
+            theme.expressive && {
+              fontSize: 16,
+              fontFamily: "Figtree-600",
+              minHeight: 44,
+            },
+            { color: theme.colors.onSurface },
+          ]}
         />
       )}
 
@@ -240,12 +263,13 @@ export function UniversalSearchBar({
           onPress={collapse}
           style={({ pressed }) => [
             styles.closeButton,
+            theme.expressive && { width: 44, height: 44, borderRadius: 22 },
             pressed && { opacity: 0.62 },
           ]}
         >
           <MaterialCommunityIcons
             name="close"
-            size={18}
+            size={theme.expressive ? 21 : 18}
             color={theme.colors.onSurfaceVariant}
           />
         </Pressable>

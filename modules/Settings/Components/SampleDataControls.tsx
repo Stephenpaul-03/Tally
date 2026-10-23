@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { View } from "react-native";
-import { Button, Text, useTheme } from "react-native-paper";
+import { Button, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { toast } from "@/components/toast/ToastProvider";
 import { selectTransactions, setInsightsSampleDataAsync } from "@/modules/Core/Slices/TransactionSlice";

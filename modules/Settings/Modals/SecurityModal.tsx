@@ -1,3 +1,4 @@
+import { settingsShape } from "@/theme/settingsShape";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
@@ -9,7 +10,8 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Switch, Text, useTheme } from "react-native-paper";
+import { Switch, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { SettingsStyles } from "../Styles";
@@ -156,6 +158,7 @@ function SecurityContent({ modal = false, onBack }: SecurityContentProps) {
                   onPress={() => setLockTimeoutMs(option.value)}
                   style={({ pressed }) => [
                     styles.timeoutOption,
+                    settingsShape(theme),
                     {
                       backgroundColor: theme.colors.surface,
                       borderColor:

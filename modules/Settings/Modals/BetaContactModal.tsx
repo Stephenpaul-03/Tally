@@ -2,7 +2,8 @@ import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Text, useTheme } from "react-native-paper";
+import { Button, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { SettingsHeader } from "../Components/SettingsHeader";
 
 export type BetaContactScenario = "support" | "report" | "request" | "about";

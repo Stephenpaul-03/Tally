@@ -1,14 +1,25 @@
+import { MotionItem, useMotionEnabled } from "@/components/animations/Motion";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { categoryTone } from "@/theme/sage";
+import { DesignText as Text } from "@/components/DesignText";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { withOpacity } from "@/utils/color-helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  View,
+  ScrollView,
+} from "react-native";
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SORT_OPTION_COLORS: Record<string, string> = {
@@ -66,7 +77,8 @@ export function SlidingPillToggle<T extends string>({
   colorizeActive?: boolean;
   neutralSlider?: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const motionEnabled = useMotionEnabled();
   const [trackWidth, setTrackWidth] = React.useState(0);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const dragProgress = React.useRef(0);
@@ -90,12 +102,12 @@ export function SlidingPillToggle<T extends string>({
         Animated.timing(slideAnim, {
           toValue: nextIndex,
           useNativeDriver: true,
-          duration: 200,
+          duration: motionEnabled ? 200 : 0,
           easing: Easing.out(Easing.quad),
         }).start();
       });
     },
-    [options, slideAnim],
+    [options, slideAnim, motionEnabled],
   );
 
   React.useEffect(() => {
@@ -166,7 +178,9 @@ export function SlidingPillToggle<T extends string>({
           style={[
             slidingStyles.track,
             {
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.expressive
+                ? theme.colors.surfaceVariant
+                : theme.colors.surface,
               borderColor: theme.colors.outlineVariant,
               padding: trackPadding,
             },
@@ -182,9 +196,11 @@ export function SlidingPillToggle<T extends string>({
                   top: trackPadding,
                   bottom: trackPadding,
                   left: trackPadding,
-                  backgroundColor: neutralSlider
-                    ? theme.colors.elevation.level2
-                    : withOpacity(activeColor, 0.12),
+                  backgroundColor: theme.expressive
+                    ? theme.colors.secondaryContainer
+                    : neutralSlider
+                      ? theme.colors.elevation.level2
+                      : withOpacity(activeColor, 0.12),
                   borderColor: neutralSlider
                     ? theme.colors.outlineVariant
                     : withOpacity(darkenHex(activeColor), 0.45),
@@ -211,17 +227,36 @@ export function SlidingPillToggle<T extends string>({
                 : theme.colors.onSurfaceVariant;
 
             return (
-              <View key={option.key} style={slidingStyles.tab}>
+              <View
+                key={option.key}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={option.label}
+                accessibilityState={{ checked: selected }}
+                onAccessibilityTap={() => onChange(option.key)}
+                style={[
+                  slidingStyles.tab,
+                  theme.expressive && { minHeight: 44 },
+                ]}
+              >
                 <MaterialCommunityIcons
                   name={option.icon}
-                  size={15}
+                  size={theme.expressive ? 20 : 15}
                   color={contentColor}
                 />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.78}
-                  style={[slidingStyles.label, { color: contentColor }]}
+                  style={[
+                    slidingStyles.label,
+                    { color: contentColor },
+                    theme.expressive && {
+                      fontSize: 14,
+                      lineHeight: 20,
+                      fontWeight: "700",
+                    },
+                  ]}
                 >
                   {option.label}
                 </Text>
@@ -263,7 +298,7 @@ export function SortOptionSheet({
   onApply?: (value: string, direction: "asc" | "desc") => void;
   onReset?: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const { bottom } = useSafeAreaInsets();
   const [draftValue, setDraftValue] = React.useState(value);
@@ -289,7 +324,7 @@ export function SortOptionSheet({
       onDismiss={onDismiss}
       presentation="sheet"
       includeBottomInset={false}
-      contentContainerStyle={styles.modalContent}
+      contentContainerStyle={[styles.modalContent, { maxHeight: "92%" }]}
     >
       <View
         style={[
@@ -308,25 +343,34 @@ export function SortOptionSheet({
             onPress={onDismiss}
             style={({ pressed }) => [
               styles.headerButton,
+              theme.expressive && { width: 44, height: 44, borderRadius: 22 },
               { backgroundColor: c.surface, opacity: pressed ? 0.7 : 1 },
             ]}
           >
             <MaterialCommunityIcons
               name="close"
-              size={18}
+              size={theme.expressive ? 21 : 18}
               color={c.onSurfaceVariant}
             />
           </Pressable>
           <View style={styles.titleWrap}>
             <Text
               numberOfLines={1}
-              style={[styles.title, { color: c.onSurface }]}
+              style={[
+                styles.title,
+                { color: c.onSurface },
+                theme.expressive && { fontSize: 28, letterSpacing: -0.8 },
+              ]}
             >
               {title}
             </Text>
             <Text
-              numberOfLines={1}
-              style={[styles.subtitle, { color: c.onSurfaceVariant }]}
+              numberOfLines={2}
+              style={[
+                styles.subtitle,
+                { color: c.onSurfaceVariant },
+                theme.expressive && { fontSize: 14, lineHeight: 20 },
+              ]}
             >
               {subtitle}
             </Text>
@@ -341,12 +385,13 @@ export function SortOptionSheet({
             }}
             style={({ pressed }) => [
               styles.headerButton,
+              theme.expressive && { width: 44, height: 44, borderRadius: 22 },
               { backgroundColor: c.surface, opacity: pressed ? 0.7 : 1 },
             ]}
           >
             <MaterialCommunityIcons
               name="restore"
-              size={18}
+              size={theme.expressive ? 21 : 18}
               color={c.onSurfaceVariant}
             />
           </Pressable>
@@ -363,79 +408,127 @@ export function SortOptionSheet({
               key: "asc",
               label: "Ascending",
               icon: "sort-ascending",
-              color: "#14B8A6",
+              color: theme.expressive ? c.primary : "#14B8A6",
             },
             {
               key: "desc",
               label: "Descending",
               icon: "sort-descending",
-              color: "#1D85E1",
+              color: theme.expressive ? c.primary : "#1D85E1",
             },
           ]}
         />
         <Text style={[styles.sectionLabel, { color: c.onSurfaceVariant }]}>
           Sort types
         </Text>
-        <View style={styles.optionGrid}>
-          {options.map(({ id, label, description, icon }) => {
+        <ScrollView
+          style={{ flexShrink: 1 }}
+          contentContainerStyle={styles.optionGrid}
+          showsVerticalScrollIndicator={false}
+        >
+          {options.map(({ id, label, description, icon }, index) => {
             const selected = draftValue === id;
             const optionColor = SORT_OPTION_COLORS[id] ?? c.primary;
             return (
-              <Pressable
+              <MotionItem
                 key={id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setDraftValue(id)}
-                style={({ pressed }) => [
-                  styles.option,
-                  {
-                    backgroundColor: c.elevation.level1,
-                    borderColor: "transparent",
-                    opacity: pressed ? 0.72 : 1,
-                  },
-                ]}
+                index={index}
+                active={visible}
+                style={{
+                  width: theme.expressive ? "48.5%" : "31.6%",
+                  flexGrow: 1,
+                }}
               >
-                <View style={styles.optionContent}>
-                  <View
-                    style={[styles.iconShell, { backgroundColor: optionColor }]}
-                  >
-                    <MaterialCommunityIcons
-                      name={icon as any}
-                      size={22}
-                      color="#FFFFFF"
-                      style={styles.sortIcon}
-                    />
-                  </View>
-                  <View style={styles.optionCopy}>
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.78}
-                      style={[styles.optionTitle, { color: c.onSurface }]}
-                    >
-                      {label}
-                    </Text>
-                    <Text
-                      numberOfLines={2}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setDraftValue(id)}
+                  style={({ pressed }) => [
+                    styles.option,
+                    { width: "100%" },
+                    theme.expressive && {
+                      borderRadius: 28,
+                      aspectRatio: undefined,
+                      minHeight: 148,
+                      padding: 16,
+                      borderWidth: 2,
+                    },
+                    {
+                      backgroundColor:
+                        theme.expressive && selected
+                          ? c.primaryContainer
+                          : c.elevation.level1,
+                      borderColor:
+                        theme.expressive && selected
+                          ? c.primary
+                          : "transparent",
+                      opacity: pressed ? 0.72 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.optionContent}>
+                    <View
                       style={[
-                        styles.optionDescription,
-                        { color: c.onSurfaceVariant },
+                        styles.iconShell,
+                        theme.expressive && {
+                          width: 44,
+                          height: 44,
+                          borderRadius: 16,
+                        },
+                        {
+                          backgroundColor: theme.expressive
+                            ? categoryTone("", theme.dark, optionColor)[0]
+                            : optionColor,
+                        },
                       ]}
                     >
-                      {description}
-                    </Text>
+                      <MaterialCommunityIcons
+                        name={icon as any}
+                        size={22}
+                        color={
+                          theme.expressive
+                            ? categoryTone("", theme.dark, optionColor)[1]
+                            : "#FFFFFF"
+                        }
+                        style={styles.sortIcon}
+                      />
+                    </View>
+                    <View style={styles.optionCopy}>
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.78}
+                        style={[
+                          styles.optionTitle,
+                          { color: c.onSurface },
+                          theme.expressive && { fontSize: 16, lineHeight: 22 },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.optionDescription,
+                          theme.expressive && { fontSize: 12, lineHeight: 16 },
+                          { color: c.onSurfaceVariant },
+                        ]}
+                      >
+                        {description}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <MaterialCommunityIcons
-                  name={selected ? "check-circle" : "circle-outline"}
-                  size={17}
-                  style={styles.optionCheck}
-                  color={selected ? optionColor : c.onSurfaceVariant}
-                />
-              </Pressable>
+                  <MaterialCommunityIcons
+                    name={selected ? "check-circle" : "circle-outline"}
+                    size={17}
+                    style={styles.optionCheck}
+                    color={selected ? optionColor : c.onSurfaceVariant}
+                  />
+                </Pressable>
+              </MotionItem>
             );
           })}
-        </View>
+        </ScrollView>
 
         <Pressable
           accessibilityRole="button"
@@ -443,11 +536,18 @@ export function SortOptionSheet({
           onPress={handleApply}
           style={({ pressed }) => [
             styles.applyButton,
+            theme.expressive && { minHeight: 56, borderRadius: 24 },
             { backgroundColor: c.primary, opacity: pressed ? 0.82 : 1 },
           ]}
         >
           <MaterialCommunityIcons name="check" size={18} color={c.onPrimary} />
-          <Text style={[styles.applyText, { color: c.onPrimary }]}>
+          <Text
+            style={[
+              styles.applyText,
+              { color: c.onPrimary },
+              theme.expressive && { fontSize: 16 },
+            ]}
+          >
             {applyLabel}
           </Text>
         </Pressable>

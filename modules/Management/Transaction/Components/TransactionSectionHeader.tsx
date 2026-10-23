@@ -1,3 +1,4 @@
+import { Disclosure, MotionItem } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { formatCurrencyWithSymbol } from "@/utils/Helpers";
@@ -139,17 +140,25 @@ export function TransactionSectionHeader({
       ) : (
         <View style={styles.header}>{headerContent}</View>
       )}
-      {isCollapsed && !renderContentWhenCollapsed ? null : (
-        <>
-          <View
-            style={[
-              styles.divider,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-          <View style={styles.content}>{children}</View>
-        </>
-      )}
+      <Disclosure open={!isCollapsed || renderContentWhenCollapsed}>
+        <View
+          style={[
+            styles.divider,
+            { backgroundColor: theme.colors.outlineVariant },
+          ]}
+        />
+        <View style={styles.content}>
+          {React.Children.toArray(children).map((child, index) => (
+            <MotionItem
+              key={(child as React.ReactElement).key ?? index}
+              index={index}
+              active={!isCollapsed}
+            >
+              {child}
+            </MotionItem>
+          ))}
+        </View>
+      </Disclosure>
     </View>
   );
 }

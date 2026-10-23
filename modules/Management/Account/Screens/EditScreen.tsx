@@ -1,3 +1,4 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { formatActivityLabel } from "@/modules/Management/Category/Components/CategoryTile";
@@ -57,6 +58,7 @@ function AccountEditContent({
   visible = true,
 }: Props) {
   const c = theme.colors;
+  const expressive = Boolean((theme as ExtendedMD3Theme).expressive);
   const wasEditingRef = React.useRef(false);
   const lastActivityCountRef = React.useRef(0);
   const wasProtectedRef = React.useRef(false);
@@ -70,10 +72,9 @@ function AccountEditContent({
   }
   const isEditing =
     Boolean(management.editingAccount) || (!visible && wasEditingRef.current);
-  const isProtected =
-    management.editingAccount
-      ? PROTECTED_ACCOUNTS.has(management.editingAccount.name)
-      : !visible && wasProtectedRef.current;
+  const isProtected = management.editingAccount
+    ? PROTECTED_ACCOUNTS.has(management.editingAccount.name)
+    : !visible && wasProtectedRef.current;
   const activityCount = isEditing
     ? management.editingAccount
       ? (management.accountStats[management.editingAccount.name]?.count ?? 0)
@@ -88,40 +89,45 @@ function AccountEditContent({
           management.handleRequestDeleteAccount(management.editingAccount!.name)
         }
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
+          width: expressive ? 44 : 36,
+          height: expressive ? 44 : 36,
+          borderRadius: expressive ? 22 : 10,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: c.errorContainer,
-          borderWidth: 0.5,
+          borderWidth: expressive ? 0 : 0.5,
           borderColor: `${c.error}55`,
         }}
       >
         <MaterialCommunityIcons
           name="delete-outline"
-          size={18}
+          size={expressive ? 21 : 18}
           color={c.error}
         />
       </TouchableRipple>
     ) : null;
 
-  const closeAccessory = !hideCloseButton && presentation !== "modal" ? (
-    <TouchableRipple
-      borderless
-      onPress={onClose}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: c.surfaceVariant,
-      }}
-    >
-      <MaterialCommunityIcons name="close" size={18} color={c.onSurface} />
-    </TouchableRipple>
-  ) : null;
+  const closeAccessory =
+    !hideCloseButton && presentation !== "modal" ? (
+      <TouchableRipple
+        borderless
+        onPress={onClose}
+        style={{
+          width: expressive ? 44 : 36,
+          height: expressive ? 44 : 36,
+          borderRadius: expressive ? 22 : 18,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: c.surfaceVariant,
+        }}
+      >
+        <MaterialCommunityIcons
+          name="close"
+          size={expressive ? 21 : 18}
+          color={c.onSurface}
+        />
+      </TouchableRipple>
+    ) : null;
 
   const headerAccessory =
     deleteAccessory || closeAccessory ? (

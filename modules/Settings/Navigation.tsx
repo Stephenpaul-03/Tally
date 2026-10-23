@@ -1,3 +1,9 @@
+import {
+  MotionEntranceScope,
+  useMotionEnabled,
+} from "@/components/animations/Motion";
+import { Platform } from "react-native";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { BudgetScreen } from "@/modules/Management/Budget/Index";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
@@ -9,7 +15,7 @@ import { DefaultsScreen } from "./Screens/DefaultsScreen";
 import { MainSettingsScreen } from "./Screens/MainSettingsScreen";
 
 export type SettingsStackParamList = {
-  SettingsHome: undefined;
+  SettingsHome: { openWorkspaces?: boolean } | undefined;
   Categories: undefined;
   Accounts: undefined;
   Budget: undefined;
@@ -22,28 +28,44 @@ const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 type Props = {
   initialRouteName?: keyof SettingsStackParamList;
+  openWorkspaces?: boolean;
 };
 
 export function SettingsNavigator({
   initialRouteName = "SettingsHome",
+  openWorkspaces = false,
 }: Props) {
-  const theme = useTheme();
+  const motionEnabled = useMotionEnabled();
+  const theme = useTheme<ExtendedMD3Theme>();
   return (
-    <Stack.Navigator
-      initialRouteName={initialRouteName}
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.background },
-        statusBarStyle: theme.dark ? "light" : "dark",
-        animation: "slide_from_right",
-      }}
-    >
-      <Stack.Screen name="SettingsHome" component={MainSettingsScreen} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} />
-      <Stack.Screen name="Accounts" component={AccountsScreen} />
-      <Stack.Screen name="Budget" component={BudgetScreen} />
-      <Stack.Screen name="Data" component={DataScreen} />
-      <Stack.Screen name="Defaults" component={DefaultsScreen} />
-    </Stack.Navigator>
+    <MotionEntranceScope>
+      <Stack.Navigator
+        initialRouteName={initialRouteName}
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+          statusBarStyle: theme.dark ? "light" : "dark",
+          animation: !motionEnabled
+            ? "none"
+            : theme.expressive
+              ? Platform.OS === "ios"
+                ? "simple_push"
+                : "ios_from_right"
+              : "slide_from_right",
+          freezeOnBlur: false,
+        }}
+      >
+        <Stack.Screen
+          name="SettingsHome"
+          component={MainSettingsScreen}
+          initialParams={{ openWorkspaces }}
+        />
+        <Stack.Screen name="Categories" component={CategoriesScreen} />
+        <Stack.Screen name="Accounts" component={AccountsScreen} />
+        <Stack.Screen name="Budget" component={BudgetScreen} />
+        <Stack.Screen name="Data" component={DataScreen} />
+        <Stack.Screen name="Defaults" component={DefaultsScreen} />
+      </Stack.Navigator>
+    </MotionEntranceScope>
   );
 }

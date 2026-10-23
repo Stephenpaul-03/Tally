@@ -1,9 +1,12 @@
+import { categoryTone } from "@/theme/sage";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { actionAccent, colorTreatment } from "@/theme/colorTreatment";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, type StyleProp, type ViewStyle, View } from "react-native";
-import { Text, type MD3Theme } from "react-native-paper";
+import { type MD3Theme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 
 interface ActionRowProps {
   icon: string;
@@ -44,11 +47,29 @@ export function ActionRow({
   iconSize = 20,
   disabled = false,
 }: ActionRowProps) {
+  const expressive = (theme as ExtendedMD3Theme).expressive;
   const { minimalIconsEnabled } = useAddonPrefs();
   const color =
-    iconColor ?? (destructive ? theme.colors.error : actionAccent(icon, theme.colors.primary));
+    iconColor ??
+    (destructive
+      ? theme.colors.error
+      : actionAccent(icon, theme.colors.primary));
 
-  const tint = colorTreatment(color, theme.dark, false, theme.colors.elevation.level1);
+  const tint = colorTreatment(
+    color,
+    theme.dark,
+    false,
+    theme.colors.elevation.level1,
+  );
+
+  const [actionBackground] = categoryTone("", theme.dark, tint.foregroundColor);
+
+  const actionForeground = colorTreatment(
+    color,
+    theme.dark,
+    false,
+    actionBackground,
+  ).foregroundColor;
 
   return (
     <Pressable
@@ -64,25 +85,46 @@ export function ActionRow({
           paddingHorizontal: 16,
           opacity: disabled ? 0.8 : pressed ? 0.65 : 1,
         },
+        expressive && {
+          minHeight: 76,
+          borderRadius: 24,
+          paddingHorizontal: 12,
+        },
         style,
       ]}
     >
       <View
+        collapsable={false}
         style={{
-          width: iconContainerSize,
-          height: iconContainerSize,
-          borderRadius: iconRadius,
+          width: expressive ? 44 : iconContainerSize,
+          height: expressive ? 44 : iconContainerSize,
+          borderRadius: expressive ? 16 : iconRadius,
+          overflow: "hidden",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: iconBackgroundColor,
+          backgroundColor:
+            iconBackgroundColor ??
+            (expressive && !minimalIconsEnabled
+              ? actionBackground
+              : "transparent"),
         }}
       >
-        <MaterialCommunityIcons name={icon as any} size={iconSize} color={minimalIconsEnabled ? theme.colors.primary : tint.foregroundColor} />
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={iconSize}
+          color={
+            minimalIconsEnabled
+              ? theme.colors.primary
+              : expressive
+                ? actionForeground
+                : tint.foregroundColor
+          }
+        />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <Text
           style={{
-            fontSize: 14,
+            fontSize: expressive ? 16 : 14,
             fontWeight: "700",
             color: labelColor ?? theme.colors.onSurface,
           }}

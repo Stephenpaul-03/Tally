@@ -10,12 +10,13 @@ export function SettingsScreen() {
       ? "Labs"
       : route.params?.section === "budget"
         ? "Budget"
-      : "SettingsHome";
+        : "SettingsHome";
 
   return (
     <SettingsNavigator
       key={initialRouteName}
       initialRouteName={initialRouteName}
+      openWorkspaces={route.params?.section === "workspaces"}
     />
   );
 }

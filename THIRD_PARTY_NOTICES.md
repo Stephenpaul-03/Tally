@@ -4,6 +4,8 @@ The [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`) covers Tall
 
 ## Fonts
 
+- **Figtree** — Copyright 2022 The Figtree Project Authors. Licensed under the SIL Open Font License 1.1. [Upstream project](https://github.com/erikdkennedy/figtree) · [License](assets/fonts/Figtree-OFL.txt). The bundled static weights are instances of the variable font from Google Fonts.
+
 - **Bebas Neue** — The Bebas Neue Project Authors / Dharma Type. Licensed under the SIL Open Font License 1.1. [Upstream project](https://github.com/dharmatype/Bebas-Neue) · [License](assets/fonts/BebasNeue-OFL.txt).
 - **Switzer** — Indian Type Foundry. Copyright 2015–2021 Indian Type Foundry. All rights reserved. Used for Tally's body text, labels, titles, and amounts under the [ITF Free Font License](https://www.fontshare.com/licenses), separately from Tally's GPLv3 license. Raw font files are excluded from the repository; contributors obtain their own copies directly from [Fontshare](https://www.fontshare.com/fonts/switzer). Follow the [font setup guide](assets/fonts/README.md) before building.
 

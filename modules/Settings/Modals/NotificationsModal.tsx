@@ -1,3 +1,4 @@
+import { settingsShape } from "@/theme/settingsShape";
 import { ActionRow } from "@/components/ActionRow";
 import { PermissionRequestModal } from "@/components/alert/PermissionRequestModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -19,7 +20,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Switch, Text, useTheme } from "react-native-paper";
+import { Switch, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
@@ -406,7 +408,7 @@ function ConnectedDayGroup({
   const selectedSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
 
   return (
-    <View style={[styles.connectedGroup]}>
+    <View style={[styles.connectedGroup, settingsShape(theme)]}>
       {WEEKDAY_OPTIONS.map((option, index) => {
         const selected = selectedSet.has(option.id);
 
@@ -477,6 +479,7 @@ function ToneRadioGrid({
             onPress={() => onSelect(option.id)}
             style={({ pressed }) => [
               styles.radioOption,
+              settingsShape(theme),
               {
                 backgroundColor: theme.colors.surface,
                 borderColor: selected

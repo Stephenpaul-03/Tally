@@ -1,3 +1,4 @@
+import { settingsShape } from "@/theme/settingsShape";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { MANAGEMENT_NAME_LIMIT } from "@/components/ManagementOptions";
@@ -21,13 +22,13 @@ import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import {
   ActivityIndicator,
-  Text,
   TouchableRipple,
   useTheme,
-  type MD3Theme,
 } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { SettingsStyles } from "../Styles";
@@ -41,7 +42,7 @@ type WorkspaceEditorProps = {
   visible: boolean;
   workspace?: Workspace;
   onBack: () => void;
-  theme: MD3Theme;
+  theme: ExtendedMD3Theme;
 };
 
 const WORKSPACE_NAME_LIMIT = MANAGEMENT_NAME_LIMIT;
@@ -81,9 +82,7 @@ function WorkspaceEditor({
           "briefcase-outline",
           ...options.accountIcons,
           ...options.categoryIcons,
-        ].find(
-          (icon) => !workspaces.some((item) => item.icon === icon),
-        ) ??
+        ].find((icon) => !workspaces.some((item) => item.icon === icon)) ??
         "briefcase-outline",
     );
     setLocalColor(
@@ -185,9 +184,13 @@ function WorkspaceEditor({
     <TouchableRipple
       borderless
       onPress={handleDelete}
+      accessibilityLabel="Delete workspace"
       style={[
         styles.editorDeleteButton,
         {
+          ...(theme.expressive
+            ? { width: 44, height: 44, borderRadius: 22, borderWidth: 0 }
+            : {}),
           backgroundColor: theme.colors.errorContainer,
           borderColor: `${theme.colors.error}55`,
         },
@@ -195,7 +198,7 @@ function WorkspaceEditor({
     >
       <MaterialCommunityIcons
         name="delete-outline"
-        size={18}
+        size={theme.expressive ? 21 : 18}
         color={theme.colors.error}
       />
     </TouchableRipple>
@@ -260,7 +263,7 @@ function WorkspaceEditor({
 }
 
 export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const { interactionHintsEnabled } = useAddonPrefs();
@@ -455,28 +458,28 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   return (
     <>
       <AnimatedPaperModal
-      visible={visible && !editorOpen}
-      onDismiss={dismissModal}
-      presentation="sheet"
-      contentContainerStyle={{
-        backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 40,
-        borderTopRightRadius: 40,
-        maxHeight: "92%",
-        overflow: "hidden",
-      }}
-      keyboardAware
-      includeBottomInset={true}
-    >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
-      <>
+        visible={visible && !editorOpen}
+        onDismiss={dismissModal}
+        presentation="sheet"
+        contentContainerStyle={{
+          backgroundColor: theme.colors.background,
+          borderTopLeftRadius: 40,
+          borderTopRightRadius: 40,
+          maxHeight: "92%",
+          overflow: "hidden",
+        }}
+        keyboardAware
+        includeBottomInset={true}
+      >
+        <View style={styles.handleWrap}>
+          <View
+            style={[
+              styles.handle,
+              { backgroundColor: theme.colors.outlineVariant },
+            ]}
+          />
+        </View>
+        <>
           <SettingsHeader
             title="Workspaces"
             onBack={dismissModal}
@@ -494,16 +497,16 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                 style={({ pressed }) => ({
                   alignItems: "center",
                   backgroundColor: theme.colors.primary,
-                  borderRadius: 16,
-                  height: 32,
+                  borderRadius: theme.expressive ? 22 : 16,
+                  height: theme.expressive ? 44 : 32,
                   justifyContent: "center",
                   opacity: pressed ? 0.72 : 1,
-                  width: 32,
+                  width: theme.expressive ? 44 : 32,
                 })}
               >
                 <MaterialCommunityIcons
                   name="plus"
-                  size={18}
+                  size={theme.expressive ? 21 : 18}
                   color={theme.colors.onPrimary}
                 />
               </Pressable>
@@ -525,6 +528,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                 <View
                   style={[
                     styles.emptySearch,
+                    settingsShape(theme),
                     {
                       backgroundColor: theme.colors.elevation.level1,
                       borderColor: theme.colors.outlineVariant,
@@ -552,7 +556,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                       <View
                         key={workspace.id}
                         onTouchStart={stopWorkspaceHint}
-                        style={styles.swipeRowClip}
+                        style={[styles.swipeRowClip, settingsShape(theme)]}
                       >
                         <Swipeable
                           ref={
@@ -585,6 +589,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                             }
                             style={({ pressed }) => [
                               styles.workspaceRow,
+                              settingsShape(theme),
                               {
                                 backgroundColor: theme.colors.elevation.level1,
                                 opacity: pressed ? 0.72 : 1,
@@ -648,6 +653,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                 <View
                   style={[
                     styles.emptySearch,
+                    settingsShape(theme),
                     {
                       backgroundColor: theme.colors.elevation.level1,
                       borderColor: theme.colors.outlineVariant,
@@ -684,6 +690,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                 <View
                   style={[
                     styles.emptySearch,
+                    settingsShape(theme),
                     {
                       backgroundColor: theme.colors.elevation.level1,
                       borderColor: theme.colors.outlineVariant,
@@ -742,7 +749,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
               title={`Delete ${deleteTarget.name}?`}
             />
           ) : null}
-      </>
+        </>
       </AnimatedPaperModal>
       <WorkspaceEditor
         onBack={closeWorkspaceEditor}

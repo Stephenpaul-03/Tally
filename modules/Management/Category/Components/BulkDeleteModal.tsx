@@ -59,7 +59,7 @@ export function CategoryBulkDeleteModal({ visible, onDismiss, management }: Prop
     finally { setBusy(false); }
   };
   const rowContent = (name: string, count?: number) => <>
-    <CategoryIconBadge icon={management.getCategoryIcon(name) as React.ComponentProps<typeof CategoryIconBadge>["icon"]} color={management.getCategoryColor(name)} />
+    <CategoryIconBadge categoryName={name} icon={management.getCategoryIcon(name) as React.ComponentProps<typeof CategoryIconBadge>["icon"]} color={management.getCategoryColor(name)} />
     <View style={{ flex: 1, gap: 3 }}><Text style={{ fontWeight: "600" }}>{name}</Text>{count !== undefined ? <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>{count} transaction{count === 1 ? "" : "s"}</Text> : null}</View>
   </>;
   return <AnimatedPaperModal visible={visible} onDismiss={dismiss} dismissable={!busy} presentation="sheet" includeBottomInset={false}

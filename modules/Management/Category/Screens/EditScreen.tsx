@@ -1,3 +1,4 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { formatActivityLabel } from "@/modules/Management/Category/Components/CategoryTile";
@@ -51,6 +52,7 @@ function CategoryEditContent({
   visible = true,
 }: Props) {
   const c = theme.colors;
+  const expressive = Boolean((theme as ExtendedMD3Theme).expressive);
   const wasEditingRef = React.useRef(false);
   const lastEditTypeRef = React.useRef(management.selectedType);
   const lastActivityCountRef = React.useRef(0);
@@ -82,29 +84,34 @@ function CategoryEditContent({
         ]?.count ?? 0)
       : lastActivityCountRef.current
     : 0;
-  const canDelete =
-    management.editingCategory
-      ? management.editingCategory.name !== editFallbackName
-      : !visible && canDeleteRef.current;
+  const canDelete = management.editingCategory
+    ? management.editingCategory.name !== editFallbackName
+    : !visible && canDeleteRef.current;
 
   const deleteAccessory = canDelete ? (
     <TouchableRipple
       borderless
+      accessibilityLabel="Delete category"
+      accessibilityRole="button"
       onPress={() =>
         management.handleRequestDeleteCategory(management.editingCategory!.name)
       }
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: expressive ? 44 : 36,
+        height: expressive ? 44 : 36,
+        borderRadius: expressive ? 22 : 10,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: c.errorContainer,
-        borderWidth: 0.5,
+        borderWidth: expressive ? 0 : 0.5,
         borderColor: `${c.error}55`,
       }}
     >
-      <MaterialCommunityIcons name="delete-outline" size={18} color={c.error} />
+      <MaterialCommunityIcons
+        name="delete-outline"
+        size={expressive ? 21 : 18}
+        color={c.error}
+      />
     </TouchableRipple>
   ) : null;
 
@@ -147,9 +154,7 @@ type CategoryEditModalProps = Omit<Props, "presentation"> & {
 };
 
 export function CategoryEditScreen(props: CategoryEditScreenProps) {
-  return (
-    <CategoryEditContent {...props} presentation="screen" visible />
-  );
+  return <CategoryEditContent {...props} presentation="screen" visible />;
 }
 
 export function CategoryEditModal({

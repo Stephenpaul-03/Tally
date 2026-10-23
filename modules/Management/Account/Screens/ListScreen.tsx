@@ -1,4 +1,6 @@
-import { useStagger } from "@/components/animations/UseStagger";
+import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+
 import { SectionLabel } from "@/components/SectionLabel";
 import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
@@ -89,7 +91,6 @@ function AccountListContent({
     setSortField(workspaceDefaults.accountSortField);
     setSortDirection(workspaceDefaults.accountSortDirection);
   }, [workspaceDefaults.accountSortDirection, workspaceDefaults.accountSortField]);
-  const animatedOnceRef = React.useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
   const visibleAccounts = useMemo(() => {
     const filtered = normalizedQuery
@@ -116,19 +117,7 @@ function AccountListContent({
     });
   }, [accounts, management, normalizedQuery, sortDirection, sortField]);
 
-  const { getAnimStyle } = useStagger({
-    count: visibleAccounts.length,
-    stagger: 70,
-    distance: 20,
-    duration: 550,
-    dataKey: "accounts-first-mount",
-    autoPlay: !animatedOnceRef.current,
-    replayOnCountChange: false,
-  });
-
-  React.useEffect(() => {
-    animatedOnceRef.current = true;
-  }, []);
+  const { getAnimStyle } = useManagementEntrance(visibleAccounts.length);
 
   const rows = Array.from(
     { length: Math.ceil(visibleAccounts.length / 2) },
@@ -146,20 +135,20 @@ function AccountListContent({
       onPress={() => setSortOpen(true)}
       borderless
       style={{
-        width: 32,
-        height: 32,
+        width: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
+        height: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
         borderRadius: 99,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: c.surface,
-        borderWidth: 1,
+        backgroundColor: (theme as ExtendedMD3Theme).expressive ? c.surfaceVariant : c.surface,
+        borderWidth: (theme as ExtendedMD3Theme).expressive ? 0 : 1,
         borderColor: c.outlineVariant,
       }}
       accessibilityLabel="Sort accounts"
     >
       <MaterialCommunityIcons
         name="sort"
-        size={18}
+        size={(theme as ExtendedMD3Theme).expressive ? 21 : 18}
         color={c.onSurfaceVariant}
       />
     </TouchableRipple>
@@ -296,7 +285,7 @@ function AccountListContent({
                         getAnimStyle(animatedIndex),
                       ]}
                     >
-                      <CategoryTile
+                      <CategoryTile entityKind="account"
                         name={name}
                         icon={management.getAccountIcon(name)}
                         color={management.getAccountColor(name)}

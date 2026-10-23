@@ -1,3 +1,8 @@
+import { DesignText as Text } from "@/components/DesignText";
+import { MotionItem } from "@/components/animations/Motion";
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import { useMainDesign } from "@/hooks/use-main-design";
+import { SageMainScreen } from "@/modules/Main/SageMainScreen";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InsightsScreen } from "@/modules/Insights/InsightsScreen";
@@ -54,7 +59,7 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -100,6 +105,7 @@ export type TransactionSortConfig = {
 };
 
 type FilterOptionMeta = {
+  categoryName?: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   color: string;
 };
@@ -345,14 +351,16 @@ function FilterChip({
   onPress,
   icon,
   iconColor,
+  categoryName,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   icon?: FilterOptionMeta["icon"];
   iconColor?: string;
+  categoryName?: string;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const resolvedIconColor = iconColor ?? theme.colors.primary;
   const selectedBorderColor = darkenHex(resolvedIconColor);
   return (
@@ -362,13 +370,30 @@ function FilterChip({
       style={({ pressed }) => [
         local.filterChip,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: selected ? selectedBorderColor : "transparent",
+          backgroundColor:
+            theme.expressive && selected
+              ? theme.colors.primaryContainer
+              : theme.colors.surface,
+          borderColor: selected
+            ? theme.expressive
+              ? theme.colors.primary
+              : selectedBorderColor
+            : "transparent",
+          ...(theme.expressive
+            ? { minHeight: 48, borderRadius: 20, paddingHorizontal: 12 }
+            : {}),
           opacity: pressed ? 0.72 : 1,
         },
       ]}
     >
-      {icon ? (
+      {icon && theme.expressive ? (
+        <CategoryIconBadge
+          categoryName={categoryName}
+          icon={icon}
+          color={resolvedIconColor}
+          style={{ width: 28, height: 28, borderRadius: 10 }}
+        />
+      ) : icon ? (
         <View
           style={[local.filterChipIcon, { backgroundColor: resolvedIconColor }]}
         >
@@ -397,7 +422,7 @@ function FilterInput({
   keyboardType?: "default" | "numeric";
   borderColor?: string;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   return (
     <View style={local.filterInputWrap}>
       <Text
@@ -416,6 +441,12 @@ function FilterInput({
         placeholderTextColor={theme.colors.onSurfaceVariant}
         style={[
           local.filterInput,
+          theme.expressive && {
+            minHeight: 52,
+            borderRadius: 18,
+            fontSize: 16,
+            borderWidth: 0,
+          },
           {
             color: theme.colors.onSurface,
             backgroundColor: theme.colors.surface,
@@ -442,7 +473,7 @@ function FilterSelectCard({
   iconColor?: string;
   onPress: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const resolvedIconColor = iconColor ?? theme.colors.primary;
 
   return (
@@ -454,20 +485,38 @@ function FilterSelectCard({
         local.filterSelectCard,
         {
           backgroundColor: theme.colors.elevation.level1,
+          ...(theme.expressive
+            ? {
+                flexDirection: "column",
+                alignItems: "flex-start",
+                minHeight: 116,
+                borderRadius: 28,
+                padding: 14,
+                gap: 8,
+              }
+            : {}),
           opacity: pressed ? 0.72 : 1,
         },
       ]}
     >
-      <View
-        style={[local.filterSelectIcon, { backgroundColor: resolvedIconColor }]}
-      >
-        <MaterialCommunityIcons name={icon} size={18} color={WHITE_ICON} />
-      </View>
-      <View style={local.filterSelectCopy}>
+      {theme.expressive ? (
+        <CategoryIconBadge icon={icon} color={resolvedIconColor} />
+      ) : (
+        <View
+          style={[
+            local.filterSelectIcon,
+            { backgroundColor: resolvedIconColor },
+          ]}
+        >
+          <MaterialCommunityIcons name={icon} size={18} color={WHITE_ICON} />
+        </View>
+      )}
+      <View style={[local.filterSelectCopy, theme.expressive && { flex: 0 }]}>
         <Text
           numberOfLines={1}
           style={[
             local.filterSelectLabel,
+            theme.expressive && { fontSize: 13, lineHeight: 18 },
             {
               color: theme.colors.onSurfaceVariant,
             },
@@ -481,6 +530,7 @@ function FilterSelectCard({
           minimumFontScale={0.78}
           style={[
             local.filterSelectValue,
+            theme.expressive && { fontSize: 16, lineHeight: 22 },
             {
               color: theme.colors.onSurface,
             },
@@ -491,6 +541,11 @@ function FilterSelectCard({
       </View>
       <MaterialCommunityIcons
         name="chevron-right"
+        style={
+          theme.expressive
+            ? { position: "absolute", top: 18, right: 16 }
+            : undefined
+        }
         size={18}
         color={theme.colors.onSurfaceVariant}
       />
@@ -517,7 +572,7 @@ function TransactionBottomSheet({
   compact?: boolean;
   fitContent?: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const panelHeight = Math.round(windowHeight * (compact ? 0.54 : 0.78));
@@ -551,52 +606,86 @@ function TransactionBottomSheet({
             { backgroundColor: theme.colors.outlineVariant },
           ]}
         />
-        <View style={local.sheetHeader}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Close ${title}`}
-            onPress={onDismiss}
-            style={({ pressed }) => [
-              local.filterCloseButton,
-              {
-                backgroundColor: theme.colors.surface,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="close"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
+        {theme.expressive ? (
+          <View style={{ gap: 4, paddingBottom: 6 }}>
+            <SettingsHeader
+              containerStyle={{
+                paddingHorizontal: 0,
+                paddingTop: 4,
+                paddingBottom: 0,
+              }}
+              title={title}
+              onBack={onDismiss}
+              modal
+              rightAccessory={
+                <SheetHeaderAction label="Reset" onPress={onReset} />
+              }
             />
-          </Pressable>
-          <View style={local.sheetTitleWrap}>
             <Text
-              numberOfLines={1}
-              style={[local.filterTitle, { color: theme.colors.onSurface }]}
+              style={{
+                fontSize: 14,
+                lineHeight: 20,
+                color: theme.colors.onSurfaceVariant,
+                paddingHorizontal: 0,
+                paddingBottom: 0,
+              }}
             >
-              {title}
+              Choose the entries you want to see.
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Reset ${title}`}
-            onPress={onReset}
-            style={({ pressed }) => [
-              local.filterResetButton,
-              {
-                borderColor: theme.colors.outlineVariant,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text
-              style={[local.filterResetText, { color: theme.colors.primary }]}
+        ) : (
+          <View style={local.sheetHeader}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Close ${title}`}
+              onPress={onDismiss}
+              style={({ pressed }) => [
+                local.filterCloseButton,
+                {
+                  backgroundColor: theme.colors.surface,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
             >
-              Reset
-            </Text>
-          </Pressable>
-        </View>
+              <MaterialCommunityIcons
+                name="close"
+                size={18}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+            <View style={local.sheetTitleWrap}>
+              <Text
+                numberOfLines={1}
+                style={[local.filterTitle, { color: theme.colors.onSurface }]}
+              >
+                {title}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Reset ${title}`}
+              onPress={onReset}
+              style={({ pressed }) => [
+                local.filterResetButton,
+                {
+                  borderColor: theme.colors.outlineVariant,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  local.filterResetText,
+                  { color: theme.colors.primary },
+                  theme.expressive && { fontSize: 14, textTransform: "none" },
+                ]}
+              >
+                Reset
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {children}
         {footer}
       </View>
@@ -611,7 +700,7 @@ function SheetHeaderAction({
   label: string;
   onPress: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
 
   return (
     <Pressable
@@ -620,13 +709,30 @@ function SheetHeaderAction({
       onPress={onPress}
       style={({ pressed }) => [
         local.filterResetButton,
+        theme.expressive && {
+          minHeight: 44,
+          minWidth: 64,
+          height: 44,
+          paddingVertical: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 22,
+          borderWidth: 0,
+          backgroundColor: theme.colors.surfaceVariant,
+        },
         {
           borderColor: theme.colors.outlineVariant,
           opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Text style={[local.filterResetText, { color: theme.colors.primary }]}>
+      <Text
+        style={[
+          local.filterResetText,
+          { color: theme.colors.primary },
+          theme.expressive && { fontSize: 14, textTransform: "none" },
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -658,7 +764,7 @@ function FilterOptionPickerSheet({
   onClear: () => void;
   onDismiss: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const panelMaxHeight = Math.round(windowHeight * 0.62);
@@ -715,6 +821,7 @@ function FilterOptionPickerSheet({
                 label={option}
                 icon={meta[option]?.icon}
                 iconColor={meta[option]?.color}
+                categoryName={meta[option]?.categoryName}
                 selected={selectedValues.includes(option)}
                 onPress={() => onToggle(option)}
               />
@@ -759,6 +866,7 @@ function FilterOptionPickerSheet({
           onPress={onDismiss}
           style={({ pressed }) => [
             local.optionPickerDoneButton,
+            theme.expressive && { minHeight: 56, borderRadius: 24 },
             {
               backgroundColor: theme.colors.primary,
               opacity: pressed ? 0.82 : 1,
@@ -799,7 +907,7 @@ function TransactionFiltersModal({
   onApply: () => void;
   onDismiss: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const [activeDateField, setActiveDateField] = React.useState<
     "startDate" | "endDate"
   >("startDate");
@@ -873,6 +981,7 @@ function TransactionFiltersModal({
             onPress={onApply}
             style={({ pressed }) => [
               local.applyFiltersButton,
+              theme.expressive && { minHeight: 56, borderRadius: 24 },
               {
                 backgroundColor: theme.colors.primary,
                 opacity: pressed ? 0.82 : 1,
@@ -887,6 +996,7 @@ function TransactionFiltersModal({
             <Text
               style={[
                 local.applyFiltersText,
+                theme.expressive && { fontSize: 16, textTransform: "none" },
                 { color: theme.colors.onPrimary },
               ]}
             >
@@ -926,7 +1036,7 @@ function TransactionFiltersModal({
             ]}
           />
 
-          <View style={local.filterChoiceGrid}>
+          <MotionItem active={visible} index={1} style={local.filterChoiceGrid}>
             <FilterSelectCard
               label="Category"
               value={categoryValueLabel}
@@ -943,9 +1053,9 @@ function TransactionFiltersModal({
               iconColor={accountIconColor}
               onPress={() => setAccountPickerVisible(true)}
             />
-          </View>
+          </MotionItem>
 
-          <View style={local.filterChoiceGrid}>
+          <MotionItem active={visible} index={2} style={local.filterChoiceGrid}>
             <FilterSelectCard
               label="Date"
               value={
@@ -970,7 +1080,7 @@ function TransactionFiltersModal({
               iconColor={OPTION_COLORS.amount}
               onPress={() => setAmountPickerVisible(true)}
             />
-          </View>
+          </MotionItem>
         </KeyboardAwareScrollView>
       </TransactionBottomSheet>
 
@@ -1041,7 +1151,7 @@ function DateFilterSheet({
   onClear: () => void;
   onDismiss: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const panelMaxHeight = Math.round(windowHeight * 0.66);
@@ -1152,6 +1262,7 @@ function DateFilterSheet({
           onPress={onDismiss}
           style={({ pressed }) => [
             local.optionPickerDoneButton,
+            theme.expressive && { minHeight: 56, borderRadius: 24 },
             {
               backgroundColor: theme.colors.primary,
               opacity: pressed ? 0.82 : 1,
@@ -1184,7 +1295,7 @@ function AmountFilterSheet({
   onClear: () => void;
   onDismiss: () => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const panelMaxHeight = Math.round(windowHeight * 0.48);
@@ -1258,6 +1369,7 @@ function AmountFilterSheet({
           onPress={onDismiss}
           style={({ pressed }) => [
             local.optionPickerDoneButton,
+            theme.expressive && { minHeight: 56, borderRadius: 24 },
             {
               backgroundColor: theme.colors.primary,
               opacity: pressed ? 0.82 : 1,
@@ -1347,30 +1459,28 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
       collapsed={collapsed}
       onToggleCollapsed={() => onToggleCollapsed(item.key)}
     >
-      {!collapsed
-        ? item.transactions.map((transaction, index) => {
-            const isLast = index === item.transactions.length - 1;
-            return (
-              <View key={transaction.id}>
-                <TransactionRow
-                  transaction={transaction}
-                  onPressTransaction={onPressTransaction}
-                  grouped
-                  groupPosition={
-                    item.transactions.length === 1
-                      ? "single"
-                      : index === 0
-                        ? "first"
-                        : isLast
-                          ? "last"
-                          : "middle"
-                  }
-                  showDivider={!isLast}
-                />
-              </View>
-            );
-          })
-        : null}
+      {item.transactions.map((transaction, index) => {
+        const isLast = index === item.transactions.length - 1;
+        return (
+          <View key={transaction.id}>
+            <TransactionRow
+              transaction={transaction}
+              onPressTransaction={onPressTransaction}
+              grouped
+              groupPosition={
+                item.transactions.length === 1
+                  ? "single"
+                  : index === 0
+                    ? "first"
+                    : isLast
+                      ? "last"
+                      : "middle"
+              }
+              showDivider={!isLast}
+            />
+          </View>
+        );
+      })}
     </TimelineSectionHeader>
   );
 });
@@ -1406,6 +1516,7 @@ function TransactionListFooter({
 export default function Transactions({
   initialSelectedDate,
 }: TransactionsProps) {
+  const { design } = useMainDesign();
   const theme = useTheme<ExtendedMD3Theme>();
   const { activeTab: shellActiveTab } = useAppShell();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
@@ -1545,6 +1656,7 @@ export default function Transactions({
           transactions.find((transaction) => transaction.category === category);
         const type = source?.type ?? "expense";
         meta[category] = {
+          categoryName: category,
           icon: getCategoryIconName(
             category,
             type,
@@ -1816,7 +1928,10 @@ export default function Transactions({
   const transactionCard = useMemo(
     () => (
       <View style={local.transactionCardWrap}>
-        <SpotlightTarget id="transaction-heading" style={local.transactionCardHeader}>
+        <SpotlightTarget
+          id="transaction-heading"
+          style={local.transactionCardHeader}
+        >
           <Text
             numberOfLines={1}
             style={[
@@ -1879,61 +1994,85 @@ export default function Transactions({
           },
         ]}
       >
-        <GestureDualCardLayoutView
-          topContent={<InsightsScreen />}
-          suspendLayout={filtersVisible || sortVisible}
-          controlButtons={{
-            left: {
-              label: "Sort",
-              icon: "sort-variant",
-              iconColor: theme.colors.primary,
-              badgeIcon: activeSortBadgeIcon,
-              accessibilityLabel: "Sort transactions",
-              onPress: handleOpenSort,
-            },
-            leftMiddle: {
-              label: "Filter",
-              icon: "filter-outline",
-              iconColor: theme.colors.primary,
-              badgeCount: activeFilterCount,
-              accessibilityLabel: "Filter transactions",
-              onPress: handleOpenFilters,
-            },
-            middle: {
-              label: "Add",
-              icon: "plus",
-              iconColor: theme.colors.primary,
-              featured: true,
-              accessibilityLabel: "Add transaction",
-              onPress: handleAddTransaction,
-            },
-            rightMiddle: {
-              label: "Search",
-              icon: "magnify",
-              iconColor: theme.colors.primary,
-              accessibilityLabel: "Search transactions",
-              search: {
-                value: transactionSearchQuery,
-                onChangeText: setTransactionSearchQuery,
-                placeholder: "Search transactions...",
+        {design.layout === "sage" ? (
+          <SageMainScreen
+            sections={monthSections}
+            raw={[
+              ...rawMonthTransactions.expense,
+              ...rawMonthTransactions.income,
+            ]}
+            month={selectedMonthKey}
+            currency={currencyCode}
+            symbol={currencySymbol}
+            onMonth={(month) => setSelectedDateOverride(`${month}-01`)}
+            onAdd={handleAddTransaction}
+            onEdit={handleEdit}
+            onSort={handleOpenSort}
+            onFilter={handleOpenFilters}
+            filterCount={activeFilterCount}
+            query={transactionSearchQuery}
+            onQuery={setTransactionSearchQuery}
+            collapsed={collapsedDaySections}
+            onCollapse={handleToggleDaySection}
+            onFold={handleToggleAllDaySections}
+          />
+        ) : (
+          <GestureDualCardLayoutView
+            topContent={<InsightsScreen />}
+            suspendLayout={filtersVisible || sortVisible}
+            controlButtons={{
+              left: {
+                label: "Sort",
+                icon: "sort-variant",
+                iconColor: theme.colors.primary,
+                badgeIcon: activeSortBadgeIcon,
+                accessibilityLabel: "Sort transactions",
+                onPress: handleOpenSort,
               },
-            },
-            right: {
-              label: allTransactionHeadersCollapsed ? "Expand" : "Collapse",
-              icon: allTransactionHeadersCollapsed
-                ? "arrow-expand-vertical"
-                : "arrow-collapse-vertical",
-              iconColor: theme.colors.primary,
-              accessibilityLabel: allTransactionHeadersCollapsed
-                ? "Expand all transaction headers"
-                : "Collapse all transaction headers",
-              disabled: monthSections.length === 0,
-              onPress: handleToggleAllDaySections,
-            },
-          }}
-        >
-          {transactionCard}
-        </GestureDualCardLayoutView>
+              leftMiddle: {
+                label: "Filter",
+                icon: "filter-outline",
+                iconColor: theme.colors.primary,
+                badgeCount: activeFilterCount,
+                accessibilityLabel: "Filter transactions",
+                onPress: handleOpenFilters,
+              },
+              middle: {
+                label: "Add",
+                icon: "plus",
+                iconColor: theme.colors.primary,
+                featured: true,
+                accessibilityLabel: "Add transaction",
+                onPress: handleAddTransaction,
+              },
+              rightMiddle: {
+                label: "Search",
+                icon: "magnify",
+                iconColor: theme.colors.primary,
+                accessibilityLabel: "Search transactions",
+                search: {
+                  value: transactionSearchQuery,
+                  onChangeText: setTransactionSearchQuery,
+                  placeholder: "Search transactions...",
+                },
+              },
+              right: {
+                label: allTransactionHeadersCollapsed ? "Expand" : "Collapse",
+                icon: allTransactionHeadersCollapsed
+                  ? "arrow-expand-vertical"
+                  : "arrow-collapse-vertical",
+                iconColor: theme.colors.primary,
+                accessibilityLabel: allTransactionHeadersCollapsed
+                  ? "Expand all transaction headers"
+                  : "Collapse all transaction headers",
+                disabled: monthSections.length === 0,
+                onPress: handleToggleAllDaySections,
+              },
+            }}
+          >
+            {transactionCard}
+          </GestureDualCardLayoutView>
+        )}
       </View>
 
       <TransactionModal

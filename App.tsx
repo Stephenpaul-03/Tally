@@ -1,3 +1,5 @@
+import { sageTheme } from "@/theme/sage";
+import { useMainDesign, MainDesignProvider } from "@/hooks/use-main-design";
 import { TabBarProvider } from "@/components/tabbar/TabBarContext";
 import { ToastProvider } from "@/components/toast/ToastProvider";
 import { AddonPrefsProvider } from "@/hooks/use-addon-prefs";
@@ -44,25 +46,29 @@ function AppInner() {
   useEffect(() => {
     void notificationService.initializeAsync();
     const detach = notificationService.attachListeners();
-    const subscription = AppState.addEventListener("change", state => {
+    const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void notificationService.initializeAsync();
     });
-    return () => { detach(); subscription.remove(); };
+    return () => {
+      detach();
+      subscription.remove();
+    };
   }, []);
 
-  const paperTheme = getPaperTheme({ mode, themeId, trueBlack });
+  const { design } = useMainDesign();
+  const baseTheme = getPaperTheme({ mode, themeId, trueBlack });
+  const paperTheme =
+    design.style === "sage" ? sageTheme(baseTheme, trueBlack) : baseTheme;
   const navigationTheme = getNavigationTheme(paperTheme);
   useEffect(() => {
     if (Platform.OS !== "android") return;
-    void NavigationBar.setBackgroundColorAsync("#00000000");
-    void NavigationBar.setBorderColorAsync("#00000000");
-    void NavigationBar.setPositionAsync("absolute");
-    void NavigationBar.setBehaviorAsync("overlay-swipe");
     void NavigationBar.setButtonStyleAsync(paperTheme.dark ? "light" : "dark");
   }, [paperTheme.dark]);
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: paperTheme.colors.background }]}>
+    <GestureHandlerRootView
+      style={[styles.root, { backgroundColor: paperTheme.colors.background }]}
+    >
       <SafeAreaProvider>
         <KeyboardProvider>
           <PaperProvider theme={paperTheme}>
@@ -73,15 +79,26 @@ function AppInner() {
             >
               <ToastProvider>
                 <TabBarProvider>
-                  <View style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: paperTheme.colors.background,
+                    }}
+                  >
                     <AppNavigator />
                     {biometricLock.isLocked ? (
                       <BiometricLockOverlay
                         isAuthenticating={biometricLock.isAuthenticating}
-                        onUnlock={() => { void biometricLock.unlock(); }}
+                        onUnlock={() => {
+                          void biometricLock.unlock();
+                        }}
                       />
                     ) : null}
-                    <StatusBar style={paperTheme.dark ? "light" : "dark"} translucent backgroundColor="transparent" />
+                    <StatusBar
+                      style={paperTheme.dark ? "light" : "dark"}
+                      translucent
+                      backgroundColor="transparent"
+                    />
                   </View>
                 </TabBarProvider>
               </ToastProvider>
@@ -110,17 +127,19 @@ export default function App() {
     <ReduxProvider store={store}>
       <ThemeModeProvider>
         <AppThemeProvider>
-          <TabBarModePreferenceProvider>
-            <TransactionUiPrefsProvider>
-              <AddonPrefsProvider>
-                <WorkspaceDefaultsProvider>
-                  <BiometricLockProvider>
-                    <AppInner />
-                  </BiometricLockProvider>
-                </WorkspaceDefaultsProvider>
-              </AddonPrefsProvider>
-            </TransactionUiPrefsProvider>
-          </TabBarModePreferenceProvider>
+          <MainDesignProvider>
+            <TabBarModePreferenceProvider>
+              <TransactionUiPrefsProvider>
+                <AddonPrefsProvider>
+                  <WorkspaceDefaultsProvider>
+                    <BiometricLockProvider>
+                      <AppInner />
+                    </BiometricLockProvider>
+                  </WorkspaceDefaultsProvider>
+                </AddonPrefsProvider>
+              </TransactionUiPrefsProvider>
+            </TabBarModePreferenceProvider>
+          </MainDesignProvider>
         </AppThemeProvider>
       </ThemeModeProvider>
     </ReduxProvider>

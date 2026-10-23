@@ -1,6 +1,8 @@
 # App fonts
 
-Tally uses **Switzer** for body text, labels, titles, and amounts through `theme/typography.ts`. **Bebas Neue** supplies the display headings. `App.tsx` loads these fonts before rendering the app.
+The Expressive main screens use **Figtree**, bundled at weights 400, 600, 700, and 800. The variable source is retained for the six-screen design reference. The fonts are distributed under the [SIL Open Font License 1.1](Figtree-OFL.txt); the static weights were instantiated from the Google Fonts variable source.
+
+Settings and the classic interface use **Switzer** for body text, labels, titles, and amounts through `theme/typography.ts`. **Bebas Neue** supplies the display headings. `App.tsx` loads these fonts before rendering the app.
 
 ## Install Switzer before building
 

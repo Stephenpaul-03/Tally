@@ -14,7 +14,7 @@ type AppThemeContextValue = {
 export const APP_THEME_STORAGE_KEY = "appThemeId";
 export const TRUE_BLACK_STORAGE_KEY = "appThemeTrueBlack";
 
-const DEFAULT_THEME: ThemeId = "gold";
+const DEFAULT_THEME: ThemeId = "sage";
 
 function isThemeId(value: string): value is ThemeId {
   return value in THEME_PRESETS;

@@ -1,3 +1,6 @@
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { DesignText as Text } from "@/components/DesignText";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { useAppSelector } from "@/hooks/Redux";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
@@ -5,7 +8,7 @@ import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
-import { Button, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, TextInput, useTheme } from "react-native-paper";
 import { budgetStyles } from "../Styles";
 
 type Props = {
@@ -44,7 +47,7 @@ export function BudgetDetailsSheet({
   textColor,
   muted,
 }: Props) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { minimalIconsEnabled } = useAddonPrefs();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const currencySymbol = activeWorkspace?.currencySymbol ?? "₹";
@@ -130,28 +133,36 @@ export function BudgetDetailsSheet({
               flex: 1,
             }}
           >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: minimalIconsEnabled
-                  ? theme.colors.background
-                  : `${color}22`,
-                borderColor: minimalIconsEnabled
-                  ? theme.colors.elevation.level1
-                  : "transparent",
-                borderWidth: minimalIconsEnabled ? 1 : 0,
-              }}
-            >
-              <MaterialCommunityIcons
-                name={icon as any}
-                size={22}
-                color={minimalIconsEnabled ? theme.colors.primary : color}
+            {theme.expressive ? (
+              <CategoryIconBadge
+                icon={icon as any}
+                color={color}
+                categoryName={name}
               />
-            </View>
+            ) : (
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: minimalIconsEnabled
+                    ? theme.colors.background
+                    : `${color}22`,
+                  borderColor: minimalIconsEnabled
+                    ? theme.colors.elevation.level1
+                    : "transparent",
+                  borderWidth: minimalIconsEnabled ? 1 : 0,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={icon as any}
+                  size={22}
+                  color={minimalIconsEnabled ? theme.colors.primary : color}
+                />
+              </View>
+            )}
             <View style={{ flex: 1, gap: 4 }}>
               <Text
                 style={[budgetStyles.sheetTitle, { color: text }]}
@@ -180,6 +191,14 @@ export function BudgetDetailsSheet({
                 style={({ pressed }) => [
                   budgetStyles.sheetIconButton,
                   {
+                    ...(theme.expressive
+                      ? {
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          borderWidth: 0,
+                        }
+                      : {}),
                     backgroundColor: theme.colors.elevation.level1,
                     borderColor: border,
                     opacity: pressed || isRemoving ? 0.65 : 1,
@@ -188,7 +207,7 @@ export function BudgetDetailsSheet({
               >
                 <MaterialCommunityIcons
                   name="close-circle-outline"
-                  size={18}
+                  size={theme.expressive ? 21 : 18}
                   color={theme.colors.error}
                 />
               </Pressable>
@@ -202,13 +221,25 @@ export function BudgetDetailsSheet({
                 budgetStyles.sheetIconButton,
                 budgetStyles.sheetCloseButton,
                 {
+                  ...(theme.expressive
+                    ? {
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        borderWidth: 0,
+                      }
+                    : {}),
                   backgroundColor: theme.colors.elevation.level1,
                   borderColor: border,
                   opacity: pressed ? 0.65 : 1,
                 },
               ]}
             >
-              <MaterialCommunityIcons name="close" size={18} color={subdued} />
+              <MaterialCommunityIcons
+                name="close"
+                size={theme.expressive ? 21 : 18}
+                color={subdued}
+              />
             </Pressable>
           </View>
         </View>

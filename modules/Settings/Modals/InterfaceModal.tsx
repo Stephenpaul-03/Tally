@@ -1,3 +1,5 @@
+import { useMainDesign } from "@/hooks/use-main-design";
+import { DesignChoiceCards } from "../Components/DesignChoiceCards";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
@@ -51,7 +53,9 @@ function SheetShell({
 
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
-  const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } = useTabBarModePreference();
+  const { design, setDesign } = useMainDesign();
+  const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
+    useTabBarModePreference();
   const {
     minimalIconsEnabled,
     handleMinimalIconsToggle,
@@ -63,9 +67,16 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
     <>
       <SettingsHeader title="Interface" onBack={onBack} modal />
       <ScrollView
+        style={{ flexGrow: 0 }}
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <SectionLabel label="Layout" />
+        <DesignChoiceCards
+          value={design.layout}
+          onChange={(layout) => setDesign({ layout })}
+          purpose="layout"
+        />
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
           <ActionRow
@@ -116,44 +127,55 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
               />
             }
           />
-          <ActionRow
-            icon="format-text"
-            label="Hide labels"
-            description="Use icons only for Home and Transactions controls and bottom navigation"
-            onPress={() => setHideLabels(!hideLabels)}
-            theme={theme}
-            showChevron={false}
-            rightElement={
-              <Switch
-                value={hideLabels}
-                onValueChange={setHideLabels}
-                accessibilityLabel="Hide labels"
-                trackColor={{ false: theme.colors.outlineVariant, true: theme.colors.primary }}
-                thumbColor={hideLabels ? theme.colors.onPrimary : theme.colors.surface}
-              />
-            }
-          />
-          <ActionRow
-            icon="dock-bottom"
-            label="Bottom bar"
-            description="Show the bottom navigation bar"
-            onPress={() => setTabBarEnabled(!tabBarEnabled)}
-            theme={theme}
-            showChevron={false}
-            rightElement={
-              <Switch
-                value={tabBarEnabled}
-                onValueChange={setTabBarEnabled}
-                trackColor={{
-                  false: theme.colors.outlineVariant,
-                  true: theme.colors.primary,
-                }}
-                thumbColor={
-                  tabBarEnabled ? theme.colors.onPrimary : theme.colors.surface
+          {design.layout === "classic" ? (
+            <>
+              <ActionRow
+                icon="format-text"
+                label="Hide labels"
+                description="Use icons only for Home and Transactions controls and bottom navigation"
+                onPress={() => setHideLabels(!hideLabels)}
+                theme={theme}
+                showChevron={false}
+                rightElement={
+                  <Switch
+                    value={hideLabels}
+                    onValueChange={setHideLabels}
+                    accessibilityLabel="Hide labels"
+                    trackColor={{
+                      false: theme.colors.outlineVariant,
+                      true: theme.colors.primary,
+                    }}
+                    thumbColor={
+                      hideLabels ? theme.colors.onPrimary : theme.colors.surface
+                    }
+                  />
                 }
               />
-            }
-          />
+              <ActionRow
+                icon="dock-bottom"
+                label="Bottom bar"
+                description="Show the bottom navigation bar"
+                onPress={() => setTabBarEnabled(!tabBarEnabled)}
+                theme={theme}
+                showChevron={false}
+                rightElement={
+                  <Switch
+                    value={tabBarEnabled}
+                    onValueChange={setTabBarEnabled}
+                    trackColor={{
+                      false: theme.colors.outlineVariant,
+                      true: theme.colors.primary,
+                    }}
+                    thumbColor={
+                      tabBarEnabled
+                        ? theme.colors.onPrimary
+                        : theme.colors.surface
+                    }
+                  />
+                }
+              />
+            </>
+          ) : null}
         </SheetCard>
       </ScrollView>
     </>

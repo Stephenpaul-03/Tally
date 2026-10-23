@@ -1,3 +1,4 @@
+import { categoryBudgetTotal } from "@/utils/budget-total";
 import { sortCategories } from "@/utils/category-order";
 /**
  * Transaction Redux Slice
@@ -5,31 +6,31 @@ import { sortCategories } from "@/utils/category-order";
  */
 
 import {
-    createAsyncThunk,
-    createSelector,
-    createSlice,
-    PayloadAction,
+  createAsyncThunk,
+  createSelector,
+  createSlice,
+  PayloadAction,
 } from "@reduxjs/toolkit";
 import {
-    createTransaction,
-    getCategoryIconKey,
-    getLastTransaction,
+  createTransaction,
+  getCategoryIconKey,
+  getLastTransaction,
 } from "../../../utils/Helpers";
 import {
-    normalizeAccount,
-    normalizeDate,
-    normalizeType,
+  normalizeAccount,
+  normalizeDate,
+  normalizeType,
 } from "../../../utils/Normalizers";
 import {
-    DEFAULT_ACCOUNTS,
-    DEFAULT_EXPENSE_CATEGORIES,
-    DEFAULT_INCOME_CATEGORIES,
-    Transaction,
-    TransactionDraft,
-    TransactionFilters,
-    TransactionFormData,
-    TransactionState,
-    TransactionType,
+  DEFAULT_ACCOUNTS,
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+  Transaction,
+  TransactionDraft,
+  TransactionFilters,
+  TransactionFormData,
+  TransactionState,
+  TransactionType,
 } from "../../../utils/Types";
 import { financeRepository, switchWorkspace } from "../Repository/Index";
 import type { RootState } from "../Store";
@@ -994,15 +995,18 @@ const transactionSlice = createSlice({
         state.transactionDrafts = [];
         state.activeTransactionDraftId = null;
       })
-      .addCase(clearTransactionsForDateRangeAsync.fulfilled, (state, action) => {
-        const { startDate, endDate } = action.meta.arg;
-        state.transactions = state.transactions.filter(
-          (transaction) =>
-            transaction.date < startDate || transaction.date > endDate,
-        );
-        state.transactionDrafts = [];
-        state.activeTransactionDraftId = null;
-      })
+      .addCase(
+        clearTransactionsForDateRangeAsync.fulfilled,
+        (state, action) => {
+          const { startDate, endDate } = action.meta.arg;
+          state.transactions = state.transactions.filter(
+            (transaction) =>
+              transaction.date < startDate || transaction.date > endDate,
+          );
+          state.transactionDrafts = [];
+          state.activeTransactionDraftId = null;
+        },
+      )
       .addCase(resetWorkspaceDataAsync.fulfilled, (state) => {
         state.transactions = [];
         state.transactionDrafts = [];
@@ -1087,15 +1091,17 @@ export const selectNonDeletedTransactions = createSelector(
   (transactions) => transactions.filter((t) => !t.deleted),
 );
 
-export const selectIncomeTransactions = (state: RootState) =>
-  state.transactions.transactions.filter(
-    (t) => t.type === "income" && !t.deleted,
-  );
+export const selectIncomeTransactions = createSelector(
+  [selectNonDeletedTransactions],
+  (transactions) =>
+    transactions.filter((transaction) => transaction.type === "income"),
+);
 
-export const selectExpenseTransactions = (state: RootState) =>
-  state.transactions.transactions.filter(
-    (t) => t.type === "expense" && !t.deleted,
-  );
+export const selectExpenseTransactions = createSelector(
+  [selectNonDeletedTransactions],
+  (transactions) =>
+    transactions.filter((transaction) => transaction.type === "expense"),
+);
 
 export const selectFilters = (state: { transactions: TransactionState }) =>
   state.transactions.filters;
@@ -1123,20 +1129,34 @@ export const selectTransactionById =
     state.transactions.transactions.find((t) => t.id === id);
 
 export const selectIncomeCategories = createSelector(
-  [(state: { transactions: TransactionState }) => state.transactions.incomeCategories],
-  names => sortCategories(names, name => name),
+  [
+    (state: { transactions: TransactionState }) =>
+      state.transactions.incomeCategories,
+  ],
+  (names) => sortCategories(names, (name) => name),
 );
 export const selectExpenseCategories = createSelector(
-  [(state: { transactions: TransactionState }) => state.transactions.expenseCategories],
-  names => sortCategories(names, name => name),
+  [
+    (state: { transactions: TransactionState }) =>
+      state.transactions.expenseCategories,
+  ],
+  (names) => sortCategories(names, (name) => name),
 );
 export const selectActiveIncomeCategories = createSelector(
-  [selectIncomeCategories, (state: { transactions: TransactionState }) => state.transactions.deletedIncomeCategories],
-  (names, deleted) => names.filter(name => !deleted.includes(name)),
+  [
+    selectIncomeCategories,
+    (state: { transactions: TransactionState }) =>
+      state.transactions.deletedIncomeCategories,
+  ],
+  (names, deleted) => names.filter((name) => !deleted.includes(name)),
 );
 export const selectActiveExpenseCategories = createSelector(
-  [selectExpenseCategories, (state: { transactions: TransactionState }) => state.transactions.deletedExpenseCategories],
-  (names, deleted) => names.filter(name => !deleted.includes(name)),
+  [
+    selectExpenseCategories,
+    (state: { transactions: TransactionState }) =>
+      state.transactions.deletedExpenseCategories,
+  ],
+  (names, deleted) => names.filter((name) => !deleted.includes(name)),
 );
 
 export const selectCategoryIcons = (state: {
@@ -1147,15 +1167,16 @@ export const selectCategoryColors = (state: {
   transactions: TransactionState;
 }) => state.transactions.categoryColors || {};
 
-export const selectActiveAccounts = (state: {
-  transactions: TransactionState;
-}) =>
-  state.transactions.accounts.filter(
-    (name) => !state.transactions.deletedAccounts.includes(name),
-  );
-
 export const selectAccounts = (state: { transactions: TransactionState }) =>
   state.transactions.accounts;
+export const selectActiveAccounts = createSelector(
+  [
+    selectAccounts,
+    (state: { transactions: TransactionState }) =>
+      state.transactions.deletedAccounts,
+  ],
+  (accounts, deleted) => accounts.filter((name) => !deleted.includes(name)),
+);
 
 export const selectAccountIcons = (state: { transactions: TransactionState }) =>
   state.transactions.accountIcons || {};
@@ -1164,20 +1185,19 @@ export const selectAccountColors = (state: {
   transactions: TransactionState;
 }) => state.transactions.accountColors || {};
 
-export const selectOverallBudget = (state: RootState) =>
-  state.transactions.overallBudget || 0;
-
 export const selectCategoryBudgets = (state: {
   transactions: TransactionState;
 }) => state.transactions.categoryBudgets || {};
 
+export const selectOverallBudget = createSelector(
+  [selectCategoryBudgets, selectActiveExpenseCategories],
+  (budgets, categories) => categoryBudgetTotal(budgets, categories),
+);
+
 export const selectBudgetSummary = createSelector(
   [selectOverallBudget, selectCategoryBudgets],
   (overallBudget, categoryBudgets) => {
-    const allocated = Object.values(categoryBudgets).reduce(
-      (sum, amount) => sum + Math.max(0, amount),
-      0,
-    );
+    const allocated = overallBudget;
     return {
       overallBudget,
       categoryBudgets,
@@ -1209,7 +1229,11 @@ export const fetchTransactions = createAsyncThunk(
   },
 );
 
-export const setInsightsSampleDataAsync = createAsyncThunk<number, boolean, { state: RootState }>(
+export const setInsightsSampleDataAsync = createAsyncThunk<
+  number,
+  boolean,
+  { state: RootState }
+>(
   "transactions/setInsightsSampleData",
   async (enabled, { getState, dispatch }) => {
     const workspaceId = getState().workspace.activeWorkspaceId;
@@ -1263,12 +1287,15 @@ export const fetchAccounts = createAsyncThunk(
   },
 );
 
-export const fetchBudget = createAsyncThunk("transactions/fetchBudget", async () => {
-  if (!financeRepository) {
-    return { overallBudget: 0, categoryBudgets: [] };
-  }
-  return await financeRepository.getBudget();
-});
+export const fetchBudget = createAsyncThunk(
+  "transactions/fetchBudget",
+  async () => {
+    if (!financeRepository) {
+      return { overallBudget: 0, categoryBudgets: [] };
+    }
+    return await financeRepository.getBudget();
+  },
+);
 
 export const updateOverallBudgetAsync = createAsyncThunk(
   "transactions/updateOverallBudget",
@@ -1280,7 +1307,13 @@ export const updateOverallBudgetAsync = createAsyncThunk(
 
 export const updateCategoryBudgetAsync = createAsyncThunk(
   "transactions/updateCategoryBudget",
-  async ({ categoryName, amount }: { categoryName: string; amount: number }) => {
+  async ({
+    categoryName,
+    amount,
+  }: {
+    categoryName: string;
+    amount: number;
+  }) => {
     if (!financeRepository) throw new Error("Repository not available");
     return await financeRepository.upsertCategoryBudget(categoryName, amount);
   },
@@ -1368,21 +1401,43 @@ export const updateCategoryAsync = createAsyncThunk(
   },
 );
 
-export const deleteCategoriesAsync = createAsyncThunk<number, { names: string[]; type: TransactionType; destination?: string; workspaceId: string }, { state: RootState }>(
+export const deleteCategoriesAsync = createAsyncThunk<
+  number,
+  {
+    names: string[];
+    type: TransactionType;
+    destination?: string;
+    workspaceId: string;
+  },
+  { state: RootState }
+>(
   "transactions/deleteCategories",
   async ({ names, type, destination, workspaceId }, { getState, dispatch }) => {
-    if (getState().workspace.activeWorkspaceId !== workspaceId) throw new Error("Workspace changed. Open the category list again.");
+    if (getState().workspace.activeWorkspaceId !== workspaceId)
+      throw new Error("Workspace changed. Open the category list again.");
     const repository = new SQLiteFinanceRepository(workspaceId);
     await repository.deleteCategories(type, names, destination);
     try {
-      const [transactions, categories, budget] = await Promise.all([repository.getTransactions(), repository.getCategories(type), repository.getBudget()]);
+      const [transactions, categories, budget] = await Promise.all([
+        repository.getTransactions(),
+        repository.getCategories(type),
+        repository.getBudget(),
+      ]);
       if (getState().workspace.activeWorkspaceId === workspaceId) {
         dispatch(loadTransactions(transactions));
-        dispatch(fetchCategories.fulfilled({ type, categories }, "category-delete", type));
+        dispatch(
+          fetchCategories.fulfilled(
+            { type, categories },
+            "category-delete",
+            type,
+          ),
+        );
         dispatch(fetchBudget.fulfilled(budget, "category-delete", undefined));
       }
     } catch {
-      throw new Error("Categories were deleted, but the list could not refresh. Restart the app.");
+      throw new Error(
+        "Categories were deleted, but the list could not refresh. Restart the app.",
+      );
     }
     return names.length;
   },
@@ -1390,9 +1445,23 @@ export const deleteCategoriesAsync = createAsyncThunk<number, { names: string[];
 
 export const deleteCategoryAsync = createAsyncThunk(
   "transactions/deleteCategory",
-  async ({ name, type, fallback }: { name: string; type: TransactionType; fallback?: string }, { getState, dispatch }) => {
+  async (
+    {
+      name,
+      type,
+      fallback,
+    }: { name: string; type: TransactionType; fallback?: string },
+    { getState, dispatch },
+  ) => {
     const workspaceId = (getState() as RootState).workspace.activeWorkspaceId;
-    await dispatch(deleteCategoriesAsync({ names: [name], type, destination: fallback, workspaceId }) as any).unwrap();
+    await dispatch(
+      deleteCategoriesAsync({
+        names: [name],
+        type,
+        destination: fallback,
+        workspaceId,
+      }) as any,
+    ).unwrap();
     return { name, type };
   },
 );

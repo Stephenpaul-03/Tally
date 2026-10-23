@@ -1,12 +1,13 @@
+import { MotionItem } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
-import Animated from "react-native-reanimated";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { percentLabel, type calculateInsights } from "../calculations";
-import { AnimatedBar, MotionPressable, insightLayout } from "./Motion";
+import { AnimatedBar, MotionPressable } from "./Motion";
 import { CardDivider, Muted, styles } from "./Primitives";
 
 type Data = ReturnType<typeof calculateInsights>;
@@ -18,7 +19,13 @@ export function InsightCard({
   value,
   headerAction,
   children,
+  index = 0,
+  active = true,
+  initiallyVisible = false,
 }: {
+  index?: number;
+  active?: boolean;
+  initiallyVisible?: boolean;
   title?: string;
   icon?: Icon;
   color?: string;
@@ -26,59 +33,93 @@ export function InsightCard({
   headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const accent = color ?? theme.colors.primary;
-  return (
-    <Animated.View
-      layout={insightLayout}
+  const header = title ? (
+    <View
       style={{
-        padding: 14,
-        borderRadius: 20,
+        flexDirection: "row",
+        alignItems: "center",
         gap: 10,
-        overflow: "hidden",
-        backgroundColor: theme.colors.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.outlineVariant,
+        minHeight: headerAction ? 52 : 48,
+        paddingHorizontal: theme.expressive ? 12 : 5,
       }}
     >
-      {title ? (
-        <>
-          <View style={[styles.row, { minHeight: 20 }, headerAction ? { flexWrap: "wrap", gap: 8 } : null]}>
-            <MaterialCommunityIcons name={icon} size={26} color={accent} />
-            <Text
-              accessibilityRole="header"
-              style={{
-                ...typography.editorial.sectionLabel,
-                fontSize: 18,
-                lineHeight: 22,
-                minWidth: headerAction ? 72 : undefined,
-                flex: 1,
-                color: theme.colors.onSurface,
-              }}
-            >
-              {title}
-            </Text>
-            {headerAction ?? (value ? (
-              <Text
-                style={{
-                  ...typography.editorial.sectionLabel,
-                  fontSize: 14,
-                  lineHeight: 18,
-                  color: theme.colors.onSurface,
-                  flexShrink: 1,
-                }}
-              >
-                {value}
-              </Text>
-            ) : null)}
-          </View>
-          <CardDivider />
-        </>
-      ) : null}
-      {children}
-    </Animated.View>
+      <MaterialCommunityIcons
+        name={icon}
+        size={22}
+        color={theme.expressive ? theme.colors.onSurface : accent}
+      />
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={{
+          ...typography.editorial.sectionLabel,
+          fontSize: 20,
+          lineHeight: 26,
+          minWidth: 0,
+          flex: 1,
+          color: theme.colors.onSurface,
+        }}
+      >
+        {title}
+      </Text>
+      {headerAction ??
+        (value ? (
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "700",
+              color: theme.colors.onSurfaceVariant,
+            }}
+          >
+            {value}
+          </Text>
+        ) : null)}
+    </View>
+  ) : null;
+  return (
+    <MotionItem
+      index={index}
+      active={active}
+      initiallyVisible={initiallyVisible}
+      animateLayout={!initiallyVisible}
+      style={
+        theme.expressive
+          ? { gap: 0 }
+          : {
+              padding: 14,
+              borderRadius: 20,
+              gap: 10,
+              overflow: "hidden",
+              backgroundColor: theme.colors.surface,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.colors.outlineVariant,
+            }
+      }
+    >
+      {header}
+      {!theme.expressive && title ? <CardDivider /> : null}
+      <View
+        style={
+          theme.expressive
+            ? {
+                backgroundColor: theme.colors.surface,
+                borderRadius: 32,
+                padding: 14,
+                gap: 10,
+                overflow: "hidden",
+              }
+            : { gap: 10 }
+        }
+      >
+        {children}
+      </View>
+    </MotionItem>
   );
 }
+
 export function MoneyHero({
   data,
   money,
@@ -172,13 +213,17 @@ function HeroValue({
   onPress: () => void;
   disabled?: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   return (
     <MotionPressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole={disabled ? "text" : "button"}
-      accessibilityLabel={disabled ? `${label}, no entries recorded` : `${label}, ${value}. View entries.`}
+      accessibilityLabel={
+        disabled
+          ? `${label}, no entries recorded`
+          : `${label}, ${value}. View entries.`
+      }
       style={{
         flexGrow: 1,
         flexBasis: 90,

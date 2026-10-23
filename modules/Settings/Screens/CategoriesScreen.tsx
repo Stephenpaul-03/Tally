@@ -1,3 +1,4 @@
+import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
 import options from "@/data/management-options.json";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
@@ -9,7 +10,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { SettingsStackParamList } from "../Navigation";
 
 const NAME_LIMIT = 30;
@@ -150,7 +150,7 @@ export function CategoriesScreen() {
   };
 
   return (
-    <SafeAreaView
+    <SettingsPage
       style={{
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -205,6 +205,6 @@ export function CategoriesScreen() {
         onConfirmDelete={handleConfirmDelete}
         onBack={handleBack}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }

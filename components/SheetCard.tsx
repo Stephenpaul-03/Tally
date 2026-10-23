@@ -1,3 +1,6 @@
+import { settingsShape } from "@/theme/settingsShape";
+import { MotionItem } from "@/components/animations/Motion";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import React from "react";
 import { StyleProp, View, ViewStyle } from "react-native";
 import { type MD3Theme } from "react-native-paper";
@@ -9,6 +12,7 @@ interface SheetCardProps {
 }
 
 export function SheetCard({ children, theme, style }: SheetCardProps) {
+  const expressive = (theme as ExtendedMD3Theme).expressive;
   const childItems = React.Children.toArray(children);
 
   return (
@@ -23,10 +27,25 @@ export function SheetCard({ children, theme, style }: SheetCardProps) {
           borderWidth: 0.5,
           borderColor: theme.colors.outlineVariant,
         },
+        expressive && {
+          marginHorizontal: 16,
+          borderRadius: 28,
+          borderWidth: 0,
+          padding: 4,
+          marginBottom: 14,
+        },
         style,
+        settingsShape(theme as ExtendedMD3Theme, "group"),
       ]}
     >
-      {childItems}
+      {childItems.map((child, index) => (
+        <MotionItem
+          key={(child as React.ReactElement).key ?? index}
+          index={index}
+        >
+          {child}
+        </MotionItem>
+      ))}
     </View>
   );
 }

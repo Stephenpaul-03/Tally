@@ -1,7 +1,8 @@
 import React from "react";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import { View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { typography } from "@/theme/typography";
 

@@ -1,3 +1,4 @@
+import { settingsShape } from "@/theme/settingsShape";
 /* eslint-disable react/no-unescaped-entities */
 import { AlertModal } from "@/components/alert/AlertModal";
 import { InlineDatePicker } from "@/components/datepicker/DatePickerModal";
@@ -23,7 +24,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Button, Switch, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, Switch, TextInput, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SettingsHeader } from "../Components/SettingsHeader";
 
@@ -118,6 +120,7 @@ function Card({ children }: { children: React.ReactNode }) {
     <View
       style={[
         styles.card,
+        settingsShape(theme),
         {
           backgroundColor: theme.colors.elevation.level1,
           borderColor: theme.colors.outlineVariant,
@@ -154,6 +157,7 @@ function ScopeCard({
     <View
       style={[
         styles.scopeCard,
+        settingsShape(theme),
         {
           backgroundColor: active
             ? theme.colors.primaryContainer
@@ -162,8 +166,12 @@ function ScopeCard({
             ? theme.colors.primary
             : theme.colors.outlineVariant,
           borderWidth: active ? 1.5 : 1,
-          borderBottomLeftRadius: squareBottom ? 0 : 16,
-          borderBottomRightRadius: squareBottom ? 0 : 16,
+          borderBottomLeftRadius: squareBottom
+            ? 0
+            : (settingsShape(theme)?.borderRadius ?? 16),
+          borderBottomRightRadius: squareBottom
+            ? 0
+            : (settingsShape(theme)?.borderRadius ?? 16),
         },
       ]}
     >
@@ -281,6 +289,10 @@ function AllTransactionsSummary({
     <View
       style={[
         styles.conjoinedSummary,
+        settingsShape(theme) && {
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+        },
         {
           backgroundColor: theme.colors.elevation.level1,
           borderColor: theme.colors.primary,
@@ -685,6 +697,7 @@ function ExportConfirmModal({
       <View
         style={[
           styles.confirmSummaryCard,
+          settingsShape(theme),
           {
             backgroundColor: theme.colors.elevation.level2,
             borderColor: theme.colors.outlineVariant,

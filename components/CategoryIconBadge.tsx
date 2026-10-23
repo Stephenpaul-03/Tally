@@ -1,3 +1,6 @@
+import { useTheme } from "react-native-paper";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { categoryTone } from "@/theme/sage";
 import React from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,22 +17,69 @@ function darkenHex(hex: string, amount = 0.18) {
 }
 
 // Shared by transaction rows and Insights, including the minimal-icons preference.
-export function CategoryIconBadge({ icon, color, style }: {
+export function CategoryIconBadge({
+  icon,
+  color,
+  style,
+  categoryName,
+}: {
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   color: string;
   style?: StyleProp<ViewStyle>;
+  categoryName?: string;
 }) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  const [backgroundColor, foregroundColor] = categoryTone(
+    categoryName ?? "",
+    theme.dark,
+    color,
+  );
   const { minimalIconsEnabled } = useAddonPrefs();
-  return <View style={[styles.badge, {
-    backgroundColor: minimalIconsEnabled ? "transparent" : darkenHex(color),
-    borderWidth: 0,
-  }, style]}>
-    <MaterialCommunityIcons name={icon} size={20}
-      color={minimalIconsEnabled ? color : "#FFFFFF"} style={styles.icon} accessible={false} />
-  </View>;
+  return (
+    <View
+      collapsable={false}
+      style={[
+        styles.badge,
+        {
+          backgroundColor: minimalIconsEnabled
+            ? "transparent"
+            : theme.expressive
+              ? backgroundColor
+              : darkenHex(color),
+          borderWidth: 0,
+        },
+        theme.expressive && { width: 44, height: 44, borderRadius: 16 },
+        style,
+      ]}
+    >
+      <MaterialCommunityIcons
+        name={icon}
+        size={20}
+        color={
+          theme.expressive
+            ? minimalIconsEnabled
+              ? theme.colors.primary
+              : foregroundColor
+            : minimalIconsEnabled
+              ? color
+              : "#FFFFFF"
+        }
+        style={styles.icon}
+        accessible={false}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  badge: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  badge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    overflow: "hidden",
+  },
   icon: { flexShrink: 0, width: 22, textAlign: "center" },
 });

@@ -1,3 +1,5 @@
+import { TonalSummaryTile } from "./TonalSummaryTile";
+import { categoryTone } from "@/theme/sage";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import { typography } from "@/theme/typography";
@@ -5,7 +7,8 @@ import { getCategoryColor, getCategoryIconName } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { useWindowDimensions, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -32,6 +35,7 @@ export function CategorySection({
   showAll = false,
   onShowAll,
   inset = 14,
+  expressive = false,
 }: {
   title?: string;
   type: "income" | "expense";
@@ -42,19 +46,90 @@ export function CategorySection({
   onSelect: (group: Group) => void;
   incomeTotal?: number;
   budgets?: Record<string, number>;
-  comparison?: boolean; comparisonPeriod?: string;
+  comparison?: boolean;
+  comparisonPeriod?: string;
   emptyState?: React.ReactNode;
   showAll?: boolean;
   onShowAll?: () => void;
   inset?: number;
+  expressive?: boolean;
 }) {
   const theme = useTheme();
   const { width, fontScale } = useWindowDimensions();
   const stacked = width < 380 || fontScale > 1.25;
-  const rows = sortCategories(groups.filter(
-    (group) => group.count > 0 || (comparison && group.previousCount > 0),
-  ), group => group.name);
+  const rows = sortCategories(
+    groups.filter(
+      (group) => group.count > 0 || (comparison && group.previousCount > 0),
+    ),
+    (group) => group.name,
+  );
   const visible = showAll ? rows : rows.slice(0, 3);
+  if (
+    expressive &&
+    !showAll &&
+    !comparison &&
+    incomeTotal === 0 &&
+    rows.length
+  ) {
+    const tiles = [
+      ...visible,
+      ...(rows.length > 3
+        ? [
+            {
+              name: `${rows.length - 3} more`,
+              amount: rows.slice(3).reduce((sum, row) => sum + row.amount, 0),
+              share: rows.slice(3).reduce((sum, row) => sum + row.share, 0),
+              aggregate: true,
+            },
+          ]
+        : []),
+    ];
+    return (
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {tiles.map((group, index) => {
+          const aggregate = "aggregate" in group;
+          const [backgroundColor, color] = categoryTone(
+            group.name,
+            theme.dark,
+            aggregate ? undefined : getCategoryColor(group.name, type, colors),
+          );
+          const budget = budgets?.[group.name];
+          return (
+            <TonalSummaryTile
+              key={group.name}
+              index={index}
+              background={backgroundColor}
+              foreground={color}
+              icon={
+                aggregate
+                  ? "view-grid-outline"
+                  : (getCategoryIconName(
+                      group.name,
+                      type,
+                      icons,
+                    ) as React.ComponentProps<
+                      typeof MaterialCommunityIcons
+                    >["name"])
+              }
+              value={money(group.amount)}
+              caption={`${group.name} · ${percentLabel(group.share * 100)}`}
+              onPress={() =>
+                aggregate ? onShowAll?.() : onSelect(group as Group)
+              }
+              note={
+                budget && budget > 0
+                  ? `${money(Math.abs(budget - group.amount))} ${group.amount > budget ? "over budget" : "budget left"}`
+                  : undefined
+              }
+              noteColor={
+                budget && group.amount > budget ? theme.colors.error : color
+              }
+            />
+          );
+        })}
+      </View>
+    );
+  }
   const content = (
     <Animated.View layout={insightLayout}>
       {!rows.length
@@ -81,7 +156,12 @@ export function CategorySection({
             ? `No entries in ${comparisonPeriod}`
             : group.amount === group.previous
               ? `Same as ${comparisonPeriod}`
-              : amountChangeLabel(group.amount, group.previous, money, comparisonPeriod);
+              : amountChangeLabel(
+                  group.amount,
+                  group.previous,
+                  money,
+                  comparisonPeriod,
+                );
         return (
           <Animated.View
             key={group.name}
@@ -102,6 +182,7 @@ export function CategorySection({
               }}
             >
               <CategoryIconBadge
+                categoryName={group.name}
                 icon={
                   getCategoryIconName(
                     group.name,

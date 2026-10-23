@@ -1,6 +1,10 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryBulkDeleteModal } from "../Components/BulkDeleteModal";
-import { useStagger } from "@/components/animations/UseStagger";
+import {
+  ManagementEntranceItem,
+  useManagementEntranceProgress,
+} from "@/components/animations/ManagementEntranceItem";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { TypeToggle } from "@/components/TypeToggle";
@@ -92,17 +96,23 @@ function CategoryListContent({
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
-  const workspaceDefaults = getWorkspaceDefaults(activeWorkspace?.id ?? "personal");
+  const workspaceDefaults = getWorkspaceDefaults(
+    activeWorkspace?.id ?? "personal",
+  );
   const [sortField, setSortField] = React.useState<CategorySortField>(
     workspaceDefaults.categorySortField,
   );
   const [sortDirection, setSortDirection] =
-    React.useState<CategorySortDirection>(workspaceDefaults.categorySortDirection);
+    React.useState<CategorySortDirection>(
+      workspaceDefaults.categorySortDirection,
+    );
   React.useEffect(() => {
     setSortField(workspaceDefaults.categorySortField);
     setSortDirection(workspaceDefaults.categorySortDirection);
-  }, [workspaceDefaults.categorySortDirection, workspaceDefaults.categorySortField]);
-  const animatedOnceRef = React.useRef(false);
+  }, [
+    workspaceDefaults.categorySortDirection,
+    workspaceDefaults.categorySortField,
+  ]);
   const [useIntroAnimation, setUseIntroAnimation] = React.useState(true);
   const pageProgress = React.useRef(
     new Animated.Value(management.selectedType === "income" ? 1 : 0),
@@ -136,14 +146,18 @@ function CategoryListContent({
           : true,
       );
 
-      return sortCategories(ordered, name => name, (a, b) => {
-        const result =
-          sortField === "name"
-            ? a.localeCompare(b)
-            : (management.categoryStatsByType[type][a]?.count ?? 0) -
-              (management.categoryStatsByType[type][b]?.count ?? 0);
-        return sortDirection === "asc" ? result : -result;
-      });
+      return sortCategories(
+        ordered,
+        (name) => name,
+        (a, b) => {
+          const result =
+            sortField === "name"
+              ? a.localeCompare(b)
+              : (management.categoryStatsByType[type][a]?.count ?? 0) -
+                (management.categoryStatsByType[type][b]?.count ?? 0);
+          return sortDirection === "asc" ? result : -result;
+        },
+      );
     },
     [management, normalizedQuery, sortDirection, sortField],
   );
@@ -156,8 +170,6 @@ function CategoryListContent({
     () => buildPage("income"),
     [buildPage],
   );
-  const activeCategories =
-    management.selectedType === "income" ? incomeCategories : expenseCategories;
   const categoryHasActivity = React.useMemo(
     () =>
       Object.values(management.categoryStatsByType.income).some(
@@ -186,19 +198,7 @@ function CategoryListContent({
   const pickerViewportHeight = listHeight + 36;
   const pickerModalHeight = pickerViewportHeight + 64;
 
-  const { getAnimStyle } = useStagger({
-    count: activeCategories.length,
-    stagger: 70,
-    distance: 20,
-    duration: 550,
-    dataKey: "categories-first-mount",
-    autoPlay: !animatedOnceRef.current,
-    replayOnCountChange: false,
-  });
-
-  React.useEffect(() => {
-    animatedOnceRef.current = true;
-  }, []);
+  const entranceProgress = useManagementEntranceProgress();
 
   const handleSelectType = React.useCallback(
     (type: TransactionType) => {
@@ -212,30 +212,50 @@ function CategoryListContent({
 
   const sortAccessory = !pickerMode ? (
     <View style={{ flexDirection: "row", gap: 8 }}>
-    <TouchableRipple accessibilityLabel="Delete multiple categories" onPress={() => setBulkDeleteOpen(true)} borderless style={{ width: 32, height: 32, borderRadius: 99, alignItems: "center", justifyContent: "center" }}>
-      <MaterialCommunityIcons name="checkbox-multiple-marked-outline" size={20} color={c.onSurfaceVariant} />
-    </TouchableRipple>
-    <TouchableRipple
-      onPress={() => setSortOpen(true)}
-      borderless
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: 99,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: c.surface,
-        borderWidth: 1,
-        borderColor: c.outlineVariant,
-      }}
-      accessibilityLabel="Sort categories"
-    >
-      <MaterialCommunityIcons
-        name="sort"
-        size={18}
-        color={c.onSurfaceVariant}
-      />
-    </TouchableRipple>
+      <TouchableRipple
+        accessibilityLabel="Delete multiple categories"
+        onPress={() => setBulkDeleteOpen(true)}
+        borderless
+        style={{
+          backgroundColor: (theme as ExtendedMD3Theme).expressive
+            ? c.surfaceVariant
+            : undefined,
+          width: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
+          height: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
+          borderRadius: 99,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MaterialCommunityIcons
+          name="checkbox-multiple-marked-outline"
+          size={20}
+          color={c.onSurfaceVariant}
+        />
+      </TouchableRipple>
+      <TouchableRipple
+        onPress={() => setSortOpen(true)}
+        borderless
+        style={{
+          width: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
+          height: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
+          borderRadius: 99,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: (theme as ExtendedMD3Theme).expressive
+            ? c.surfaceVariant
+            : c.surface,
+          borderWidth: (theme as ExtendedMD3Theme).expressive ? 0 : 1,
+          borderColor: c.outlineVariant,
+        }}
+        accessibilityLabel="Sort categories"
+      >
+        <MaterialCommunityIcons
+          name="sort"
+          size={(theme as ExtendedMD3Theme).expressive ? 21 : 18}
+          color={c.onSurfaceVariant}
+        />
+      </TouchableRipple>
     </View>
   ) : undefined;
   const headerSearchWidth = Math.min(240, Math.max(150, width - 190));
@@ -310,7 +330,7 @@ function CategoryListContent({
             management={management}
             minimalIconsEnabled={minimalIconsEnabled}
             showTransactionLabels={categoryHasActivity}
-            getAnimStyle={getAnimStyle}
+            entranceProgress={entranceProgress}
             theme={theme}
             divider={divider}
           />
@@ -351,10 +371,9 @@ function CategoryListContent({
               management={management}
               minimalIconsEnabled={minimalIconsEnabled}
               showTransactionLabels={categoryHasActivity}
-              getAnimStyle={
+              entranceProgress={entranceProgress}
+              animateEntrance={
                 useIntroAnimation && management.selectedType === "expense"
-                  ? getAnimStyle
-                  : undefined
               }
               theme={theme}
               divider={divider}
@@ -371,10 +390,9 @@ function CategoryListContent({
               management={management}
               minimalIconsEnabled={minimalIconsEnabled}
               showTransactionLabels={categoryHasActivity}
-              getAnimStyle={
+              entranceProgress={entranceProgress}
+              animateEntrance={
                 useIntroAnimation && management.selectedType === "income"
-                  ? getAnimStyle
-                  : undefined
               }
               theme={theme}
               divider={divider}
@@ -389,6 +407,9 @@ function CategoryListContent({
             value={management.selectedType}
             onChange={handleSelectType}
             progressAnim={pageProgress}
+            borderWidth={0}
+            radius={(theme as ExtendedMD3Theme).expressive ? 24 : undefined}
+            trackBackgroundColor={c.elevation.level1}
           />
           <Pressable
             onPress={management.handleAddNewCategory}
@@ -422,7 +443,13 @@ function CategoryListContent({
           </Pressable>
         </View>
       )}
-      {!pickerMode ? <CategoryBulkDeleteModal visible={bulkDeleteOpen} onDismiss={() => setBulkDeleteOpen(false)} management={management} /> : null}
+      {!pickerMode ? (
+        <CategoryBulkDeleteModal
+          visible={bulkDeleteOpen}
+          onDismiss={() => setBulkDeleteOpen(false)}
+          management={management}
+        />
+      ) : null}
       <SortOptionSheet
         visible={sortOpen}
         onDismiss={() => setSortOpen(false)}
@@ -575,7 +602,8 @@ function CategoryPage({
   management,
   minimalIconsEnabled,
   showTransactionLabels,
-  getAnimStyle,
+  entranceProgress,
+  animateEntrance = true,
   theme,
   divider,
 }: {
@@ -590,7 +618,8 @@ function CategoryPage({
   management: ReturnType<typeof useCategoryManagement>;
   minimalIconsEnabled: boolean;
   showTransactionLabels: boolean;
-  getAnimStyle?: ReturnType<typeof useStagger>["getAnimStyle"];
+  entranceProgress: ReturnType<typeof useManagementEntranceProgress>;
+  animateEntrance?: boolean;
   theme: MD3Theme;
   divider: string;
 }) {
@@ -609,6 +638,7 @@ function CategoryPage({
         }
       >
         <KeyboardAwareScrollView
+          removeClippedSubviews={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
@@ -661,12 +691,12 @@ function CategoryPage({
                 {row.map((name, itemIndex) => {
                   const animatedIndex = rowIdx * 2 + itemIndex;
                   return (
-                    <Animated.View
+                    <ManagementEntranceItem
                       key={name}
-                      style={[
-                        { flex: 1, maxWidth: "50%" },
-                        getAnimStyle?.(animatedIndex),
-                      ]}
+                      index={animatedIndex}
+                      progress={entranceProgress}
+                      animate={animateEntrance}
+                      style={{ flex: 1, maxWidth: "50%" }}
                     >
                       <CategoryTile
                         name={name}
@@ -688,7 +718,7 @@ function CategoryPage({
                         }
                         theme={theme}
                       />
-                    </Animated.View>
+                    </ManagementEntranceItem>
                   );
                 })}
                 {row.length === 1 && (

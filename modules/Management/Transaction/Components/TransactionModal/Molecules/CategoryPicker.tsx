@@ -1,3 +1,5 @@
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useCategoryManagement } from "@/hooks/use-category-manamgement";
 import { CategoryManagementModal } from "@/modules/Management/Category/Index";
@@ -64,7 +66,7 @@ export function CategoryPicker({
             minWidth: 0,
           }}
         >
-          <View
+          {(theme as ExtendedMD3Theme).expressive && selectedIconName ? <CategoryIconBadge categoryName={value} icon={selectedIconName} color={selectedColor ?? theme.colors.primary} style={{ width: 36, height: 36, borderRadius: 10 }} /> : (          <View
             style={{
               width: 36,
               height: 36,
@@ -94,6 +96,7 @@ export function CategoryPicker({
               />
             )}
           </View>
+)}
           <Text
             variant="bodyMedium"
             numberOfLines={1}

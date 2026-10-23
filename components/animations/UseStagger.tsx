@@ -1,3 +1,4 @@
+import { useMotionEnabled, useMotionFocus } from "./Motion";
 import { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
 
@@ -22,6 +23,10 @@ interface UseStaggerOptions {
   autoPlay?: boolean;
   /** Replay when the item count changes. Default: true */
   replayOnCountChange?: boolean;
+  /** Replay when returning to a mounted route. Default: true. */
+  replayOnFocus?: boolean;
+  /** Keep the initial cards hidden until the surrounding route is placed. */
+  ready?: boolean;
 }
 
 interface UseStaggerReturn {
@@ -45,11 +50,17 @@ export function useStagger({
   duration = 350,
   autoPlay = true,
   replayOnCountChange = true,
+  replayOnFocus = true,
+  ready = true,
 }: UseStaggerOptions): UseStaggerReturn {
+  const enabled = useMotionEnabled();
+  const focused = useMotionFocus();
+  const animation = useRef<Animated.CompositeAnimation | null>(null);
   const opacities = useRef<Animated.Value[]>([]);
   const translates = useRef<Animated.Value[]>([]);
   const previousDataKey = useRef<unknown>(dataKey);
   const previousCount = useRef(count);
+  const played = useRef(false);
 
   // Grow arrays if count increased
   while (opacities.current.length < count) {
@@ -65,14 +76,19 @@ export function useStagger({
   };
 
   function play() {
+    animation.current?.stop();
+    if (!enabled) {
+      syncVisible();
+      return;
+    }
     for (let i = 0; i < count; i++) {
       opacities.current[i].setValue(0);
       translates.current[i].setValue(distance);
     }
 
-    Animated.parallel(
+    animation.current = Animated.parallel(
       Array.from({ length: count }, (_, i) => {
-        const delay = baseDelay + i * stagger;
+        const delay = baseDelay + Math.min(i, 8) * stagger;
         return Animated.parallel([
           Animated.timing(opacities.current[i], {
             toValue: 1,
@@ -92,32 +108,50 @@ export function useStagger({
           ]),
         ]);
       }),
-    ).start();
+    );
+    animation.current.start();
   }
 
-  // Replay whenever dataKey changes (covers same-count data changes)
-  // or count changes (covers list growing/shrinking)
   useEffect(() => {
-    const dataKeyChanged = previousDataKey.current !== dataKey;
-    const countChanged = previousCount.current !== count;
-
-    if (dataKeyChanged) {
-      previousDataKey.current = dataKey;
-      previousCount.current = count;
-      if (autoPlay) play();
-      return;
-    }
-
-    previousCount.current = count;
-
-    if (countChanged && !replayOnCountChange) {
+    if (!enabled || !autoPlay) {
+      animation.current?.stop();
       syncVisible();
       return;
     }
-
-    if (autoPlay) play();
+    // A native push must not reset or hide the screen beneath it. Returning
+    // from an editor also leaves a once-only entrance intact.
+    if (!focused || !ready) return;
+    const dataKeyChanged = previousDataKey.current !== dataKey;
+    const countChanged = previousCount.current !== count;
+    previousDataKey.current = dataKey;
+    previousCount.current = count;
+    if (
+      !played.current ||
+      dataKeyChanged ||
+      (countChanged && replayOnCountChange) ||
+      (!countChanged && replayOnFocus)
+    ) {
+      played.current = true;
+      play();
+    } else if (countChanged) {
+      // Settle the current entrance before exposing new items when count
+      // changes are not an entrance trigger.
+      animation.current?.stop();
+      syncVisible();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoPlay, count, dataKey, replayOnCountChange]);
+  }, [
+    autoPlay,
+    count,
+    dataKey,
+    replayOnCountChange,
+    replayOnFocus,
+    enabled,
+    focused,
+    ready,
+  ]);
+
+  useEffect(() => () => animation.current?.stop(), []);
 
   function getAnimStyle(index: number) {
     return {

@@ -43,7 +43,10 @@ export type ThemeId =
   | "mono"
   | "ocean"
   | "amethyst"
-  | "gold";
+  | "gold"
+  | "sage"
+  | "terracotta"
+  | "citrus";
 
 /** Only accent slots are required per theme. */
 export type AccentPalette = {
@@ -71,6 +74,7 @@ export type SemanticColors = {
 };
 
 export type ExtendedMD3Theme = MD3Theme & {
+  expressive?: boolean;
   semantic: SemanticColors;
 };
 
@@ -287,6 +291,97 @@ const ACCENTS: Record<ThemeId, { light: AccentPalette; dark: AccentPalette }> =
         onTertiary: "#2E2F58",
         tertiaryContainer: "#464888",
         onTertiaryContainer: "#ECEEF9",
+      },
+    },
+
+    terracotta: {
+      light: {
+        primary: "#9C432C",
+        onPrimary: "#FFFFFF",
+        primaryContainer: "#FFDBD0",
+        onPrimaryContainer: "#3B0900",
+        secondary: "#77574D",
+        onSecondary: "#FFFFFF",
+        secondaryContainer: "#FFDBD0",
+        onSecondaryContainer: "#2C160F",
+        tertiary: "#6C5D2F",
+        onTertiary: "#FFFFFF",
+        tertiaryContainer: "#F5E1A7",
+        onTertiaryContainer: "#241B00",
+      },
+      dark: {
+        primary: "#FFB59E",
+        onPrimary: "#5F1504",
+        primaryContainer: "#7D2D17",
+        onPrimaryContainer: "#FFDBD0",
+        secondary: "#E7BDB0",
+        onSecondary: "#442A22",
+        secondaryContainer: "#5D4037",
+        onSecondaryContainer: "#FFDBD0",
+        tertiary: "#D8C58D",
+        onTertiary: "#3B2F05",
+        tertiaryContainer: "#53451A",
+        onTertiaryContainer: "#F5E1A7",
+      },
+    },
+    citrus: {
+      light: {
+        primary: "#556500",
+        onPrimary: "#FFFFFF",
+        primaryContainer: "#D9ED89",
+        onPrimaryContainer: "#181E00",
+        secondary: "#5C6147",
+        onSecondary: "#FFFFFF",
+        secondaryContainer: "#E1E6C5",
+        onSecondaryContainer: "#191D0B",
+        tertiary: "#3E6657",
+        onTertiary: "#FFFFFF",
+        tertiaryContainer: "#C0ECD9",
+        onTertiaryContainer: "#002116",
+      },
+      dark: {
+        primary: "#BDD16F",
+        onPrimary: "#2B3400",
+        primaryContainer: "#404D00",
+        onPrimaryContainer: "#D9ED89",
+        secondary: "#C5CAAA",
+        onSecondary: "#2E331F",
+        secondaryContainer: "#444A34",
+        onSecondaryContainer: "#E1E6C5",
+        tertiary: "#A5D0BE",
+        onTertiary: "#0E382A",
+        tertiaryContainer: "#275040",
+        onTertiaryContainer: "#C0ECD9",
+      },
+    },
+    sage: {
+      light: {
+        primary: "#006B5B",
+        onPrimary: "#FFFFFF",
+        primaryContainer: "#A2F2DC",
+        onPrimaryContainer: "#00201A",
+        secondary: "#3F6359",
+        onSecondary: "#FFFFFF",
+        secondaryContainer: "#CDE8DF",
+        onSecondaryContainer: "#0B2019",
+        tertiary: "#426277",
+        onTertiary: "#FFFFFF",
+        tertiaryContainer: "#C5E7FF",
+        onTertiaryContainer: "#001E2E",
+      },
+      dark: {
+        primary: "#86D6C1",
+        onPrimary: "#00382E",
+        primaryContainer: "#005144",
+        onPrimaryContainer: "#A2F2DC",
+        secondary: "#B1CCC2",
+        onSecondary: "#1D352D",
+        secondaryContainer: "#334B44",
+        onSecondaryContainer: "#CDE8DF",
+        tertiary: "#AACBE2",
+        onTertiary: "#103447",
+        tertiaryContainer: "#294B5F",
+        onTertiaryContainer: "#C5E7FF",
       },
     },
 
@@ -640,19 +735,19 @@ export const THEME_PRESETS: Record<
     secondarySeed?: string;
   }
 > = {
+  mono: {
+    label: "Mono",
+    mood: "Minimal",
+    description: "Pure black & white — zero hue, maximum intent",
+    primarySeed: "#0A0A0B",
+    secondarySeed: "#3A3A3F",
+  },
   slate: {
     label: "Slate",
     mood: "Default",
     description: "Cool blue-gray — calm, neutral, never competes with content",
     primarySeed: "#3F4C60",
     secondarySeed: "#556070",
-  },
-  sakura: {
-    label: "Sakura",
-    mood: "Warm",
-    description: "Muted rose accent, surfaces stay white",
-    primarySeed: "#9D5F6A",
-    secondarySeed: "#7D5259",
   },
   inkBlue: {
     label: "Ink Blue",
@@ -661,12 +756,26 @@ export const THEME_PRESETS: Record<
     primarySeed: "#3730A3",
     secondarySeed: "#4F46A3",
   },
-  forest: {
-    label: "Forest",
-    mood: "Natural",
-    description: "Dark pine green — organic, grounded, deep",
-    primarySeed: "#1E4D3A",
-    secondarySeed: "#2E5C4A",
+  amethyst: {
+    label: "Amethyst",
+    mood: "Creative",
+    description: "Muted plum — the only true violet in the set",
+    primarySeed: "#6B4E9B",
+    secondarySeed: "#7A5E9A",
+  },
+  sakura: {
+    label: "Sakura",
+    mood: "Warm",
+    description: "Muted rose accent, surfaces stay white",
+    primarySeed: "#9D5F6A",
+    secondarySeed: "#7D5259",
+  },
+  terracotta: {
+    label: "Terracotta",
+    mood: "Warm",
+    description: "Earthy clay and peach",
+    primarySeed: "#9C432C",
+    secondarySeed: "#77574D",
   },
   mocha: {
     label: "Mocha",
@@ -675,12 +784,33 @@ export const THEME_PRESETS: Record<
     primarySeed: "#6B3F2A",
     secondarySeed: "#7A5444",
   },
-  mono: {
-    label: "Mono",
-    mood: "Minimal",
-    description: "Pure black & white — zero hue, maximum intent",
-    primarySeed: "#0A0A0B",
-    secondarySeed: "#3A3A3F",
+  gold: {
+    label: "Gold",
+    mood: "Premium",
+    description: "Antique bronze — warm, prestigious, timeless",
+    primarySeed: "#A67C3A",
+    secondarySeed: "#8A6C2A",
+  },
+  citrus: {
+    label: "Citrus",
+    mood: "Bright",
+    description: "Lively lime and olive",
+    primarySeed: "#556500",
+    secondarySeed: "#5C6147",
+  },
+  forest: {
+    label: "Forest",
+    mood: "Natural",
+    description: "Dark pine green — organic, grounded, deep",
+    primarySeed: "#1E4D3A",
+    secondarySeed: "#2E5C4A",
+  },
+  sage: {
+    label: "Sage",
+    mood: "Expressive",
+    description: "Fresh mint and sage green",
+    primarySeed: "#006B5B",
+    secondarySeed: "#3F6359",
   },
   ocean: {
     label: "Ocean",
@@ -688,20 +818,6 @@ export const THEME_PRESETS: Record<
     description: "Teal-blue — crisp, open, bright",
     primarySeed: "#0F5C78",
     secondarySeed: "#1A6880",
-  },
-  amethyst: {
-    label: "Amethyst",
-    mood: "Creative",
-    description: "Muted plum — the only true violet in the set",
-    primarySeed: "#6B4E9B",
-    secondarySeed: "#7A5E9A",
-  },
-  gold: {
-    label: "Gold",
-    mood: "Premium",
-    description: "Antique bronze — warm, prestigious, timeless",
-    primarySeed: "#A67C3A",
-    secondarySeed: "#8A6C2A",
   },
 };
 

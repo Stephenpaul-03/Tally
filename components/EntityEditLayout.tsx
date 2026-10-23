@@ -1,3 +1,5 @@
+import { categoryTone } from "@/theme/sage";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { matchesIconSearch } from "@/utils/icon-search";
 import {
   CurrencyPickerField,
@@ -18,7 +20,8 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { Text, type MD3Theme } from "react-native-paper";
+import { type MD3Theme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type IconGrid = {
@@ -124,6 +127,7 @@ export function EntityEditLayout({
   nameLabel = "Name",
   emptyPreviewLabel = "Name",
   headerSubtitle,
+  iconPickerVariant = "category",
   showHeader = true,
   showPreview = true,
   showPreviewName = true,
@@ -152,6 +156,12 @@ export function EntityEditLayout({
   const previewColor = minimalIconsEnabled
     ? c.primary
     : localColor || c.primary;
+  const expressive = (theme as ExtendedMD3Theme).expressive;
+  const [previewBackground, previewForeground] = categoryTone(
+    iconPickerVariant === "category" ? localName : "",
+    theme.dark,
+    localColor || c.primary,
+  );
   const visiblePickerRows = 2;
   const uniqueColors = [...new Set(allColors)];
   const usedIconSet = new Set(usedIcons);
@@ -251,9 +261,11 @@ export function EntityEditLayout({
           alignItems: "center",
           backgroundColor: minimalIconsEnabled
             ? c.background
-            : darkenHex(previewColor),
+            : expressive
+              ? previewBackground
+              : darkenHex(previewColor),
           borderColor: minimalIconsEnabled ? c.elevation.level1 : "transparent",
-          borderRadius: 12,
+          borderRadius: expressive ? 16 : 12,
           borderWidth: minimalIconsEnabled ? 1 : 0,
           height: 54,
           justifyContent: "center",
@@ -264,7 +276,13 @@ export function EntityEditLayout({
         <MaterialCommunityIcons
           name={(localIcon || "tag-outline") as any}
           size={28}
-          color={minimalIconsEnabled ? previewColor : "#FFFFFF"}
+          color={
+            minimalIconsEnabled
+              ? previewColor
+              : expressive
+                ? previewForeground
+                : "#FFFFFF"
+          }
         />
       </View>
       {showPreviewName ? (
@@ -310,7 +328,7 @@ export function EntityEditLayout({
         style={({ pressed }) => ({
           width: iconItemSize,
           height: iconItemSize,
-          borderRadius: 12,
+          borderRadius: expressive ? 16 : 12,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: c.background,
@@ -329,517 +347,534 @@ export function EntityEditLayout({
   };
 
   const editorBody = (
-        <View style={{ flex: presentation === "inline" ? undefined : 1, justifyContent: "flex-start" }}>
-          {showHeader ? (
-            <View
-              style={{
-                paddingTop: 12,
-                paddingBottom: 20,
-                paddingHorizontal: 16,
-              }}
+    <View
+      style={{
+        flex: presentation === "inline" ? undefined : 1,
+        justifyContent: "flex-start",
+      }}
+    >
+      {showHeader ? (
+        <View
+          style={{
+            paddingTop: 12,
+            paddingBottom: 20,
+            paddingHorizontal: 16,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Pressable
+              accessibilityLabel={
+                presentation === "modal" ? "Close" : "Go back"
+              }
+              hitSlop={12}
+              onPress={onBack}
+              style={({ pressed }) => ({
+                width: expressive ? 44 : 36,
+                height: expressive ? 44 : 36,
+                borderRadius: expressive ? 22 : 18,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: c.surfaceVariant,
+                opacity: pressed ? 0.7 : 1,
+              })}
             >
+              <MaterialCommunityIcons
+                name={presentation === "modal" ? "close" : "chevron-left"}
+                size={expressive ? 21 : 24}
+                color={c.onSurface}
+              />
+            </Pressable>
+
+            {deleteAccessory ?? (
               <View
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  width: expressive ? 44 : 36,
+                  height: expressive ? 44 : 36,
                 }}
-              >
-                <Pressable
-                  accessibilityLabel={
-                    presentation === "modal" ? "Close" : "Go back"
-                  }
-                  hitSlop={12}
-                  onPress={onBack}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: c.surfaceVariant,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <MaterialCommunityIcons
-                    name={presentation === "modal" ? "close" : "chevron-left"}
-                    size={24}
-                    color={c.onSurface}
-                  />
-                </Pressable>
+              />
+            )}
+          </View>
 
-                {deleteAccessory ?? <View style={{ width: 36, height: 36 }} />}
-              </View>
+          {previewBlock}
+        </View>
+      ) : showPreview ? (
+        <View
+          style={{
+            alignItems: "center",
+            paddingTop: 20,
+            paddingHorizontal: 16,
+          }}
+        >
+          {previewBlock}
+        </View>
+      ) : null}
 
-              {previewBlock}
-            </View>
-          ) : showPreview ? (
-            <View
+      <View
+        onLayout={(event) =>
+          setPickerWidth(event.nativeEvent.layout.width - 40)
+        }
+        style={{ paddingHorizontal: 20 }}
+      >
+        {/* Name */}
+        <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
+          <Text
+            style={{
+              ...typography.editorial.sectionLabel,
+              fontSize: 14,
+              letterSpacing: 0.6,
+              color: c.onSurface,
+              marginBottom: 8,
+            }}
+          >
+            {nameLabel}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: c.surfaceVariant,
+              borderRadius: expressive ? 24 : 14,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+            }}
+          >
+            <RNTextInput
+              accessibilityLabel={nameLabel}
+              editable={!editorDisabled}
+              maxLength={nameLimit}
+              onChangeText={(value) => onChangeName(value.slice(0, nameLimit))}
+              placeholder={namePlaceholder}
+              placeholderTextColor={c.onSurfaceVariant}
               style={{
-                alignItems: "center",
-                paddingTop: 20,
-                paddingHorizontal: 16,
+                flex: 1,
+                fontSize: 15,
+                color: c.onSurface,
+                paddingVertical: 0,
+              }}
+              value={localName}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: c.onSurfaceVariant,
+                marginLeft: 8,
               }}
             >
-              {previewBlock}
+              {localName.length}/{nameLimit}
+            </Text>
+          </View>
+
+          {minimalIconsEnabled ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 8,
+              }}
+            >
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={14}
+                color={c.primary}
+              />
+              <Text style={{ fontSize: 11, color: c.onSurfaceVariant }}>
+                Minimal Icons is on.
+              </Text>
             </View>
           ) : null}
+        </View>
 
+        <View style={{ marginVertical: 20 }}>
           <View
-            onLayout={(event) =>
-              setPickerWidth(event.nativeEvent.layout.width - 40)
-            }
-            style={{ paddingHorizontal: 20 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 10,
+            }}
           >
-            {/* Name */}
-            <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
-              <Text
+            <Text
+              style={{
+                ...typography.editorial.sectionLabel,
+                fontSize: 14,
+                letterSpacing: 0.6,
+                color: c.onSurface,
+                minWidth: iconSearchOpen ? 48 : undefined,
+              }}
+            >
+              Icons
+            </Text>
+            {iconSearchOpen ? (
+              <RNTextInput
+                autoFocus
+                onChangeText={setIconQuery}
+                placeholder="Search icons"
+                placeholderTextColor={c.onSurfaceVariant}
                 style={{
-                  ...typography.editorial.sectionLabel,
-                  fontSize: 14,
-                  letterSpacing: 0.6,
-                  color: c.onSurface,
-                  marginBottom: 8,
-                }}
-              >
-                {nameLabel}
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
                   backgroundColor: c.surfaceVariant,
-                  borderRadius: 14,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
+                  borderRadius: expressive ? 16 : 12,
+                  color: c.onSurface,
+                  flex: 1,
+                  fontSize: 14,
+                  height: expressive ? 44 : 32,
+                  marginLeft: 12,
+                  marginRight: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 0,
                 }}
-              >
-                <RNTextInput
-                  accessibilityLabel={nameLabel}
-                  editable={!editorDisabled}
-                  maxLength={nameLimit}
-                  onChangeText={(value) =>
-                    onChangeName(value.slice(0, nameLimit))
-                  }
-                  placeholder={namePlaceholder}
-                  placeholderTextColor={c.onSurfaceVariant}
-                  style={{
-                    flex: 1,
-                    fontSize: 15,
-                    color: c.onSurface,
-                    paddingVertical: 0,
-                  }}
-                  value={localName}
-                />
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: c.onSurfaceVariant,
-                    marginLeft: 8,
-                  }}
-                >
-                  {localName.length}/{nameLimit}
-                </Text>
-              </View>
-
-              {minimalIconsEnabled ? (
+                value={iconQuery}
+              />
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
+            <Pressable
+              accessibilityLabel={
+                iconSearchOpen ? "Close icon search" : "Search icons"
+              }
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => {
+                setIconSearchOpen((open) => !open);
+                if (iconSearchOpen) setIconQuery("");
+              }}
+              style={({ pressed }) => ({
+                alignItems: "center",
+                borderRadius: expressive ? 22 : 16,
+                backgroundColor: expressive ? c.surfaceVariant : "transparent",
+                height: expressive ? 44 : 32,
+                justifyContent: "center",
+                opacity: pressed ? 0.6 : 1,
+                width: expressive ? 44 : 32,
+              })}
+            >
+              <MaterialCommunityIcons
+                name={iconSearchOpen ? "close" : "magnify"}
+                size={20}
+                color={c.onSurfaceVariant}
+              />
+            </Pressable>
+          </View>
+          <ScrollView
+            ref={iconScrollRef}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            onScroll={(event) => {
+              iconScrollYRef.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            style={{ maxHeight: iconItemSize * 2 + iconGap }}
+            contentContainerStyle={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              columnGap: iconGap,
+              rowGap: iconGap,
+              paddingBottom: 2,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                columnGap: iconGap,
+                rowGap: iconGap,
+                width: "100%",
+              }}
+            >
+              {iconQuery.trim() && iconSearchMatches.length === 0 ? (
                 <View
                   style={{
-                    flexDirection: "row",
                     alignItems: "center",
-                    gap: 6,
-                    marginTop: 8,
+                    paddingVertical: 10,
+                    width: "100%",
                   }}
                 >
-                  <MaterialCommunityIcons
-                    name="information-outline"
-                    size={14}
-                    color={c.primary}
-                  />
-                  <Text style={{ fontSize: 11, color: c.onSurfaceVariant }}>
-                    Minimal Icons is on.
+                  <Text
+                    style={{
+                      color: c.onSurfaceVariant,
+                      fontSize: 12,
+                    }}
+                  >
+                    No icons Matched
                   </Text>
                 </View>
               ) : null}
+              {iconSearchMatches.map(renderIconButton)}
             </View>
-
-            <View style={{ marginVertical: 20 }}>
+            {iconQuery.trim() && iconSearchRemainder.length > 0 ? (
               <View
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 10,
+                  backgroundColor: c.outlineVariant,
+                  height: 1,
+                  marginVertical: 8,
+                  width: "100%",
                 }}
-              >
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 14,
-                    letterSpacing: 0.6,
-                    color: c.onSurface,
-                    minWidth: iconSearchOpen ? 48 : undefined,
-                  }}
-                >
-                  Icons
-                </Text>
-                {iconSearchOpen ? (
-                  <RNTextInput
-                    autoFocus
-                    onChangeText={setIconQuery}
-                    placeholder="Search icons"
-                    placeholderTextColor={c.onSurfaceVariant}
-                    style={{
-                      backgroundColor: c.surfaceVariant,
-                      borderRadius: 12,
-                      color: c.onSurface,
-                      flex: 1,
-                      fontSize: 14,
-                      height: 32,
-                      marginLeft: 12,
-                      marginRight: 8,
-                      paddingHorizontal: 12,
-                      paddingVertical: 0,
-                    }}
-                    value={iconQuery}
-                  />
-                ) : (
-                  <View style={{ flex: 1 }} />
-                )}
-                <Pressable
-                  accessibilityLabel={
-                    iconSearchOpen ? "Close icon search" : "Search icons"
-                  }
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => {
-                    setIconSearchOpen((open) => !open);
-                    if (iconSearchOpen) setIconQuery("");
-                  }}
-                  style={({ pressed }) => ({
-                    alignItems: "center",
-                    borderRadius: 16,
-                    height: 32,
-                    justifyContent: "center",
-                    opacity: pressed ? 0.6 : 1,
-                    width: 32,
-                  })}
-                >
-                  <MaterialCommunityIcons
-                    name={iconSearchOpen ? "close" : "magnify"}
-                    size={20}
-                    color={c.onSurfaceVariant}
-                  />
-                </Pressable>
-              </View>
-              <ScrollView
-                ref={iconScrollRef}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator
-                onScroll={(event) => {
-                  iconScrollYRef.current = event.nativeEvent.contentOffset.y;
-                }}
-                scrollEventThrottle={16}
-                style={{ maxHeight: iconItemSize * 2 + iconGap }}
-                contentContainerStyle={{
+              />
+            ) : null}
+            {iconQuery.trim() ? (
+              <View
+                style={{
                   flexDirection: "row",
                   flexWrap: "wrap",
                   columnGap: iconGap,
                   rowGap: iconGap,
-                  paddingBottom: 2,
+                  width: "100%",
                 }}
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    columnGap: iconGap,
-                    rowGap: iconGap,
-                    width: "100%",
-                  }}
-                >
-                  {iconQuery.trim() && iconSearchMatches.length === 0 ? (
-                    <View
-                      style={{
-                        alignItems: "center",
-                        paddingVertical: 10,
-                        width: "100%",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: c.onSurfaceVariant,
-                          fontSize: 12,
-                        }}
-                      >
-                        No icons Matched
-                      </Text>
-                    </View>
-                  ) : null}
-                  {iconSearchMatches.map(renderIconButton)}
-                </View>
-                {iconQuery.trim() && iconSearchRemainder.length > 0 ? (
-                  <View
-                    style={{
-                      backgroundColor: c.outlineVariant,
-                      height: 1,
-                      marginVertical: 8,
-                      width: "100%",
-                    }}
-                  />
-                ) : null}
-                {iconQuery.trim() ? (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      flexWrap: "wrap",
-                      columnGap: iconGap,
-                      rowGap: iconGap,
-                      width: "100%",
-                    }}
-                  >
-                    {iconSearchRemainder.map(renderIconButton)}
-                  </View>
-                ) : null}
-              </ScrollView>
-              {iconHasMore ? (
-                <Pressable
-                  accessibilityLabel="Show more icons"
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => scrollPickerByRow("icons")}
-                  style={({ pressed }) => ({
-                    alignItems: "center",
-                    opacity: pressed ? 0.55 : 1,
-                    paddingTop: 4,
-                  })}
-                >
-                  <MaterialCommunityIcons
-                    name="chevron-down"
-                    size={16}
-                    color={c.onSurfaceVariant}
-                    style={{ opacity: 0.7 }}
-                  />
-                </Pressable>
-              ) : null}
-            </View>
-
-            <View style={{ marginBottom: 4 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 10,
-                }}
-              >
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 14,
-                    letterSpacing: 0.6,
-                    color: c.onSurface,
-                  }}
-                >
-                  Colors
-                </Text>
+                {iconSearchRemainder.map(renderIconButton)}
               </View>
-              <ScrollView
-                ref={colorScrollRef}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator
-                onScroll={(event) => {
-                  colorScrollYRef.current = event.nativeEvent.contentOffset.y;
-                }}
-                scrollEventThrottle={16}
-                style={{ maxHeight: 82 }}
-                contentContainerStyle={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  columnGap: colorGap,
-                  rowGap: colorGap,
-                  paddingBottom: 2,
-                }}
-              >
-                {orderedColors.map((color) => {
-                  const selected = color === localColor;
-                  const disabled = editorDisabled || (usedColorSet.has(color) && !selected);
-                  return (
-                    <Pressable
-                      disabled={disabled}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Color ${color}`}
-                      accessibilityState={{ selected, disabled }}
-                      key={color}
-                      onPress={() => onChangeColor(color)}
-                      style={({ pressed }) => ({
-                        width: colorItemSize,
-                        height: colorItemSize,
-                        borderRadius: colorItemSize / 2,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: color,
-                        borderWidth: selected ? 2.5 : 0,
-                        borderColor: c.onSurface,
-                        opacity: disabled ? 0.3 : pressed ? 0.8 : 1,
-                      })}
-                    >
-                      {selected && (
-                        <MaterialCommunityIcons
-                          name="check"
-                          size={16}
-                          color="#fff"
-                        />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              {colorHasMore ? (
-                <Pressable
-                  accessibilityLabel="Show more colors"
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => scrollPickerByRow("colors")}
-                  style={({ pressed }) => ({
-                    alignItems: "center",
-                    opacity: pressed ? 0.55 : 1,
-                    paddingTop: 4,
-                  })}
-                >
-                  <MaterialCommunityIcons
-                    name="chevron-down"
-                    size={16}
-                    color={c.onSurfaceVariant}
-                    style={{ opacity: 0.7 }}
-                  />
-                </Pressable>
-              ) : null}
-            </View>
-
-            {/* Details */}
-            {onChangeOwnerName || (localCurrency && onChangeCurrency) ? (
-              <>
-                <Text
-                  style={{
-                    ...typography.editorial.sectionLabel,
-                    fontSize: 14,
-                    letterSpacing: 0.6,
-                    color: c.onSurface,
-                    marginTop: 24,
-                    marginBottom: 12,
-                  }}
-                >
-                  DETAILS
-                </Text>
-
-                <View
-                  style={{
-                    backgroundColor: c.surfaceVariant,
-                    borderRadius: 14,
-                    overflow: "hidden",
-                  }}
-                >
-                  {onChangeOwnerName ? (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        borderTopWidth:
-                          localCurrency && onChangeCurrency ? 1 : 0,
-                        borderTopColor: `${c.onSurface}12`,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "600",
-                          color: c.onSurface,
-                        }}
-                      >
-                        Owner
-                      </Text>
-                      <RNTextInput
-                        editable={!editorDisabled}
-                        maxLength={ownerNameLimit}
-                        onChangeText={(value) =>
-                          onChangeOwnerName(value.slice(0, ownerNameLimit))
-                        }
-                        placeholder="e.g. Stephen"
-                        placeholderTextColor={c.onSurfaceVariant}
-                        style={{
-                          flex: 1,
-                          marginLeft: 12,
-                          fontSize: 14,
-                          textAlign: "right",
-                          color: c.onSurface,
-                          paddingVertical: 0,
-                        }}
-                        value={localOwnerName ?? ""}
-                      />
-                    </View>
-                  ) : null}
-
-                  {localCurrency && onChangeCurrency ? (
-                    <View
-                      style={{
-                        borderTopWidth: onChangeOwnerName ? 1 : 0,
-                        borderTopColor: `${c.onSurface}12`,
-                      }}
-                    >
-                      <CurrencyPickerField
-                        currency={localCurrency}
-                        label="Currency"
-                        onChange={onChangeCurrency}
-                        theme={theme}
-                        variant="editorial"
-                      />
-                    </View>
-                  ) : null}
-                </View>
-              </>
             ) : null}
-          </View>
+          </ScrollView>
+          {iconHasMore ? (
+            <Pressable
+              accessibilityLabel="Show more icons"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => scrollPickerByRow("icons")}
+              style={({ pressed }) => ({
+                alignItems: "center",
+                opacity: pressed ? 0.55 : 1,
+                paddingTop: 4,
+                minHeight: expressive ? 44 : undefined,
+                justifyContent: "center",
+              })}
+            >
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={16}
+                color={c.onSurfaceVariant}
+                style={{ opacity: 0.7 }}
+              />
+            </Pressable>
+          ) : null}
+        </View>
 
-          <View style={{ marginTop: "auto" }}>
-            {footer ?? (
-              <View style={{ flexDirection: "row", margin: 16, marginTop: 24 }}>
+        <View style={{ marginBottom: 4 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 10,
+            }}
+          >
+            <Text
+              style={{
+                ...typography.editorial.sectionLabel,
+                fontSize: 14,
+                letterSpacing: 0.6,
+                color: c.onSurface,
+              }}
+            >
+              Colors
+            </Text>
+          </View>
+          <ScrollView
+            ref={colorScrollRef}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            onScroll={(event) => {
+              colorScrollYRef.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            style={{ maxHeight: 82 }}
+            contentContainerStyle={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              columnGap: colorGap,
+              rowGap: colorGap,
+              paddingBottom: 2,
+            }}
+          >
+            {orderedColors.map((color) => {
+              const selected = color === localColor;
+              const disabled =
+                editorDisabled || (usedColorSet.has(color) && !selected);
+              return (
                 <Pressable
-                  disabled={!canSubmit}
-                  onPress={onSubmit}
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Color ${color}`}
+                  accessibilityState={{ selected, disabled }}
+                  key={color}
+                  onPress={() => onChangeColor(color)}
                   style={({ pressed }) => ({
-                    flex: 1,
-                    flexDirection: "row",
+                    width: colorItemSize,
+                    height: colorItemSize,
+                    borderRadius: colorItemSize / 2,
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 8,
-                    paddingVertical: 14,
-                    borderRadius: 14,
-                    backgroundColor: previewColor,
-                    opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
+                    backgroundColor: color,
+                    borderWidth: selected ? 2.5 : 0,
+                    borderColor: c.onSurface,
+                    opacity: disabled ? 0.3 : pressed ? 0.8 : 1,
                   })}
                 >
-                  <MaterialCommunityIcons
-                    color={palette.white}
-                    name={isEditing ? "content-save-outline" : "plus"}
-                    size={18}
-                  />
+                  {selected && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={16}
+                      color="#fff"
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {colorHasMore ? (
+            <Pressable
+              accessibilityLabel="Show more colors"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => scrollPickerByRow("colors")}
+              style={({ pressed }) => ({
+                alignItems: "center",
+                opacity: pressed ? 0.55 : 1,
+                paddingTop: 4,
+                minHeight: expressive ? 44 : undefined,
+                justifyContent: "center",
+              })}
+            >
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={16}
+                color={c.onSurfaceVariant}
+                style={{ opacity: 0.7 }}
+              />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* Details */}
+        {onChangeOwnerName || (localCurrency && onChangeCurrency) ? (
+          <>
+            <Text
+              style={{
+                ...typography.editorial.sectionLabel,
+                fontSize: 14,
+                letterSpacing: 0.6,
+                color: c.onSurface,
+                marginTop: 24,
+                marginBottom: 12,
+              }}
+            >
+              DETAILS
+            </Text>
+
+            <View
+              style={{
+                backgroundColor: c.surfaceVariant,
+                borderRadius: expressive ? 24 : 14,
+                overflow: "hidden",
+              }}
+            >
+              {onChangeOwnerName ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderTopWidth: localCurrency && onChangeCurrency ? 1 : 0,
+                    borderTopColor: `${c.onSurface}12`,
+                  }}
+                >
                   <Text
                     style={{
-                      ...typography.editorial.sectionLabel,
                       fontSize: 14,
-                      color: palette.white,
+                      fontWeight: "600",
+                      color: c.onSurface,
                     }}
                   >
-                    {isEditing ? submitLabelEdit : submitLabelCreate}
+                    Owner
                   </Text>
-                </Pressable>
-              </View>
-            )}
+                  <RNTextInput
+                    editable={!editorDisabled}
+                    maxLength={ownerNameLimit}
+                    onChangeText={(value) =>
+                      onChangeOwnerName(value.slice(0, ownerNameLimit))
+                    }
+                    placeholder="e.g. Stephen"
+                    placeholderTextColor={c.onSurfaceVariant}
+                    style={{
+                      flex: 1,
+                      marginLeft: 12,
+                      fontSize: 14,
+                      textAlign: "right",
+                      color: c.onSurface,
+                      paddingVertical: 0,
+                    }}
+                    value={localOwnerName ?? ""}
+                  />
+                </View>
+              ) : null}
+
+              {localCurrency && onChangeCurrency ? (
+                <View
+                  style={{
+                    borderTopWidth: onChangeOwnerName ? 1 : 0,
+                    borderTopColor: `${c.onSurface}12`,
+                  }}
+                >
+                  <CurrencyPickerField
+                    currency={localCurrency}
+                    label="Currency"
+                    onChange={onChangeCurrency}
+                    theme={theme}
+                    variant="editorial"
+                  />
+                </View>
+              ) : null}
+            </View>
+          </>
+        ) : null}
+      </View>
+
+      <View style={{ marginTop: "auto" }}>
+        {footer ?? (
+          <View style={{ flexDirection: "row", margin: 16, marginTop: 24 }}>
+            <Pressable
+              disabled={!canSubmit}
+              onPress={onSubmit}
+              style={({ pressed }) => ({
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                paddingVertical: 14,
+                borderRadius: expressive ? 24 : 14,
+                minHeight: expressive ? 56 : undefined,
+                backgroundColor: expressive ? c.primary : previewColor,
+                opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
+              })}
+            >
+              <MaterialCommunityIcons
+                color={expressive ? c.onPrimary : palette.white}
+                name={isEditing ? "content-save-outline" : "plus"}
+                size={18}
+              />
+              <Text
+                style={{
+                  ...typography.editorial.sectionLabel,
+                  fontSize: expressive ? 16 : 14,
+                  color: expressive ? c.onPrimary : palette.white,
+                  textTransform: expressive ? "none" : undefined,
+                }}
+              >
+                {isEditing ? submitLabelEdit : submitLabelCreate}
+              </Text>
+            </Pressable>
           </View>
-        </View>
+        )}
+      </View>
+    </View>
   );
 
   const content = (

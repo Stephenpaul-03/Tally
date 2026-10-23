@@ -1,4 +1,12 @@
-import { useStagger } from "@/components/animations/UseStagger";
+import { settingsShape } from "@/theme/settingsShape";
+import { typography } from "@/theme/typography";
+import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
+import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
+import { Disclosure } from "@/components/animations/Motion";
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import { categoryTone } from "@/theme/sage";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+
 import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useAppSelector } from "@/hooks/Redux";
@@ -11,8 +19,8 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";
-import { Text, useTheme, type MD3Theme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { BudgetDetailsSheet } from "./Components/BudgetDetailsSheet";
 import { formatInr, useBudgetManagement } from "./Hooks";
 import { budgetStyles } from "./Styles";
@@ -117,18 +125,14 @@ function darkenHex(hex: string, amount = 0.18) {
 }
 
 export function BudgetScreen() {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
-  const {
-    categoryEntries,
-    minimalIconsEnabled,
-    saveCategory,
-    clearCategory,
-  } = useBudgetManagement();
+  const { categoryEntries, minimalIconsEnabled, saveCategory, clearCategory } =
+    useBudgetManagement();
 
   const [selectedCategoryName, setSelectedCategoryName] = React.useState<
     string | null
@@ -143,7 +147,6 @@ export function BudgetScreen() {
   const [collapsedSections, setCollapsedSections] = React.useState<
     Partial<Record<BudgetStatusGroupId, boolean>>
   >({});
-  const animatedOnceRef = React.useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
 
   const currentCategory = React.useMemo(
@@ -212,7 +215,10 @@ export function BudgetScreen() {
   React.useEffect(() => {
     setSortField(workspaceDefaults.budgetSortField);
     setSortDirection(workspaceDefaults.budgetSortDirection);
-  }, [workspaceDefaults.budgetSortDirection, workspaceDefaults.budgetSortField]);
+  }, [
+    workspaceDefaults.budgetSortDirection,
+    workspaceDefaults.budgetSortField,
+  ]);
   const safeBelowPercent = Math.max(
     0,
     Math.min(100, Math.round(workspaceDefaults.budgetSafeBelowPercent)),
@@ -267,19 +273,7 @@ export function BudgetScreen() {
       ),
     [groupedCategoryEntries],
   );
-  const { getAnimStyle } = useStagger({
-    count: sortedCategoryEntries.length,
-    stagger: 70,
-    distance: 20,
-    duration: 550,
-    dataKey: "budgets-first-mount",
-    autoPlay: !animatedOnceRef.current,
-    replayOnCountChange: false,
-  });
-
-  React.useEffect(() => {
-    animatedOnceRef.current = true;
-  }, []);
+  const { getAnimStyle } = useManagementEntrance(sortedCategoryEntries.length);
 
   const handleOpenCategory = (category: (typeof categoryEntries)[number]) => {
     setSelectedCategoryName(category.name);
@@ -297,13 +291,13 @@ export function BudgetScreen() {
       style={({ pressed }) => [
         budgetStyles.headerIconButton,
         {
-          width: 32,
-          height: 32,
+          width: theme.expressive ? 44 : 32,
+          height: theme.expressive ? 44 : 32,
           borderRadius: 99,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: c.surface,
-          borderWidth: 1,
+          backgroundColor: theme.expressive ? c.surfaceVariant : c.surface,
+          borderWidth: theme.expressive ? 0 : 1,
           borderColor: c.outlineVariant,
         },
       ]}
@@ -312,14 +306,14 @@ export function BudgetScreen() {
     >
       <MaterialCommunityIcons
         name="sort"
-        size={20}
+        size={theme.expressive ? 21 : 20}
         color={c.onSurfaceVariant}
       />
     </Pressable>
   );
 
   return (
-    <SafeAreaView
+    <SettingsPage
       style={[
         budgetStyles.safeArea,
         { backgroundColor: theme.colors.background },
@@ -416,7 +410,7 @@ export function BudgetScreen() {
         onChange={(value) => setSortField(value as BudgetSortField)}
         onDirectionChange={(direction) => setSortDirection(direction)}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }
 
@@ -444,7 +438,7 @@ function BudgetStatusSection({
   onOpenCategory: (category: BudgetCategoryEntry) => void;
   onToggle: () => void;
   minimalIconsEnabled: boolean;
-  theme: MD3Theme;
+  theme: ExtendedMD3Theme;
   title: string;
 }) {
   const rows = React.useMemo(
@@ -472,7 +466,9 @@ function BudgetStatusSection({
             {
               backgroundColor: minimalIconsEnabled
                 ? theme.colors.background
-                : darkenHex(color, 0.08),
+                : theme.expressive
+                  ? categoryTone("", theme.dark, color)[0]
+                  : darkenHex(color, 0.08),
               borderColor: minimalIconsEnabled
                 ? theme.colors.elevation.level1
                 : "transparent",
@@ -483,7 +479,13 @@ function BudgetStatusSection({
           <MaterialCommunityIcons
             name={icon as any}
             size={15}
-            color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+            color={
+              minimalIconsEnabled
+                ? theme.colors.primary
+                : theme.expressive
+                  ? categoryTone("", theme.dark, color)[1]
+                  : "#FFFFFF"
+            }
           />
         </View>
         <Text
@@ -510,7 +512,7 @@ function BudgetStatusSection({
           color={theme.colors.onSurfaceVariant}
         />
       </Pressable>
-      {!collapsed ? (
+      <Disclosure open={!collapsed}>
         <View style={budgetStyles.categoryList}>
           {rows.map((row, rowIndex) => (
             <View key={rowIndex} style={budgetStyles.categoryGridRow}>
@@ -537,7 +539,7 @@ function BudgetStatusSection({
             </View>
           ))}
         </View>
-      ) : null}
+      </Disclosure>
     </View>
   );
 }
@@ -558,7 +560,7 @@ function BudgetCategoryRow({
     color: string;
   };
   minimalIconsEnabled: boolean;
-  theme: MD3Theme;
+  theme: ExtendedMD3Theme;
   onPress: () => void;
   expanded: boolean;
 }) {
@@ -583,6 +585,7 @@ function BudgetCategoryRow({
       onPress={onPress}
       style={({ pressed }) => [
         budgetStyles.accountLikeTile,
+        settingsShape(theme),
         !expanded && budgetStyles.accountLikeTileCompact,
         {
           backgroundColor: theme.colors.elevation.level1,
@@ -592,31 +595,43 @@ function BudgetCategoryRow({
     >
       <View style={budgetStyles.accountLikeTopRow}>
         <View style={budgetStyles.accountLikeLeading}>
-          <View
-            style={[
-              budgetStyles.accountLikeIconBadge,
-              {
-                backgroundColor: minimalIconsEnabled
-                  ? theme.colors.background
-                  : darkenHex(statusColor),
-                borderColor: minimalIconsEnabled
-                  ? theme.colors.elevation.level1
-                  : "transparent",
-                borderWidth: minimalIconsEnabled ? 1 : 0,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={category.icon as any}
-              size={20}
-              color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+          {theme.expressive ? (
+            <CategoryIconBadge
+              icon={category.icon as any}
+              color={category.color}
+              categoryName={category.name}
             />
-          </View>
+          ) : (
+            <View
+              style={[
+                budgetStyles.accountLikeIconBadge,
+                {
+                  backgroundColor: minimalIconsEnabled
+                    ? theme.colors.background
+                    : darkenHex(statusColor),
+                  borderColor: minimalIconsEnabled
+                    ? theme.colors.elevation.level1
+                    : "transparent",
+                  borderWidth: minimalIconsEnabled ? 1 : 0,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={category.icon as any}
+                size={20}
+                color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+              />
+            </View>
+          )}
           <View style={budgetStyles.accountLikeText}>
             <Text
               style={[
                 budgetStyles.accountLikeTitle,
-                { color: theme.colors.onSurface },
+                typography.bodyBold,
+                {
+                  color: theme.colors.onSurface,
+                  fontSize: theme.expressive ? 14 : 12,
+                },
               ]}
               numberOfLines={1}
             >
@@ -649,42 +664,44 @@ function BudgetCategoryRow({
         />
       </View>
 
-      {expanded && hasBudget ? (
-        <View
-          style={[
-            budgetStyles.accountLikeProgressTrack,
-            { backgroundColor: theme.colors.elevation.level3 },
-          ]}
-        >
-          {progress > 0 ? (
+      {hasBudget ? (
+        <Disclosure open={expanded}>
+          <View style={{ gap: 8 }}>
             <View
               style={[
-                budgetStyles.accountLikeProgressFill,
-                {
-                  width: `${Math.max(progress * 100, 4)}%`,
-                  backgroundColor: statusColor,
-                },
+                budgetStyles.accountLikeProgressTrack,
+                { backgroundColor: theme.colors.elevation.level3 },
               ]}
-            />
-          ) : null}
-        </View>
-      ) : null}
+            >
+              {progress > 0 ? (
+                <View
+                  style={[
+                    budgetStyles.accountLikeProgressFill,
+                    {
+                      width: `${Math.max(progress * 100, 4)}%`,
+                      backgroundColor: statusColor,
+                    },
+                  ]}
+                />
+              ) : null}
+            </View>
 
-      {expanded && hasBudget ? (
-        <View style={budgetStyles.accountLikeBottomRow}>
-          <Text
-            style={[
-              budgetStyles.accountLikeMeta,
-              {
-                color: isOverBudget
-                  ? theme.colors.error
-                  : theme.colors.onSurfaceVariant,
-              },
-            ]}
-          >
-            {`${Math.max(0, rawPercent)}% used`}
-          </Text>
-        </View>
+            <View style={budgetStyles.accountLikeBottomRow}>
+              <Text
+                style={[
+                  budgetStyles.accountLikeMeta,
+                  {
+                    color: isOverBudget
+                      ? theme.colors.error
+                      : theme.colors.onSurfaceVariant,
+                  },
+                ]}
+              >
+                {`${Math.max(0, rawPercent)}% used`}
+              </Text>
+            </View>
+          </View>
+        </Disclosure>
       ) : null}
     </Pressable>
   );

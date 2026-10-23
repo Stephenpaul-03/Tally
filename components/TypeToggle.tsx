@@ -1,3 +1,5 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { categoryTone } from "@/theme/sage";
 import { palette } from "@/theme/color_palette";
 import { typography } from "@/theme/typography";
 import { withOpacity } from "@/utils/color-helpers";
@@ -10,7 +12,7 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
-import { Text, useTheme, type MD3Theme } from "react-native-paper";
+import { Text, useTheme } from "react-native-paper";
 
 export function TypeToggle({
   value,
@@ -31,7 +33,7 @@ export function TypeToggle({
   trackBackgroundColor?: string;
   borderWidth?: number;
 }) {
-  const theme = useTheme<MD3Theme>();
+  const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const [trackWidth, setTrackWidth] = useState(0);
   const internalProgressAnim = useRef(new Animated.Value(0)).current;
@@ -113,12 +115,28 @@ export function TypeToggle({
   const gesture = Gesture.Race(panGesture, tapGesture);
 
   const isExpense = value === "expense";
-  const activeBg = isExpense
-    ? withOpacity(palette.status.danger, 0.12)
-    : withOpacity(palette.status.success, 0.12);
-  const activeBorder = isExpense
-    ? withOpacity(palette.status.danger, 0.35)
-    : withOpacity(palette.status.success, 0.35);
+  const semanticColor = isExpense
+    ? theme.semantic.expense
+    : theme.semantic.income;
+  const [tonalBackground, tonalForeground] = categoryTone(
+    "",
+    theme.dark,
+    semanticColor,
+  );
+  const activeBg = theme.expressive
+    ? tonalBackground
+    : withOpacity(
+        isExpense ? palette.status.danger : palette.status.success,
+        0.12,
+      );
+  const activeBorder = withOpacity(
+    theme.expressive
+      ? semanticColor
+      : isExpense
+        ? palette.status.danger
+        : palette.status.success,
+    0.35,
+  );
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -130,7 +148,7 @@ export function TypeToggle({
             {
               backgroundColor: trackBackgroundColor ?? c.surface,
               borderRadius: radius ?? (mini ? 12 : 14),
-              borderWidth: borderWidth ?? 0.5,
+              borderWidth: borderWidth ?? (theme.expressive ? 0 : 0.5),
               minHeight: height,
               padding: trackPadding,
             },
@@ -154,7 +172,7 @@ export function TypeToggle({
                     : mini
                       ? 9
                       : 10,
-                  borderWidth: borderWidth ?? 0.5,
+                  borderWidth: borderWidth ?? (theme.expressive ? 0 : 0.5),
                   transform: [
                     {
                       translateX: slideAnim.interpolate({
@@ -172,9 +190,11 @@ export function TypeToggle({
             const isActive = value === opt.key;
             const isExp = opt.key === "expense";
             const color = isActive
-              ? isExp
-                ? palette.status.danger
-                : palette.status.success
+              ? theme.expressive
+                ? tonalForeground
+                : isExp
+                  ? palette.status.danger
+                  : palette.status.success
               : c.onSurfaceVariant;
 
             return (

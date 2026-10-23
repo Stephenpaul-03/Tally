@@ -11,6 +11,10 @@ export const fontFamilies = {
 } as const;
 
 export const appFontAssets = {
+  "Figtree-400": require("../assets/fonts/Figtree-400.ttf"),
+  "Figtree-600": require("../assets/fonts/Figtree-600.ttf"),
+  "Figtree-700": require("../assets/fonts/Figtree-700.ttf"),
+  "Figtree-800": require("../assets/fonts/Figtree-800.ttf"),
   [fontFamilies.sansRegular]: require("../assets/fonts/Switzer-Regular.ttf"),
   [fontFamilies.sansMedium]: require("../assets/fonts/Switzer-Medium.ttf"),
   [fontFamilies.sansSemibold]: require("../assets/fonts/Switzer-Semibold.ttf"),

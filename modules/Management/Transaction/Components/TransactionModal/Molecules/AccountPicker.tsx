@@ -1,3 +1,5 @@
+import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
 import { AccountManagementModal } from "@/modules/Management/Account/Index";
@@ -56,7 +58,7 @@ export function AccountPicker({
             minWidth: 0,
           }}
         >
-          <View
+          {(theme as ExtendedMD3Theme).expressive && selectedIconName ? <CategoryIconBadge icon={selectedIconName} color={selectedColor ?? theme.colors.primary} style={{ width: 36, height: 36, borderRadius: 10 }} /> : (          <View
             style={{
               width: 36,
               height: 36,
@@ -86,6 +88,7 @@ export function AccountPicker({
               />
             )}
           </View>
+)}
           <Text
             variant="bodyMedium"
             numberOfLines={1}

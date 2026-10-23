@@ -1,10 +1,14 @@
+import { settingsShape } from "@/theme/settingsShape";
+import { DesignChoiceCards } from "../Components/DesignChoiceCards";
+import { useMainDesign } from "@/hooks/use-main-design";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
 import type { THEME_PRESETS, ThemeId } from "@/theme/presets";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
@@ -42,6 +46,7 @@ type AppearanceSectionProps = {
   onTrueBlackChange: (enabled: boolean) => void;
   disabled?: boolean;
   compact?: boolean;
+  section?: "mode" | "colors" | "all";
 };
 
 export function AppearanceSection({
@@ -54,6 +59,7 @@ export function AppearanceSection({
   onTrueBlackChange,
   disabled = false,
   compact = false,
+  section = "all",
 }: AppearanceSectionProps) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = React.useState(0);
@@ -65,164 +71,192 @@ export function AppearanceSection({
 
   const content = (
     <>
-      <SectionLabel label="Main theme" />
-      <SheetCard theme={theme} style={[appearanceStyles.cardContent, compact && { marginBottom: 8 }]}>
-        <View style={SettingsStyles.segRow}>
-          {MODE_OPTIONS.map((opt) => {
-            const active = activeModeId === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityLabel={`${opt.label} theme`}
-                accessibilityState={{ selected: active, disabled }}
-                onPress={() => onModeSelect(opt.id)}
-                style={[
-                  SettingsStyles.seg,
-                  {
-                    backgroundColor: theme.colors.background,
-                    borderColor: active
-                      ? theme.colors.secondary
-                      : theme.colors.outlineVariant,
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={opt.icon as any}
-                  size={18}
-                  color={
-                    active
-                      ? theme.colors.onSecondaryContainer
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-                <Text
-                  style={[
-                    SettingsStyles.segLabel,
-                    {
-                      color: active
-                        ? theme.colors.onSecondaryContainer
-                        : theme.colors.onSurfaceVariant,
-                      fontWeight: active ? "600" : "400",
-                    },
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View
-          style={[
-            appearanceStyles.cardDivider,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-        <Pressable
-          disabled={disabled}
-          accessibilityRole="switch"
-          accessibilityLabel="AMOLED dark mode"
-          accessibilityState={{ checked: trueBlack, disabled }}
-          onPress={() => onTrueBlackChange(!trueBlack)}
-          style={({ pressed }) => [
-            SettingsStyles.row,
-            appearanceStyles.amoledRow,
-            { opacity: pressed ? 0.65 : 1 },
-          ]}
-        >
-          <View style={SettingsStyles.rowLeft}>
-            <View style={SettingsStyles.rowIcon}>
-              <MaterialCommunityIcons
-                name="theme-light-dark"
-                size={18}
-                color={theme.colors.primary}
-              />
-            </View>
-            <View>
-              <Text
-                style={[
-                  SettingsStyles.rowTitle,
-                  { color: theme.colors.onSurface, fontWeight: "700" },
-                ]}
-              >
-                AMOLED dark mode
-              </Text>
-              <Text
-                style={[
-                  SettingsStyles.rowSub,
-                  { color: theme.colors.onSurfaceVariant },
-                ]}
-              >
-                Use true black surfaces in dark mode
-              </Text>
-            </View>
-          </View>
-          <Switch accessibilityLabel="AMOLED dark mode" disabled={disabled} value={trueBlack} onValueChange={onTrueBlackChange} />
-        </Pressable>
-      </SheetCard>
-
-      <SectionLabel label="Accent colors" />
-      <SheetCard theme={theme} style={[appearanceStyles.cardContent, compact && { marginBottom: 8 }]}>
-        <View
-          style={appearanceStyles.accentGrid}
-          onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
-        >
-          {themeOptions.map(([id, preset]) => {
-            const active = themeId === id;
-            return (
-              <Pressable
-                key={id}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityLabel={`${preset.label} accent`}
-                accessibilityState={{ selected: active, disabled }}
-                onPress={() => onThemeSelect(id)}
-                style={[
-                  appearanceStyles.accentCard,
-                  cardWidth != null && { width: cardWidth },
-                  {
-                    backgroundColor: active
-                      ? theme.colors.primaryContainer
-                      : theme.colors.background,
-                    borderColor: active ? primary : theme.colors.outlineVariant,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    appearanceStyles.swatchDot,
-                    { backgroundColor: preset.primarySeed },
-                  ]}
-                >
-                  {active ? (
+      {section !== "colors" ? (
+        <>
+          <SectionLabel label="Main theme" />
+          <SheetCard
+            theme={theme}
+            style={[
+              appearanceStyles.cardContent,
+              compact && { marginBottom: 8 },
+            ]}
+          >
+            <View style={SettingsStyles.segRow}>
+              {MODE_OPTIONS.map((opt) => {
+                const active = activeModeId === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    disabled={disabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${opt.label} theme`}
+                    accessibilityState={{ selected: active, disabled }}
+                    onPress={() => onModeSelect(opt.id)}
+                    style={[
+                      SettingsStyles.seg,
+                      settingsShape(theme),
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: active
+                          ? theme.colors.secondary
+                          : theme.colors.outlineVariant,
+                      },
+                    ]}
+                  >
                     <MaterialCommunityIcons
-                      color="#fff"
-                      name="check"
-                      size={14}
+                      name={opt.icon as any}
+                      size={18}
+                      color={
+                        active
+                          ? theme.colors.onSecondaryContainer
+                          : theme.colors.onSurfaceVariant
+                      }
                     />
-                  ) : null}
+                    <Text
+                      style={[
+                        SettingsStyles.segLabel,
+                        {
+                          color: active
+                            ? theme.colors.onSecondaryContainer
+                            : theme.colors.onSurfaceVariant,
+                          fontWeight: active ? "600" : "400",
+                        },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View
+              style={[
+                appearanceStyles.cardDivider,
+                { backgroundColor: theme.colors.outlineVariant },
+              ]}
+            />
+            <Pressable
+              disabled={disabled}
+              accessibilityRole="switch"
+              accessibilityLabel="AMOLED dark mode"
+              accessibilityState={{ checked: trueBlack, disabled }}
+              onPress={() => onTrueBlackChange(!trueBlack)}
+              style={({ pressed }) => [
+                SettingsStyles.row,
+                appearanceStyles.amoledRow,
+                { opacity: pressed ? 0.65 : 1 },
+              ]}
+            >
+              <View style={SettingsStyles.rowLeft}>
+                <View style={SettingsStyles.rowIcon}>
+                  <MaterialCommunityIcons
+                    name="theme-light-dark"
+                    size={18}
+                    color={theme.colors.primary}
+                  />
                 </View>
-                <Text
-                  style={[
-                    appearanceStyles.accentLabel,
-                    {
-                      color: active
-                        ? theme.colors.onPrimaryContainer
-                        : theme.colors.onSurface,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {preset.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </SheetCard>
+                <View>
+                  <Text
+                    style={[
+                      SettingsStyles.rowTitle,
+                      { color: theme.colors.onSurface, fontWeight: "700" },
+                    ]}
+                  >
+                    AMOLED dark mode
+                  </Text>
+                  <Text
+                    style={[
+                      SettingsStyles.rowSub,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    Use true black surfaces in dark mode
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                accessibilityLabel="AMOLED dark mode"
+                disabled={disabled}
+                value={trueBlack}
+                onValueChange={onTrueBlackChange}
+              />
+            </Pressable>
+          </SheetCard>
+        </>
+      ) : null}
+      {section !== "mode" ? (
+        <>
+          <SectionLabel label="Accent colors" />
+          <SheetCard
+            theme={theme}
+            style={[
+              appearanceStyles.cardContent,
+              compact && { marginBottom: 8 },
+            ]}
+          >
+            <View
+              style={appearanceStyles.accentGrid}
+              onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+            >
+              {themeOptions.map(([id, preset]) => {
+                const active = themeId === id;
+                return (
+                  <Pressable
+                    key={id}
+                    disabled={disabled}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${preset.label} accent`}
+                    accessibilityState={{ selected: active, disabled }}
+                    onPress={() => onThemeSelect(id)}
+                    style={[
+                      appearanceStyles.accentCard,
+                      settingsShape(theme),
+                      cardWidth != null && { width: cardWidth },
+                      {
+                        backgroundColor: active
+                          ? theme.colors.primaryContainer
+                          : theme.colors.background,
+                        borderColor: active
+                          ? primary
+                          : theme.colors.outlineVariant,
+                        borderWidth: 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        appearanceStyles.swatchDot,
+                        { backgroundColor: preset.primarySeed },
+                      ]}
+                    >
+                      {active ? (
+                        <MaterialCommunityIcons
+                          color="#fff"
+                          name="check"
+                          size={14}
+                        />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        appearanceStyles.accentLabel,
+                        {
+                          color: active
+                            ? theme.colors.onPrimaryContainer
+                            : theme.colors.onSurface,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {preset.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </SheetCard>
+        </>
+      ) : null}
     </>
   );
   return compact ? <View style={{ gap: 10 }}>{content}</View> : content;
@@ -265,6 +299,7 @@ function SheetShell({
 }
 
 function AppearanceContent({ modal = false, onBack }: ContentProps) {
+  const { design, setDesign } = useMainDesign();
   const {
     activeModeId,
     handleModeSelect,
@@ -279,10 +314,19 @@ function AppearanceContent({ modal = false, onBack }: ContentProps) {
     <>
       <SettingsHeader title="Appearance" onBack={onBack} modal={modal} />
       <ScrollView
+        style={{ flexGrow: 0 }}
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <SectionLabel label="Theme style" />
+        <DesignChoiceCards
+          value={design.style}
+          onChange={(style) => setDesign({ style })}
+          classicDisabled={design.layout !== "classic"}
+          purpose="style"
+        />
         <AppearanceSection
+          section="all"
           activeModeId={activeModeId}
           onModeSelect={handleModeSelect}
           themeId={themeId}

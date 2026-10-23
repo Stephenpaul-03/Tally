@@ -1,13 +1,16 @@
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { BackButton } from "@/components/backbutton/BackButton";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { View } from "react-native";
-import { Text, TouchableRipple, useTheme } from "react-native-paper";
+import { View, type StyleProp, type ViewStyle } from "react-native";
+import { TouchableRipple, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
 import { SettingsStyles } from "../Styles";
 
 type Props = {
+  containerStyle?: StyleProp<ViewStyle>;
   title?: string;
   onBack?: () => void;
   centerContent?: React.ReactNode;
@@ -26,6 +29,7 @@ type Props = {
 
 export function SettingsHeader({
   onBack,
+  containerStyle,
   title = "Settings",
   centerContent,
   rightAccessory,
@@ -40,7 +44,7 @@ export function SettingsHeader({
   searchPlaceholder,
   modal = false,
 }: Props) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const closeSearch = React.useCallback(() => {
     onQueryChange?.("");
     onSearchOpenChange?.(false);
@@ -52,7 +56,10 @@ export function SettingsHeader({
   const actionButtonStyle = [
     SettingsStyles.backButton,
     {
-      backgroundColor: theme.colors.surface,
+      ...(theme.expressive ? { width: 44, height: 44, borderWidth: 0 } : {}),
+      backgroundColor: theme.expressive
+        ? theme.colors.surfaceVariant
+        : theme.colors.surface,
       borderColor: theme.colors.outlineVariant,
     },
   ];
@@ -65,7 +72,7 @@ export function SettingsHeader({
     >
       <MaterialCommunityIcons
         name="magnify"
-        size={18}
+        size={theme.expressive ? 21 : 18}
         color={theme.colors.onSurface}
       />
     </TouchableRipple>
@@ -87,19 +94,22 @@ export function SettingsHeader({
       >
         <MaterialCommunityIcons
           name={rightIcon as any}
-          size={18}
+          size={theme.expressive ? 21 : 18}
           color={theme.colors.onSurface}
         />
       </TouchableRipple>
     ) : (
-      <View style={SettingsStyles.headerActionPlaceholder} />
+      <View
+        style={[
+          SettingsStyles.headerActionPlaceholder,
+          theme.expressive && { width: 44, height: 44 },
+        ]}
+      />
     ));
 
   if (searchOpen && searchEnabled) {
     return (
-      <View
-        style={SettingsStyles.header}
-      >
+      <View style={[SettingsStyles.header, containerStyle]}>
         <View style={SettingsStyles.headerCenter}>
           <UniversalSearchBar
             bg={theme.colors.background}
@@ -108,7 +118,7 @@ export function SettingsHeader({
             placeholder={searchPlaceholder ?? `Search ${title.toLowerCase()}`}
             autoFocus
             containerStyle={{
-              height: 32,
+              height: theme.expressive ? 48 : 32,
               borderRadius: 12,
               marginHorizontal: 0,
             }}
@@ -122,7 +132,7 @@ export function SettingsHeader({
         >
           <MaterialCommunityIcons
             name="close"
-            size={18}
+            size={theme.expressive ? 21 : 18}
             color={theme.colors.onSurface}
           />
         </TouchableRipple>
@@ -131,9 +141,7 @@ export function SettingsHeader({
   }
 
   return (
-    <View
-      style={SettingsStyles.header}
-    >
+    <View style={[SettingsStyles.header, containerStyle]}>
       {onBack && !searchOpen ? (
         modal ? (
           <TouchableRipple
@@ -144,7 +152,7 @@ export function SettingsHeader({
           >
             <MaterialCommunityIcons
               name="close"
-              size={18}
+              size={theme.expressive ? 21 : 18}
               color={theme.colors.onSurface}
             />
           </TouchableRipple>
@@ -152,8 +160,12 @@ export function SettingsHeader({
           <BackButton
             onPress={onBack}
             theme={theme}
-            size={34}
-            backgroundColor={theme.colors.surface}
+            size={theme.expressive ? 44 : 34}
+            backgroundColor={
+              theme.expressive
+                ? theme.colors.surfaceVariant
+                : theme.colors.surface
+            }
           />
         )
       ) : (
@@ -162,6 +174,7 @@ export function SettingsHeader({
             SettingsStyles.backButton,
             SettingsStyles.headerActionPlaceholder,
             { borderColor: "transparent", opacity: 0 },
+            theme.expressive && { width: 44, height: 44 },
           ]}
         />
       )}
@@ -170,11 +183,22 @@ export function SettingsHeader({
           centerContent
         ) : (
           <Text
+            numberOfLines={theme.expressive ? 1 : undefined}
+            adjustsFontSizeToFit={Boolean(theme.expressive)}
+            minimumFontScale={0.65}
             style={[
               SettingsStyles.headerTitle,
               {
                 ...typography.editorial.sectionLabel,
                 color: theme.colors.onSurface,
+                ...(theme.expressive
+                  ? {
+                      fontFamily: "Figtree-800",
+                      fontSize: modal ? 24 : 36,
+                      lineHeight: modal ? 32 : 44,
+                      letterSpacing: -1,
+                    }
+                  : {}),
               },
             ]}
           >

@@ -1,3 +1,14 @@
+import { settingsShape } from "@/theme/settingsShape";
+import { typography } from "@/theme/typography";
+import {
+  CurrencyPickerModal,
+  type WorkspaceCurrency,
+} from "@/components/CurrencyPickerField";
+import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
+import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
+import type { useStagger } from "@/components/animations/UseStagger";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { categoryTone } from "@/theme/sage";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
@@ -47,11 +58,9 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Text, TextInput, useTheme } from "react-native-paper";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { TextInput, useTheme } from "react-native-paper";
+import { DesignText as Text } from "@/components/DesignText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsSearchHeader } from "../Components/SettingsSearchHeader";
 import type { SettingsStackParamList } from "../Navigation";
@@ -188,52 +197,12 @@ function sortColor(value: string) {
   return colors[value] ?? "#64748B";
 }
 
-type WorkspaceCurrency = {
-  code: string;
-  name: string;
-  symbol: string;
-};
-
-type CurrencyItem = {
-  code: string;
-  name: string;
-  symbol?: string;
-  symbol_native?: string;
-  flag_emoji?: string;
-};
-
-const currencyData =
-  require("@/data/currencies.json") as Record<
-    string,
-    CurrencyItem
-  >;
-const CURRENCIES = Object.values(currencyData) as CurrencyItem[];
 const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, Math.round(value)));
 
-function getDisplayCurrencySymbol(item: CurrencyItem) {
-  try {
-    const parts = new Intl.NumberFormat("en-IN", {
-      currency: item.code,
-      currencyDisplay: "narrowSymbol",
-      style: "currency",
-    }).formatToParts(0);
-    const symbol = parts.find((part) => part.type === "currency")?.value;
-    if (symbol && symbol !== item.code) return symbol;
-  } catch {
-    // Fall through to bundled currency data.
-  }
-
-  if (item.symbol && item.symbol !== item.code) return item.symbol;
-  if (item.symbol_native && item.symbol_native !== item.code) {
-    return item.symbol_native;
-  }
-
-  return item.code;
-}
-
 export function DefaultsScreen() {
-  const theme = useTheme();
+  const { getAnimStyle } = useManagementEntrance(10);
+  const theme = useTheme<ExtendedMD3Theme>();
   const { minimalIconsEnabled } = useAddonPrefs();
   const navigation =
     useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
@@ -513,7 +482,7 @@ export function DefaultsScreen() {
   const isSearching = Boolean(normalizedQuery);
 
   return (
-    <SafeAreaView
+    <SettingsPage
       style={[
         SettingsStyles.safeArea,
         { backgroundColor: theme.colors.background },
@@ -573,7 +542,7 @@ export function DefaultsScreen() {
                   <DefaultOptionTile
                     key={item.id}
                     {...item}
-                    animationIndex={index}
+                    animationStyle={getAnimStyle(index)}
                     minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
@@ -587,7 +556,7 @@ export function DefaultsScreen() {
                   <DefaultOptionTile
                     key={item.id}
                     {...item}
-                    animationIndex={index + 4}
+                    animationStyle={getAnimStyle(index + 4)}
                     minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
@@ -601,7 +570,7 @@ export function DefaultsScreen() {
                   <DefaultOptionTile
                     key={item.id}
                     {...item}
-                    animationIndex={index + 6}
+                    animationStyle={getAnimStyle(index + 6)}
                     minimalIconsEnabled={minimalIconsEnabled}
                   />
                 ))}
@@ -680,7 +649,7 @@ export function DefaultsScreen() {
         selectedValue={defaults.defaultExpenseCategory ?? ""}
         onSelectCategory={handleSelect}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }
 
@@ -699,9 +668,10 @@ function SortDefaultsModal({
   onDismiss: () => void;
   onApply: (value: string, direction?: SortDirectionDefault) => void;
 }) {
-  const [activeKind, setActiveKind] = React.useState<
-    Exclude<SortPicker, null> | null
-  >(kind);
+  const [activeKind, setActiveKind] = React.useState<Exclude<
+    SortPicker,
+    null
+  > | null>(kind);
 
   React.useEffect(() => {
     if (kind) setActiveKind(kind);
@@ -744,169 +714,8 @@ function SortDefaultsModal({
   );
 }
 
-function CurrencyPickerModal({
-  currency,
-  onDismiss,
-  onSelect,
-  visible,
-}: {
-  visible: boolean;
-  currency: WorkspaceCurrency;
-  onDismiss: () => void;
-  onSelect: (currency: WorkspaceCurrency) => void;
-}) {
-  const theme = useTheme();
-  const [query, setQuery] = React.useState("");
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredCurrencies = React.useMemo(() => {
-    if (!normalizedQuery) return CURRENCIES;
-    return CURRENCIES.filter((item) => {
-      return (
-        item.code.toLowerCase().includes(normalizedQuery) ||
-        item.name.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [normalizedQuery]);
-
-  React.useEffect(() => {
-    if (!visible) setQuery("");
-  }, [visible]);
-
-  return (
-    <AnimatedPaperModal
-      visible={visible}
-      onDismiss={onDismiss}
-      presentation="sheet"
-      keyboardAware
-      contentContainerStyle={{
-        backgroundColor: theme.colors.background,
-        borderTopLeftRadius: 40,
-        borderTopRightRadius: 40,
-        maxHeight: "86%",
-        overflow: "hidden",
-      }}
-      includeBottomInset={false}
-    >
-      <SheetHandle />
-      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-        <TextInput
-          mode="outlined"
-          placeholder="Search currency"
-          value={query}
-          onChangeText={setQuery}
-          left={<TextInput.Icon icon="magnify" />}
-          style={{ backgroundColor: theme.colors.background }}
-        />
-      </View>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          gap: 10,
-          paddingHorizontal: 20,
-          paddingBottom: 180,
-        }}
-      >
-        {filteredCurrencies.map((item) => {
-          const selected = item.code === currency.code;
-          const symbol = getDisplayCurrencySymbol(item);
-          return (
-            <CurrencyOptionCard
-              key={item.code}
-              item={item}
-              selected={selected}
-              symbol={symbol}
-              onPress={() =>
-                onSelect({
-                  code: item.code,
-                  name: item.name,
-                  symbol,
-                })
-              }
-            />
-          );
-        })}
-      </ScrollView>
-    </AnimatedPaperModal>
-  );
-}
-
-function CurrencyOptionCard({
-  item,
-  onPress,
-  selected,
-  symbol,
-}: {
-  item: CurrencyItem;
-  onPress: () => void;
-  selected: boolean;
-  symbol: string;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.currencyCard,
-        {
-          backgroundColor: selected
-            ? theme.colors.primaryContainer
-            : theme.colors.surface,
-          borderColor: selected
-            ? theme.colors.primary
-            : theme.colors.outlineVariant,
-          opacity: pressed ? 0.65 : 1,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.currencyFlagWrap,
-          { backgroundColor: theme.colors.elevation.level1 },
-        ]}
-      >
-        <Text style={styles.currencyFlag}>{item.flag_emoji ?? symbol}</Text>
-      </View>
-      <View style={styles.currencyCardBody}>
-        <Text
-          numberOfLines={1}
-          style={[styles.currencyName, { color: theme.colors.onSurface }]}
-        >
-          {item.name}
-        </Text>
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.currencyCode,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          {item.code}
-        </Text>
-      </View>
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.valueText,
-          { color: selected ? theme.colors.primary : theme.colors.onSurface },
-        ]}
-      >
-        {symbol}
-      </Text>
-      <MaterialCommunityIcons
-        name={selected ? "check-circle" : "circle-outline"}
-        size={18}
-        color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
-        style={{ opacity: selected ? 1 : 0.32 }}
-      />
-    </Pressable>
-  );
-}
-
 function SheetHandle() {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
 
   return (
     <View style={styles.handleWrap}>
@@ -935,15 +744,14 @@ function BudgetThresholdModal({
   onDismiss: () => void;
   onSave: (threshold: BudgetThreshold, value: number) => void;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const [safeBelow, setSafeBelow] = React.useState(safeBelowPercent);
   const [nearlyEmptyFrom, setNearlyEmptyFrom] = React.useState(
     nearlyEmptyFromPercent,
   );
-  const [lastThreshold, setLastThreshold] = React.useState<BudgetThreshold>(
-    "safeBelow",
-  );
+  const [lastThreshold, setLastThreshold] =
+    React.useState<BudgetThreshold>("safeBelow");
   const wiggle = React.useRef(new Animated.Value(0)).current;
 
   const displayedThreshold = threshold ?? lastThreshold;
@@ -1147,12 +955,13 @@ function ThresholdSlider({
   onSlidingComplete: () => void;
   wiggleStyle: object;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
 
   return (
     <Animated.View
       style={[
         styles.thresholdSliderCard,
+        settingsShape(theme),
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outlineVariant,
@@ -1184,7 +993,7 @@ function DefaultOptionTile({
   onPress,
   value,
   valueIcon,
-  animationIndex = 0,
+  animationStyle,
   minimalIconsEnabled,
 }: {
   icon: string;
@@ -1194,47 +1003,24 @@ function DefaultOptionTile({
   onPress: () => void;
   value: string;
   valueIcon?: string;
-  animationIndex?: number;
+  animationStyle: ReturnType<ReturnType<typeof useStagger>["getAnimStyle"]>;
   minimalIconsEnabled: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const resolvedIconColor = iconColor ?? theme.colors.primary;
-  const entranceAnimation = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.timing(entranceAnimation, {
-      toValue: 1,
-      delay: animationIndex * 55,
-      duration: 300,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-
-    return () => entranceAnimation.stopAnimation();
-  }, [animationIndex, entranceAnimation]);
-
+  const [tonalBackground, tonalForeground] = categoryTone(
+    label === "Income" || label === "Expense" ? value : "",
+    theme.dark,
+    resolvedIconColor,
+  );
   return (
-    <Animated.View
-      style={[
-        styles.tileAnimated,
-        {
-          opacity: entranceAnimation,
-          transform: [
-            {
-              translateY: entranceAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [12, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
+    <Animated.View style={[styles.tileAnimated, animationStyle]}>
       <Pressable
         accessibilityRole="button"
         onPress={onPress}
         style={({ pressed }) => [
           styles.optionTile,
+          settingsShape(theme),
           {
             backgroundColor: theme.colors.elevation.level1,
             borderColor: theme.colors.outlineVariant,
@@ -1248,7 +1034,9 @@ function DefaultOptionTile({
             {
               backgroundColor: minimalIconsEnabled
                 ? theme.colors.background
-                : resolvedIconColor,
+                : theme.expressive
+                  ? tonalBackground
+                  : resolvedIconColor,
               borderColor: minimalIconsEnabled
                 ? theme.colors.elevation.level1
                 : "transparent",
@@ -1263,7 +1051,9 @@ function DefaultOptionTile({
                 {
                   color: minimalIconsEnabled
                     ? theme.colors.primary
-                    : "#FFFFFF",
+                    : theme.expressive
+                      ? tonalForeground
+                      : "#FFFFFF",
                 },
               ]}
             >
@@ -1273,13 +1063,27 @@ function DefaultOptionTile({
             <MaterialCommunityIcons
               name={icon as any}
               size={22}
-              color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+              color={
+                minimalIconsEnabled
+                  ? theme.colors.primary
+                  : theme.expressive
+                    ? tonalForeground
+                    : "#FFFFFF"
+              }
             />
           )}
         </View>
         <View style={styles.tileCopy}>
           <Text
-            style={[styles.tileLabel, { color: theme.colors.onSurface }]}
+            style={[
+              styles.tileLabel,
+              typography.bodyBold,
+              {
+                color: theme.colors.onSurface,
+                fontSize: theme.expressive ? 14 : 12,
+                lineHeight: theme.expressive ? 18 : 16,
+              },
+            ]}
             numberOfLines={1}
           >
             {label}
@@ -1336,10 +1140,17 @@ function DefaultOptionRow({
   value: string;
   minimalIconsEnabled: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const [thresholdBackground, thresholdForeground] = categoryTone(
+    "",
+    theme.dark,
+    iconColor ?? theme.colors.primary,
+  );
   const resolvedIconColor = minimalIconsEnabled
     ? theme.colors.primary
-    : iconColor ?? theme.colors.primary;
+    : theme.expressive
+      ? thresholdForeground
+      : (iconColor ?? theme.colors.primary);
 
   if (onChangeText) {
     return (
@@ -1350,7 +1161,9 @@ function DefaultOptionRow({
             {
               backgroundColor: minimalIconsEnabled
                 ? theme.colors.background
-                : theme.colors.elevation.level1,
+                : theme.expressive
+                  ? thresholdBackground
+                  : theme.colors.elevation.level1,
               borderColor: minimalIconsEnabled
                 ? theme.colors.elevation.level1
                 : "transparent",
@@ -1572,42 +1385,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.4,
-  },
-  currencyCard: {
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    minHeight: 70,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  currencyCardBody: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  currencyCode: {
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-  currencyFlag: {
-    fontSize: 24,
-    lineHeight: 28,
-  },
-  currencyFlagWrap: {
-    alignItems: "center",
-    borderRadius: 13,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  currencyName: {
-    fontSize: 14,
-    fontWeight: "800",
-    lineHeight: 19,
   },
   emptyState: {
     alignItems: "center",

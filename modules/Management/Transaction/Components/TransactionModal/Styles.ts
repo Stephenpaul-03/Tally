@@ -171,7 +171,10 @@ export const categoryPicker = StyleSheet.create({
   },
 });
 
-export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
+export const createMainContentStyles = (
+  colors: MD3Theme["colors"],
+  expressive = false,
+) =>
   StyleSheet.create({
     keyboardView: {
       flexShrink: 1,
@@ -248,14 +251,14 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       width: 36,
     },
     iosCard: {
-      backgroundColor: colors.surface,
+      backgroundColor: expressive ? "transparent" : colors.surface,
       borderRadius: 26,
       gap: 10,
       padding: 20,
-      elevation: 4,
+      elevation: expressive ? 0 : 4,
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.18,
+      shadowOpacity: expressive ? 0 : 0.18,
       shadowRadius: 12,
     },
     iosAccountRow: {
@@ -319,6 +322,9 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       lineHeight: 18,
     },
     iosAmountWrap: {
+      backgroundColor: "transparent",
+      borderRadius: expressive ? 28 : 0,
+      paddingHorizontal: expressive ? 12 : 0,
       alignItems: "center",
       gap: 2,
       paddingTop: 15,
@@ -333,6 +339,8 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       textAlign: "center",
     },
     iosConvertedPill: {
+      borderRadius: expressive ? 16 : 0,
+      minHeight: expressive ? 32 : undefined,
       alignItems: "center",
       alignSelf: "center",
       backgroundColor: colors.surfaceVariant,
@@ -358,7 +366,9 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
     },
     iosDatePill: {
       alignItems: "center",
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: expressive
+        ? colors.secondaryContainer
+        : colors.surfaceVariant,
       borderColor: colors.outlineVariant,
       borderRadius: 26,
       borderWidth: 0,
@@ -368,7 +378,7 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       paddingHorizontal: 14,
     },
     iosDateText: {
-      color: colors.onSurface,
+      color: expressive ? colors.onSecondaryContainer : colors.onSurface,
       fontSize: 16,
       fontWeight: "800",
       lineHeight: 20,
@@ -388,8 +398,10 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       marginLeft: "auto",
     },
     iosTitleInput: {
-      backgroundColor: colors.elevation.level1,
-      borderRadius: 14,
+      backgroundColor: expressive
+        ? colors.surfaceVariant
+        : colors.elevation.level1,
+      borderRadius: expressive ? 20 : 14,
       color: colors.onSurface,
       flex: 1,
       fontSize: 13,
@@ -397,7 +409,7 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       height: 48,
     },
     iosTitleOutline: {
-      borderRadius: 14,
+      borderRadius: expressive ? 20 : 14,
       borderWidth: 0,
     },
     iosNotesInput: {
@@ -419,8 +431,10 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
     },
     iosKey: {
       alignItems: "center",
-      backgroundColor: colors.elevation.level1,
-      borderRadius: 14,
+      backgroundColor: expressive
+        ? colors.surfaceVariant
+        : colors.elevation.level1,
+      borderRadius: expressive ? 20 : 14,
       flex: 1,
       height: 57,
       justifyContent: "center",
@@ -430,7 +444,9 @@ export const createMainContentStyles = (colors: MD3Theme["colors"]) =>
       backgroundColor: "transparent",
     },
     iosClearKey: {
-      backgroundColor: withAlpha(colors.errorContainer, 0.72),
+      backgroundColor: expressive
+        ? colors.errorContainer
+        : withAlpha(colors.errorContainer, 0.72),
       borderColor: colors.error,
       borderWidth: 0,
     },

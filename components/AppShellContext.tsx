@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 
+import { useSharedValue, type SharedValue } from "react-native-reanimated";
+
 export type ShellTab = "calendar" | "transactions" | "insights";
 
 function tabToProgress(tab: ShellTab) {
@@ -16,6 +18,9 @@ function tabToProgress(tab: ShellTab) {
 }
 
 type ShellApi = {
+  classicPosition?: SharedValue<number>;
+  classicDriving?: SharedValue<boolean>;
+  classicTarget?: SharedValue<number>;
   activeTab: ShellTab;
   activeTabProgress: number;
   requestTab: (tab: ShellTab) => void;
@@ -29,6 +34,9 @@ type ShellApi = {
 const AppShellContext = createContext<ShellApi | null>(null);
 
 export function AppShellProvider({ children }: { children: React.ReactNode }) {
+  const classicPosition = useSharedValue(1);
+  const classicDriving = useSharedValue(false);
+  const classicTarget = useSharedValue(-1);
   const [activeTab, setActiveTab] = useState<ShellTab>("transactions");
   const [activeTabProgress, setActiveTabProgress] = useState(1);
   const driverRef = useRef<((tab: ShellTab) => void) | null>(null);
@@ -59,12 +67,18 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
     driverRef.current = fn;
   }, []);
 
-  const registerProgressDriver = useCallback((fn: (progress: number) => void) => {
-    progressDriverRef.current = fn;
-  }, []);
+  const registerProgressDriver = useCallback(
+    (fn: (progress: number) => void) => {
+      progressDriverRef.current = fn;
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({
+      classicPosition,
+      classicDriving,
+      classicTarget,
       activeTab,
       activeTabProgress,
       requestTab,
@@ -75,6 +89,9 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
       reportTabProgress,
     }),
     [
+      classicPosition,
+      classicDriving,
+      classicTarget,
       activeTab,
       activeTabProgress,
       registerDriver,
@@ -101,6 +118,9 @@ export function useAppShell() {
   }
 
   return {
+    classicPosition: undefined,
+    classicDriving: undefined,
+    classicTarget: undefined,
     activeTab: "transactions" as ShellTab,
     activeTabProgress: 1,
     requestTab: () => {},

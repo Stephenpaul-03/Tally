@@ -52,3 +52,19 @@ export function settledTabIndex(position: number, requested: number) {
   if (Math.abs(position - index) > 0.02) return null;
   return requested >= 0 && index !== requested ? null : index;
 }
+
+/** Classic keeps equal tab slots and a fixed inset, including when labels are hidden. */
+export function classicTabBarGeometry(
+  width: number,
+  position: number,
+  count = 3,
+) {
+  "worklet";
+  const step = Math.max(0, width - 10) / Math.max(1, count);
+  const bounded = Math.min(Math.max(0, count - 1), Math.max(0, position));
+  return {
+    step,
+    pillWidth: Math.max(0, step - 6),
+    pillLeft: 8 + bounded * step,
+  };
+}

@@ -1,3 +1,5 @@
+import { useClassicHome } from "./HomeCardContext";
+import { typography } from "@/theme/typography";
 import { homeGreeting } from "./homeGreeting";
 import React from "react";
 import { Keyboard, Pressable, TextInput, View } from "react-native";
@@ -15,6 +17,7 @@ export function HomeWelcome({
   hour: number;
 }) {
   const { colors: c } = useTheme();
+  const classic = useClassicHome();
   const [name, setName] = React.useState("");
   const [draft, setDraft] = React.useState("");
   const [editing, setEditing] = React.useState(false);
@@ -73,9 +76,11 @@ export function HomeWelcome({
               flex: 1,
               minHeight: 44,
               padding: 0,
-              fontFamily: "Figtree-800",
+              fontFamily: classic
+                ? typography.bodyStrong.fontFamily
+                : "Figtree-800",
               fontSize: 22,
-              color: c.onPrimaryContainer,
+              color: classic ? c.onSurface : c.onPrimaryContainer,
             }}
           />
           <Text style={{ fontSize: 11, color: c.onSurface }}>
@@ -125,9 +130,10 @@ export function HomeWelcome({
             adjustsFontSizeToFit
             minimumFontScale={0.2}
             style={{
-              fontSize: 28,
-              fontWeight: "800",
-              color: c.onPrimaryContainer,
+              fontSize: classic ? 23 : 28,
+              fontWeight: classic ? "700" : "800",
+              ...(classic ? typography.bodyStrong : {}),
+              color: classic ? c.onSurface : c.onPrimaryContainer,
               flexShrink: 1,
             }}
           >

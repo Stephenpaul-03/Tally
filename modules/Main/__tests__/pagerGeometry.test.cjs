@@ -66,7 +66,7 @@ test("interrupted tab animations cannot commit old destinations", () => {
   assert.equal(settledTabIndex(0, -1), 0);
 });
 
-test("one gesture never skips the neighboring page, even with extreme velocity or distance", () => {
+test("one screen swipe never skips the neighboring page, even with extreme velocity or distance", () => {
   const { clampSwipePosition, snapSwipeIndex } = loader()(
     "modules/Main/pagerGeometry.ts",
   );
@@ -87,4 +87,31 @@ test("one gesture never skips the neighboring page, even with extreme velocity o
   assert.equal(snapSwipeIndex(1.2, -100, 2), 1);
   assert.equal(snapSwipeIndex(0.2, 0, 0), 0);
   assert.equal(snapSwipeIndex(0.6, 0, 0), 1);
+});
+
+test("Classic pill tracks fractional page positions without resizing or crossing its rounded bar", () => {
+  const { classicTabBarGeometry } = loader()("modules/Main/pagerGeometry.ts");
+  for (const width of [280, 350, 720]) {
+    const left = classicTabBarGeometry(width, 0);
+    const middle = classicTabBarGeometry(width, 1);
+    const right = classicTabBarGeometry(width, 2);
+    const partial = classicTabBarGeometry(width, 0.5);
+    assert.equal(partial.pillWidth, middle.pillWidth);
+    assert.equal(partial.pillLeft, (left.pillLeft + middle.pillLeft) / 2);
+    assert.ok(right.pillLeft + right.pillWidth <= width - 5);
+    assert.equal(classicTabBarGeometry(width, -999).pillLeft, left.pillLeft);
+    assert.equal(classicTabBarGeometry(width, 999).pillLeft, right.pillLeft);
+  }
+});
+
+test("navigation pill may cross the entire bar while screen swipes remain adjacent", () => {
+  const { clampTabPosition, snapTabIndex, snapSwipeIndex, tabWeight } =
+    loader()("modules/Main/pagerGeometry.ts");
+  assert.equal(snapTabIndex(clampTabPosition(2), 0), 2);
+  assert.equal(snapTabIndex(clampTabPosition(0), 0), 0);
+  assert.equal(snapSwipeIndex(2, 0, 0), 1);
+  assert.equal(snapSwipeIndex(0, 0, 2), 1);
+  assert.equal(tabWeight(0.5, 0), 0.5);
+  assert.equal(tabWeight(0.5, 1), 0.5);
+  assert.equal(tabWeight(1.5, 0), 0);
 });

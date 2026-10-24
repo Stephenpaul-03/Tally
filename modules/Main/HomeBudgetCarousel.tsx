@@ -1,5 +1,16 @@
+import Animated, {
+  cancelAnimation,
+  Easing,
+  scrollTo,
+  useAnimatedRef,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useMotionEnabled } from "@/components/animations/Motion";
+import { carouselTarget } from "./carouselGeometry";
 import React from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useTheme } from "react-native-paper";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -12,7 +23,7 @@ import {
 import { categoryTone } from "@/theme/sage";
 import { mixHex } from "@/theme/expressivePalette";
 import { getCategoryColor, getCategoryIconName } from "@/utils/Helpers";
-import { homeCardShape } from "./homeCardAppearance";
+import { useClassicHome, useHomeCardShape } from "./HomeCardContext";
 import type { HomeBudgetPanelData } from "./homeAttentionModel";
 import { ledgerMoney } from "./presentation";
 
@@ -24,7 +35,9 @@ export function HomeBudgetCarousel({
   pagePan,
   compact = false,
   cardHeight,
+  active = true,
 }: {
+  active?: boolean;
   compact?: boolean;
   cardHeight?: number;
   panel: HomeBudgetPanelData | null;
@@ -34,12 +47,62 @@ export function HomeBudgetCarousel({
   pagePan: ReturnType<typeof Gesture.Pan>;
 }) {
   const { colors: c, dark } = useTheme();
+  const classic = useClassicHome();
+  const homeCardShape = useHomeCardShape();
   const categoryColors = useAppSelector(selectCategoryColors);
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const { width } = useWindowDimensions();
   const [viewport, setViewport] = React.useState(width - 32);
   const cardWidth = viewport;
-  const nativeScroll = Gesture.Native().blocksExternalGesture(pagePan);
+  const scroll = useAnimatedRef<Animated.ScrollView>();
+  const offset = useSharedValue(0);
+  const start = useSharedValue(0);
+  const selected = useSharedValue(0);
+  const dragging = useSharedValue(false);
+  const motion = useMotionEnabled();
+  const count = panel?.nudges.length ?? 0;
+  useDerivedValue(() => {
+    if (scroll()) scrollTo(scroll, offset.value, 0, false);
+  });
+  React.useEffect(() => {
+    // Resizing, navigating away, or changed budgets must not retain a partial page.
+    cancelAnimation(offset);
+    selected.value = Math.min(Math.max(0, count - 1), selected.value);
+    offset.value = selected.value * cardWidth;
+  }, [active, cardWidth, count, offset, selected]);
+  const settle = (velocity = 0) => {
+    "worklet";
+    selected.value = carouselTarget(offset.value, cardWidth, count, velocity);
+    offset.value = withTiming(selected.value * cardWidth, {
+      duration: motion ? 180 : 0,
+      easing: Easing.out(Easing.cubic),
+    });
+  };
+  const carouselPan = Gesture.Pan()
+    .enabled(active && count > 1)
+    .activeOffsetX([-6, 6])
+    .failOffsetY([-14, 14])
+    .blocksExternalGesture(pagePan)
+    .onStart(() => {
+      cancelAnimation(offset);
+      start.value = offset.value;
+      dragging.value = true;
+    })
+    .onUpdate((event) => {
+      offset.value = Math.max(
+        0,
+        Math.min((count - 1) * cardWidth, start.value - event.translationX),
+      );
+    })
+    .onEnd((event, success) => {
+      dragging.value = false;
+      settle(success ? -event.velocityX : 0);
+    })
+    .onFinalize(() => {
+      if (!dragging.value) return;
+      dragging.value = false;
+      settle();
+    });
   if (!panel) return null;
   const money = (amount: number) => ledgerMoney(amount, currency, symbol);
   const setup = (
@@ -54,30 +117,47 @@ export function HomeBudgetCarousel({
         alignItems: "center",
         gap: 12,
         ...homeCardShape("nudge"),
-        backgroundColor: c.secondaryContainer,
+        backgroundColor: classic
+          ? mixHex(c.surface, c.primary, 0.07)
+          : c.secondaryContainer,
+        ...(classic
+          ? {
+              borderWidth: 0.5,
+              borderColor: mixHex(c.outlineVariant, c.primary, 0.2),
+            }
+          : {}),
         opacity: pressed ? 0.75 : 1,
       })}
     >
       <Icon
         name="wallet-plus-outline"
         size={26}
-        color={c.onSecondaryContainer}
+        color={classic ? c.onSurface : c.onSecondaryContainer}
       />
       <View style={{ flex: 1, gap: 4 }}>
         <Text
           style={{
             fontSize: compact ? 13 : 16,
             fontWeight: "800",
-            color: c.onSecondaryContainer,
+            color: classic ? c.onSurface : c.onSecondaryContainer,
           }}
         >
           Set a budget
         </Text>
-        <Text style={{ fontSize: 12, color: c.onSecondaryContainer }}>
+        <Text
+          style={{
+            fontSize: 12,
+            color: classic ? c.onSurface : c.onSecondaryContainer,
+          }}
+        >
           Give your spending a limit and see what’s left.
         </Text>
       </View>
-      <Icon name="chevron-right" size={22} color={c.onSecondaryContainer} />
+      <Icon
+        name="chevron-right"
+        size={22}
+        color={classic ? c.onSurface : c.onSecondaryContainer}
+      />
     </Pressable>
   );
   if (panel.needsSetup) return setup;
@@ -86,15 +166,26 @@ export function HomeBudgetCarousel({
       style={{ gap: 8 }}
       onLayout={(event) => setViewport(event.nativeEvent.layout.width)}
     >
-      <GestureDetector gesture={nativeScroll}>
-        <ScrollView
+      <GestureDetector gesture={carouselPan}>
+        <Animated.ScrollView
+          ref={scroll}
+          scrollEnabled={false}
+          accessibilityActions={[
+            { name: "increment", label: "Next budget" },
+            { name: "decrement", label: "Previous budget" },
+          ]}
+          onAccessibilityAction={(event) => {
+            const next =
+              selected.value +
+              (event.nativeEvent.actionName === "increment" ? 1 : -1);
+            selected.value = Math.max(0, Math.min(count - 1, next));
+            offset.value = withTiming(selected.value * cardWidth, {
+              duration: motion ? 180 : 0,
+            });
+          }}
           horizontal
           showsHorizontalScrollIndicator={false}
-          pagingEnabled
-          snapToInterval={cardWidth}
-          disableIntervalMomentum
           bounces={false}
-          decelerationRate="fast"
           style={{ overflow: "hidden" }}
         >
           {panel.nudges.map((nudge) => {
@@ -102,6 +193,11 @@ export function HomeBudgetCarousel({
               nudge.category || "",
               dark,
               getCategoryColor(nudge.category || "", "expense", categoryColors),
+            );
+            const categoryAccent = getCategoryColor(
+              nudge.category || "",
+              "expense",
+              categoryColors,
             );
             const percent = Math.floor(nudge.percent * 10) / 10;
             return (
@@ -117,7 +213,19 @@ export function HomeBudgetCarousel({
                   justifyContent: "space-between",
                   gap: compact ? 6 : 14,
                   ...homeCardShape("nudge"),
-                  backgroundColor: background,
+                  backgroundColor: classic
+                    ? mixHex(c.surface, categoryAccent, 0.07)
+                    : background,
+                  ...(classic
+                    ? {
+                        borderWidth: 0.5,
+                        borderColor: mixHex(
+                          c.outlineVariant,
+                          categoryAccent,
+                          0.2,
+                        ),
+                      }
+                    : {}),
                   opacity: pressed ? 0.75 : 1,
                 })}
               >
@@ -156,7 +264,7 @@ export function HomeBudgetCarousel({
                       flex: 1,
                       fontSize: compact ? 13 : 16,
                       fontWeight: "800",
-                      color: foreground,
+                      color: classic ? c.onSurface : foreground,
                     }}
                   >
                     {nudge.label}
@@ -169,7 +277,7 @@ export function HomeBudgetCarousel({
                         fontSize: compact ? 22 : 28,
                         fontWeight: "800",
                         letterSpacing: -1,
-                        color: foreground,
+                        color: classic ? c.onSurface : foreground,
                       }}
                     >
                       {money(Math.abs(nudge.remaining))}
@@ -178,7 +286,7 @@ export function HomeBudgetCarousel({
                       style={{
                         fontSize: 11,
                         fontWeight: "700",
-                        color: foreground,
+                        color: classic ? c.onSurface : foreground,
                       }}
                     >
                       {nudge.remaining < 0
@@ -214,21 +322,26 @@ export function HomeBudgetCarousel({
                 >
                   <Text
                     style={{
-                      color: foreground,
+                      color: classic ? c.onSurface : foreground,
                       fontSize: 12,
                       fontWeight: "800",
                     }}
                   >
                     {percent}% spent
                   </Text>
-                  <Text style={{ color: foreground, fontSize: 12 }}>
+                  <Text
+                    style={{
+                      color: classic ? c.onSurface : foreground,
+                      fontSize: 12,
+                    }}
+                  >
                     of {money(nudge.budget)}
                   </Text>
                 </View>
               </Pressable>
             );
           })}
-        </ScrollView>
+        </Animated.ScrollView>
       </GestureDetector>
     </View>
   );

@@ -6,16 +6,27 @@ import {
 } from "@/components/tabbar/TabBarContext";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { typography } from "@/theme/typography";
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppShell } from "@/components/AppShellContext";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Reanimated, {
+  cancelAnimation,
+  Easing as REasing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import {
-  Animated,
-  Easing,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+  clampTabPosition,
+  snapTabIndex,
+  classicTabBarGeometry,
+  settledTabIndex,
+  tabWeight,
+} from "@/modules/Main/pagerGeometry";
+import { useMotionEnabled } from "@/components/animations/Motion";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -46,16 +57,11 @@ const BAR_BOTTOM_GAP = 5;
 const BAR_BORDER_WIDTH = 1;
 const BAR_SIDE_GAP = 20;
 const PILL_INSET = 5;
-const PILL_GAP = 6;
 
 // Gap between the top of the bar and the bottom of the action pills
 const ACTION_GAP = 8;
 // Pill height matches the active pill inside the bar
 const ACTION_PILL_HEIGHT = 40;
-
-// Minimum finger movement (px) before a touch on the pill counts as a drag
-// rather than a tap.
-const DRAG_ACTIVATION_THRESHOLD = 4;
 
 // ─── RaisedActionButton ───────────────────────────────────────────────────────
 
@@ -145,10 +151,17 @@ function RaisedActionButton({
             },
           ]}
         >
-          {action.icon({ color: theme.colors.onPrimary, size: iconOnly ? 20 : 14 })}
-          {!iconOnly ? <Text style={[styles.actionLabel, { color: theme.colors.onPrimary }]}>
-            {action.label.toUpperCase()}
-          </Text> : null}
+          {action.icon({
+            color: theme.colors.onPrimary,
+            size: iconOnly ? 20 : 14,
+          })}
+          {!iconOnly ? (
+            <Text
+              style={[styles.actionLabel, { color: theme.colors.onPrimary }]}
+            >
+              {action.label.toUpperCase()}
+            </Text>
+          ) : null}
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -173,6 +186,7 @@ function TabButton({
   activeColor,
   inactiveColor,
   index,
+  position,
 }: {
   route: BottomTabRoute;
   focused: boolean;
@@ -180,6 +194,7 @@ function TabButton({
   activeColor: string;
   inactiveColor: string;
   index: number;
+  position: SharedValue<number>;
 }) {
   const { animStyle: mountStyle } = useFadeSlide({
     distance: 10,
@@ -193,8 +208,12 @@ function TabButton({
   };
 
   const { hideLabels } = useTabBarModePreference();
-  const iconColor = focused ? activeColor : inactiveColor;
-  const labelColor = focused ? activeColor : inactiveColor;
+  const activeStyle = useAnimatedStyle(() => ({
+    opacity: tabWeight(position.value, index),
+  }));
+  const inactiveStyle = useAnimatedStyle(() => ({
+    opacity: 1 - tabWeight(position.value, index),
+  }));
 
   return (
     <Pressable
@@ -203,27 +222,37 @@ function TabButton({
       accessibilityState={{ selected: focused }}
       accessibilityLabel={route.title}
       style={styles.tabButton}
-      // tabButton carries the raised zIndex (above the pill) so its icon +
-      // label paint on top. But that same zIndex makes this whole Pressable
-      // win hit-testing for the focused tab — the one the pill physically
-      // sits under. pointerEvents="none" on an inner layer doesn't help,
-      // since the *parent* Pressable is what's intercepting. So when this
-      // tab is focused, we make the whole Pressable pass touches through to
-      // the pill underneath (which owns drag-to-select). Tapping an already
-      // -active tab was always a no-op, so nothing functional is lost.
-      // Unfocused tabs are never overlapped by the pill, so they keep
-      // normal touch handling.
-      pointerEvents={focused ? "none" : "auto"}
+      pointerEvents="auto"
     >
       <Animated.View style={[mountStyle, styles.tabContentLayer]}>
         <Animated.View style={styles.tabInner}>
-          {route.icon({ color: iconColor, size: 22 })}
-          {!hideLabels ? <Text
-            numberOfLines={1}
-            style={[styles.tabLabel, { color: labelColor }]}
-          >
-            {route.title.toUpperCase()}
-          </Text> : null}
+          <View style={{ alignItems: "center", justifyContent: "center" }}>
+            <Reanimated.View style={[styles.tabInner, inactiveStyle]}>
+              {route.icon({ color: inactiveColor, size: 22 })}
+              {!hideLabels && (
+                <Text
+                  numberOfLines={1}
+                  style={[styles.tabLabel, { color: inactiveColor }]}
+                >
+                  {route.title.toUpperCase()}
+                </Text>
+              )}
+            </Reanimated.View>
+            <Reanimated.View
+              pointerEvents="none"
+              style={[styles.tabInner, { position: "absolute" }, activeStyle]}
+            >
+              {route.icon({ color: activeColor, size: 22 })}
+              {!hideLabels && (
+                <Text
+                  numberOfLines={1}
+                  style={[styles.tabLabel, { color: activeColor }]}
+                >
+                  {route.title.toUpperCase()}
+                </Text>
+              )}
+            </Reanimated.View>
+          </View>
         </Animated.View>
       </Animated.View>
     </Pressable>
@@ -237,42 +266,113 @@ function BasicTabBar({
   activeIndex,
   activePosition,
   onTabPress,
-  onTabDrag,
   actionButtons,
 }: {
   routes: BottomTabRoute[];
   activeIndex: number;
   activePosition?: number;
   onTabPress: (index: number) => void;
-  onTabDrag?: (position: number) => void;
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
   const hidden = useTabBarHidden();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const setTabBarHeight = useSetTabBarHeight();
-  const [surfaceHeight, setSurfaceHeight] = useState(BAR_HEIGHT + BAR_BORDER_WIDTH * 2);
-  const barWidthRef = useRef(0);
-  const pillLeft = useRef(new Animated.Value(0)).current;
-  const [pillWidth, setPillWidth] = useState(0);
-
-  // Keep the latest activeIndex/onTabPress available to the PanResponder
-  // handlers below without needing to recreate the responder every render.
-  const activeIndexRef = useRef(activeIndex);
+  const [surfaceHeight, setSurfaceHeight] = useState(
+    BAR_HEIGHT + BAR_BORDER_WIDTH * 2,
+  );
+  const [barWidth, setBarWidth] = useState(0);
+  const { classicPosition, classicDriving, classicTarget } = useAppShell();
+  const localPosition = useSharedValue(activeIndex);
+  const localDriving = useSharedValue(false);
+  const localTarget = useSharedValue(-1);
+  const navigationTarget = classicTarget ?? localTarget;
+  const position = classicPosition ?? localPosition;
+  const driving = classicDriving ?? localDriving;
+  const start = useSharedValue(activeIndex);
+  const origin = useSharedValue(activeIndex);
+  const dragging = useSharedValue(false);
+  const motionEnabled = useMotionEnabled();
+  const tabWidth = classicTabBarGeometry(barWidth, 0, routes.length).step;
   useEffect(() => {
-    activeIndexRef.current = activeIndex;
-  }, [activeIndex]);
-
-  const onTabPressRef = useRef(onTabPress);
-  useEffect(() => {
-    onTabPressRef.current = onTabPress;
-  }, [onTabPress]);
-
-  const onTabDragRef = useRef(onTabDrag);
-  useEffect(() => {
-    onTabDragRef.current = onTabDrag;
-  }, [onTabDrag]);
-
+    if (classicPosition || driving.value) return;
+    const target = activePosition ?? activeIndex;
+    position.value = Number.isInteger(target)
+      ? withTiming(target, { duration: motionEnabled ? 180 : 0 })
+      : target;
+  }, [
+    activeIndex,
+    activePosition,
+    classicPosition,
+    driving,
+    motionEnabled,
+    position,
+  ]);
+  const pillMotion = useAnimatedStyle(() => {
+    const geometry = classicTabBarGeometry(
+      barWidth,
+      position.value,
+      routes.length,
+    );
+    return {
+      opacity: barWidth > 0 ? 1 : 0,
+      width: geometry.pillWidth,
+      transform: [{ translateX: geometry.pillLeft }],
+    };
+  });
+  const commit = (index: number) => {
+    if (settledTabIndex(position.value, navigationTarget.value) !== index)
+      return;
+    onTabPress(index);
+  };
+  const pan = Gesture.Pan()
+    .enabled(barWidth > 0)
+    .activeOffsetX([-4, 4])
+    .failOffsetY([-18, 18])
+    .onStart(() => {
+      cancelAnimation(position);
+      navigationTarget.value = -1;
+      start.value = position.value;
+      origin.value = activeIndex;
+      dragging.value = true;
+      driving.value = true;
+    })
+    .onUpdate((event) => {
+      position.value = clampTabPosition(
+        start.value + event.translationX / Math.max(1, tabWidth),
+      );
+    })
+    .onEnd((event, success) => {
+      dragging.value = false;
+      const target = snapTabIndex(
+        position.value,
+        success ? event.velocityX / Math.max(1, tabWidth) : 0,
+      );
+      navigationTarget.value = target;
+      position.value = withTiming(
+        target,
+        {
+          duration: motionEnabled ? 180 : 0,
+          easing: REasing.out(REasing.cubic),
+        },
+        (finished) => {
+          if (!finished) return;
+          driving.value = false;
+          runOnJS(commit)(target);
+        },
+      );
+    })
+    .onFinalize(() => {
+      if (!dragging.value) return;
+      dragging.value = false;
+      position.value = withTiming(
+        origin.value,
+        { duration: motionEnabled ? 180 : 0 },
+        (finished) => {
+          if (finished) driving.value = false;
+        },
+      );
+    });
   const {
     animStyle: barEntranceStyle,
     slideIn,
@@ -306,119 +406,13 @@ function BasicTabBar({
   }, [hidden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inactiveColor = theme.colors.onBackground + 40;
-  const activeTint = colorTreatment(theme.colors.primary, theme.dark, true, theme.colors.elevation.level1);
+  const activeTint = colorTreatment(
+    theme.colors.primary,
+    theme.dark,
+    true,
+    theme.colors.surface,
+  );
   const activeColor = activeTint.foregroundColor;
-
-  // Geometry helpers shared by the settle animation and the drag gesture.
-  const getTabWidth = useCallback(() => {
-    const width = barWidthRef.current;
-    if (!width) return 0;
-    const innerWidth = Math.max(0, width - PILL_INSET * 2);
-    return innerWidth / routes.length;
-  }, [routes.length]);
-
-  const getLeftForIndex = useCallback(
-    (index: number, tabWidth: number) =>
-      PILL_INSET + index * tabWidth + PILL_GAP / 2,
-    [],
-  );
-
-  // Position-only — safe to run on the native driver now that width isn't coupled to it.
-  const updatePill = useCallback(
-    (position: number, animated: boolean) => {
-      const tabWidth = getTabWidth();
-      if (!tabWidth) return;
-
-      const maxPosition = Math.max(0, routes.length - 1);
-      const nextPosition = Math.min(maxPosition, Math.max(0, position));
-      const nextLeft = getLeftForIndex(nextPosition, tabWidth);
-
-      pillLeft.stopAnimation();
-
-      if (animated) {
-        Animated.timing(pillLeft, {
-          toValue: nextLeft,
-          duration: 220,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true, // transform-only now, safe to go native
-        }).start();
-      } else {
-        pillLeft.setValue(nextLeft);
-      }
-    },
-    [getLeftForIndex, getTabWidth, pillLeft, routes.length],
-  );
-  useEffect(() => {
-    const nextPosition = activePosition ?? activeIndex;
-    const shouldAnimate = Number.isInteger(nextPosition);
-    updatePill(nextPosition, shouldAnimate);
-  }, [activeIndex, activePosition, updatePill]);
-
-  // ─── Drag-to-select gesture ─────────────────────────────────────────────
-  // The pill follows the finger 1:1 while dragging. The tab selection
-  // (onTabPress) only fires once the gesture ends, based on whichever tab
-  // the pill was released closest to. A simple tap (no meaningful drag)
-  // releases over the same tab and is a no-op, same as before.
-
-  const dragBaseLeftRef = useRef(0);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: (_, gesture) =>
-        Math.abs(gesture.dx) > DRAG_ACTIVATION_THRESHOLD,
-      onPanResponderTerminationRequest: () => false,
-
-      onPanResponderGrant: () => {
-        // Snapshot wherever the pill currently is (it may be mid-animation)
-        // so the drag starts from the visible position, not a stale value.
-        pillLeft.stopAnimation((value) => {
-          dragBaseLeftRef.current = value;
-        });
-      },
-
-      onPanResponderMove: (_, gesture) => {
-        const tabWidth = getTabWidth();
-        if (!tabWidth) return;
-        const routeCount = routes.length;
-        const minLeft = getLeftForIndex(0, tabWidth);
-        const maxLeft = getLeftForIndex(routeCount - 1, tabWidth);
-        const nextLeft = Math.min(
-          maxLeft,
-          Math.max(minLeft, dragBaseLeftRef.current + gesture.dx),
-        );
-        const nextPosition = (nextLeft - minLeft) / tabWidth;
-        pillLeft.setValue(nextLeft);
-        onTabDragRef.current?.(nextPosition);
-      },
-
-      onPanResponderRelease: (_, gesture) => {
-        const tabWidth = getTabWidth();
-        if (!tabWidth) {
-          updatePill(activeIndexRef.current, true);
-          return;
-        }
-        const routeCount = routes.length;
-        const minLeft = getLeftForIndex(0, tabWidth);
-        const maxLeft = getLeftForIndex(routeCount - 1, tabWidth);
-        const finalLeft = Math.min(
-          maxLeft,
-          Math.max(minLeft, dragBaseLeftRef.current + gesture.dx),
-        );
-        const rawIndex = Math.round((finalLeft - minLeft) / tabWidth);
-        const nextIndex = Math.min(routeCount - 1, Math.max(0, rawIndex));
-
-        // Snap the pill home (to the new index, or back to the current one).
-        updatePill(nextIndex, true);
-        onTabPressRef.current(nextIndex);
-      },
-
-      onPanResponderTerminate: () => {
-        updatePill(activeIndexRef.current, true);
-        onTabDragRef.current?.(activeIndexRef.current);
-      },
-    }),
-  ).current;
 
   const activeActions = getActiveActions(routes, activeIndex, actionButtons);
 
@@ -429,7 +423,8 @@ function BasicTabBar({
         styles.container,
         {
           marginBottom: insets.bottom,
-          backgroundColor: theme.colors.background,
+          backgroundColor: theme.colors.surface,
+          borderWidth: StyleSheet.hairlineWidth,
           borderColor: theme.colors.outlineVariant,
         },
         barEntranceStyle,
@@ -462,44 +457,38 @@ function BasicTabBar({
         />
       )}
 
-      <View
-        style={styles.tabRow}
-        onLayout={(e) => {
-          const nextWidth = e.nativeEvent.layout.width;
-          if (nextWidth !== barWidthRef.current) {
-            barWidthRef.current = nextWidth;
-            // Keep width static so the native-driven position never receives a layout animation.
-            setPillWidth(Math.max(0, getTabWidth() - PILL_GAP));
-            updatePill(activeIndex, false);
-          }
-        }}
-      >
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.activePill,
-            {
-              backgroundColor: activeTint.backgroundColor,
-              borderWidth: 1,
-              borderColor: activeTint.borderColor,
-              transform: [{ translateX: pillLeft }],
-              width: pillWidth,
-            },
-          ]}
-        />
-
-        {routes.map((route, index) => (
-          <TabButton
-            key={route.key}
-            route={route}
-            focused={index === activeIndex}
-            onPress={() => onTabPress(index)}
-            activeColor={activeColor}
-            inactiveColor={inactiveColor}
-            index={index}
+      <GestureDetector gesture={pan}>
+        <View
+          style={styles.tabRow}
+          onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
+        >
+          <Reanimated.View
+            pointerEvents="none"
+            style={[
+              styles.activePill,
+              {
+                backgroundColor: activeTint.backgroundColor,
+                borderWidth: 1,
+                borderColor: activeTint.borderColor,
+              },
+              pillMotion,
+            ]}
           />
-        ))}
-      </View>
+
+          {routes.map((route, index) => (
+            <TabButton
+              key={route.key}
+              route={route}
+              focused={index === activeIndex}
+              onPress={() => onTabPress(index)}
+              activeColor={activeColor}
+              inactiveColor={inactiveColor}
+              index={index}
+              position={position}
+            />
+          ))}
+        </View>
+      </GestureDetector>
     </Animated.View>
   );
 }
@@ -554,14 +543,12 @@ export function BottomTabBar({
   activeIndex,
   activePosition,
   onTabPress,
-  onTabDrag,
   actionButtons,
 }: {
   routes: BottomTabRoute[];
   activeIndex: number;
   activePosition?: number;
   onTabPress: (index: number) => void;
-  onTabDrag?: (position: number) => void;
   /**
    * Map of route.key → { left?, right? } action pill config.
    * When that tab is active the pills float above the bar —
@@ -575,7 +562,7 @@ export function BottomTabBar({
    *       right: { label: "Add",    icon: PlusIcon,   onPress: handleAdd  },
    *     },
    *   }}
-  */
+   */
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
   const { tabBarEnabled } = useTabBarModePreference();
@@ -591,7 +578,6 @@ export function BottomTabBar({
       activeIndex={activeIndex}
       activePosition={activePosition}
       onTabPress={onTabPress}
-      onTabDrag={onTabDrag}
       actionButtons={actionButtons}
     />
   );

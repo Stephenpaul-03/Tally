@@ -23,7 +23,9 @@ export function SheetCard({ children, theme, style }: SheetCardProps) {
           borderRadius: 20,
           overflow: "hidden",
           marginBottom: 20,
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: expressive
+            ? theme.colors.elevation.level1
+            : theme.colors.surface,
           borderWidth: 0.5,
           borderColor: theme.colors.outlineVariant,
         },

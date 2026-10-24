@@ -1,3 +1,4 @@
+import { ClassicSpending } from "./components/ClassicSpending";
 import { Gesture } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -30,7 +31,7 @@ import { typography } from "@/theme/typography";
 import { getAccountColor, getAccountIconName } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import Animated, {
@@ -61,6 +62,7 @@ type InsightsProps = {
   pagePan?: ReturnType<typeof Gesture.Pan>;
   initialMonth?: string;
   expressive?: boolean;
+  standalone?: boolean;
   month?: string;
   onMonthChange?: (month: string) => void;
 };
@@ -81,6 +83,7 @@ function WorkspaceInsights({
   pagePan,
   initialMonth,
   expressive = false,
+  standalone = false,
   month,
   onMonthChange,
 }: InsightsProps & {
@@ -92,7 +95,8 @@ function WorkspaceInsights({
   const theme = useTheme<ExtendedMD3Theme>();
   const tabBarHeight = useTabBarHeight();
   const { bottom } = useSafeAreaInsets();
-  const expanded = expressive || activeTab === "insights";
+  const classicB = standalone && !expressive && !theme.expressive;
+  const expanded = expressive || standalone || activeTab === "insights";
   // Keep the same period and hero mounted as Home expands into Insights.
   const a = useInsights(workspaceCurrency, true, { month, onMonthChange });
   useEffect(() => {
@@ -231,6 +235,7 @@ function WorkspaceInsights({
     />
   ) : (
     <MoneyHero
+      contained={classicB}
       data={a.data}
       money={money}
       onIncome={expanded ? showIncome : () => requestTab("insights")}
@@ -310,7 +315,7 @@ function WorkspaceInsights({
             32,
         }}
       >
-        {expressive ? (
+        {expressive || standalone ? (
           <>
             <View
               style={{
@@ -326,9 +331,13 @@ function WorkspaceInsights({
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 style={{
-                  fontSize: 34,
-                  fontWeight: "800",
-                  letterSpacing: -1,
+                  ...(theme.expressive
+                    ? {
+                        fontSize: 34,
+                        fontWeight: "800" as const,
+                        letterSpacing: -1,
+                      }
+                    : typography.editorial.hero),
                   color: theme.colors.onSurface,
                   flex: 1,
                 }}
@@ -345,7 +354,11 @@ function WorkspaceInsights({
                   minHeight: 44,
                   paddingHorizontal: 12,
                   borderRadius: 24,
-                  backgroundColor: theme.colors.surfaceVariant,
+                  backgroundColor: theme.expressive
+                    ? theme.colors.surfaceVariant
+                    : theme.colors.surface,
+                  borderWidth: theme.expressive ? 0 : StyleSheet.hairlineWidth,
+                  borderColor: theme.colors.outlineVariant,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 6,
@@ -377,7 +390,9 @@ function WorkspaceInsights({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: theme.colors.surfaceVariant,
+                  backgroundColor: theme.expressive
+                    ? theme.colors.surfaceVariant
+                    : "transparent",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -396,7 +411,9 @@ function WorkspaceInsights({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: theme.colors.surfaceVariant,
+                  backgroundColor: theme.expressive
+                    ? theme.colors.surfaceVariant
+                    : "transparent",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -422,7 +439,7 @@ function WorkspaceInsights({
             ) : null}
           </>
         ) : null}
-        {!expressive && a.currencies.length > 1 ? (
+        {!expressive && !standalone && a.currencies.length > 1 ? (
           <View style={styles.chips}>
             {a.currencies.map((code) => (
               <Chip
@@ -436,7 +453,7 @@ function WorkspaceInsights({
         ) : null}
         <SpotlightTarget
           id="overview"
-          enabled={!expressive || activeTab === "insights"}
+          enabled={(!expressive && !standalone) || activeTab === "insights"}
         >
           {overview}
         </SpotlightTarget>
@@ -462,13 +479,25 @@ function WorkspaceInsights({
             <>
               <InsightCard
                 index={0}
-                active={expressive || activeTab === "insights"}
-                initiallyVisible={expressive}
+                active={expressive || standalone || activeTab === "insights"}
+                initiallyVisible={expressive || standalone}
                 title="Spending"
                 icon="arrow-top-right"
                 color={theme.semantic.expense}
               >
-                {categoryRows("expense")}
+                {classicB ? (
+                  <ClassicSpending
+                    groups={a.data.expenseCategories}
+                    total={a.data.expense}
+                    money={money}
+                    icons={a.icons}
+                    colors={a.colors}
+                    onSelect={(group) => showCategory(group, "expense")}
+                    onShowAll={() => setBrowse("expense")}
+                  />
+                ) : (
+                  categoryRows("expense")
+                )}
               </InsightCard>
             </>
           ) : null}
@@ -476,21 +505,34 @@ function WorkspaceInsights({
             <>
               <InsightCard
                 index={1}
-                active={expressive || activeTab === "insights"}
-                initiallyVisible={expressive}
+                active={expressive || standalone || activeTab === "insights"}
+                initiallyVisible={expressive || standalone}
                 title="Income"
                 icon="arrow-bottom-left"
                 color={theme.semantic.income}
               >
-                {categoryRows("income")}
+                {classicB ? (
+                  <ClassicSpending
+                    type="income"
+                    groups={a.data.incomeCategories}
+                    total={a.data.income}
+                    money={money}
+                    icons={a.icons}
+                    colors={a.colors}
+                    onSelect={(group) => showCategory(group, "income")}
+                    onShowAll={() => setBrowse("income")}
+                  />
+                ) : (
+                  categoryRows("income")
+                )}
               </InsightCard>
             </>
           ) : null}
           {accounts.length ? (
             <InsightCard
               index={2}
-              active={expressive || activeTab === "insights"}
-              initiallyVisible={expressive}
+              active={expressive || standalone || activeTab === "insights"}
+              initiallyVisible={expressive || standalone}
               title="Accounts"
               icon="wallet-outline"
               color={theme.dark ? "#C4A7F5" : "#7950B5"}
@@ -547,22 +589,51 @@ function WorkspaceInsights({
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
+                        width: "100%",
                         gap: 10,
                         minHeight: 44,
                         paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.surfaceVariant,
                       }}
                     >
-                      <CategoryIconBadge icon={icon} color={color} />
+                      <CategoryIconBadge
+                        icon={icon}
+                        color={color}
+                        style={{ width: 34, height: 34, borderRadius: 12 }}
+                      />
+                      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            ...typography.bodyMedium,
+                            fontSize: 14,
+                            color: theme.colors.onSurface,
+                          }}
+                        >
+                          {account.name || "Unspecified account"}
+                        </Text>
+                        <Text
+                          style={{
+                            ...typography.body,
+                            fontSize: 11,
+                            color: theme.colors.onSurfaceVariant,
+                          }}
+                        >
+                          Spent this month
+                        </Text>
+                      </View>
                       <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
                         style={{
-                          ...typography.bodyMedium,
-                          fontSize: 14,
-                          flex: 1,
+                          ...typography.bodyStrong,
+                          maxWidth: "40%",
+                          fontSize: 15,
+                          color: theme.colors.onSurface,
                         }}
                       >
-                        {account.name || "Unspecified account"}
-                      </Text>
-                      <Text style={{ ...typography.bodyMedium, fontSize: 14 }}>
                         {money(account.expense)}
                       </Text>
                       <MaterialCommunityIcons
@@ -579,8 +650,8 @@ function WorkspaceInsights({
           {hasEntries ? (
             <InsightCard
               index={3}
-              active={expressive || activeTab === "insights"}
-              initiallyVisible={expressive}
+              active={expressive || standalone || activeTab === "insights"}
+              initiallyVisible={expressive || standalone}
               title="Activity"
               icon="calendar-blank-outline"
               color={theme.dark ? "#67C8E8" : "#087FA3"}
@@ -631,8 +702,8 @@ function WorkspaceInsights({
           {hasYearEntries ? (
             <InsightCard
               index={4}
-              active={expressive || activeTab === "insights"}
-              initiallyVisible={expressive}
+              active={expressive || standalone || activeTab === "insights"}
+              initiallyVisible={expressive || standalone}
               title="Yearly"
               value={a.data.year.label}
               icon="chart-bar"

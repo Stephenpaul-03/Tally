@@ -1,5 +1,12 @@
+import { HomeDraftAction } from "./HomeDraftAction";
+import { ClassicHomeOverview } from "./ClassicHomeOverview";
 import { Gesture } from "react-native-gesture-handler";
-import { homeCardShape } from "./homeCardAppearance";
+import {
+  HomePresentation,
+  useClassicHome,
+  useHomeCardShape,
+} from "./HomeCardContext";
+import { typography } from "@/theme/typography";
 import { HomeAttention } from "./HomeAttentionCards";
 import { HomeGreetingCards } from "./HomeGreetingCards";
 import {
@@ -18,12 +25,23 @@ import type { RootParamList } from "@/navigation/types";
 import type { Transaction } from "@/utils/Types";
 import { DesignText as Text } from "@/components/DesignText";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
-import { monthLabel, shiftMonth } from "@/modules/Insights/calculations";
+import { monthLabel } from "@/modules/Insights/calculations";
 import { ledgerMoney } from "./presentation";
 import { homeOverview } from "./homeOverview";
 import { MonthPickerSheet } from "./MonthPickerSheet";
 
-export function HomePage({
+export function HomePage(
+  props: React.ComponentProps<typeof HomePageContent> & { classic?: boolean },
+) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  return (
+    <HomePresentation classic={Boolean(props.classic) && !theme.expressive}>
+      <HomePageContent {...props} />
+    </HomePresentation>
+  );
+}
+
+function HomePageContent({
   active,
   pagePan,
   raw,
@@ -42,6 +60,8 @@ export function HomePage({
   onMonth: (month: string) => void;
   onEdit: (id: string) => void;
 }) {
+  const classic = useClassicHome();
+  const homeCardShape = useHomeCardShape();
   const { colors: c } = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -67,10 +87,6 @@ export function HomePage({
   const income = currencyRows.filter((row) => row.type === "income");
   const expenses = currencyRows.filter((row) => row.type === "expense");
   const money = (value: number) => ledgerMoney(value, currency, symbol);
-  const monthTitle = new Date(`${month}-01T12:00:00`).toLocaleDateString(
-    undefined,
-    { month: "short", year: "numeric" },
-  );
   const iconButton = (
     icon: React.ComponentProps<typeof Icon>["name"],
     label: string,
@@ -82,7 +98,10 @@ export function HomePage({
       onPress={onPress}
       style={({ pressed }) => [
         s.iconButton,
-        { backgroundColor: c.surfaceVariant, opacity: pressed ? 0.65 : 1 },
+        {
+          backgroundColor: classic ? "transparent" : c.surfaceVariant,
+          opacity: pressed ? 0.65 : 1,
+        },
       ]}
     >
       <Icon name={icon} size={21} color={c.onSurface} />
@@ -101,150 +120,186 @@ export function HomePage({
         }}
       >
         <View style={s.between}>
-          <Text style={{ fontSize: 22, fontWeight: "800", color: c.primary }}>
-            tally
+          <Text
+            style={[
+              { fontSize: 22, fontWeight: "800", color: c.primary },
+              classic && { ...typography.editorial.hero, color: c.primary },
+            ]}
+          >
+            {classic ? "TALLY" : "tally"}
           </Text>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <View style={[s.stepper, { backgroundColor: c.surfaceVariant }]}>
-              {iconButton("chevron-left", "Previous month", () =>
-                onMonth(shiftMonth(month, -1)),
-              )}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Choose month, ${monthTitle}`}
-                onPress={() => setPicker(true)}
-                style={{ minHeight: 44, justifyContent: "center" }}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "800",
-                    color: c.onSurface,
-                  }}
-                >
-                  {monthTitle}
-                </Text>
-              </Pressable>
-              {iconButton("chevron-right", "Next month", () =>
-                onMonth(shiftMonth(month, 1)),
-              )}
-            </View>
+            <HomeDraftAction
+              active={active}
+              currency={currency}
+              symbol={symbol}
+            />
             {iconButton("cog-outline", "Settings", () =>
               navigation.navigate("Settings"),
             )}
           </View>
         </View>
-        <HomeGreetingCards active={active} />
+        <HomeGreetingCards
+          active={active}
+          onChooseMonth={() => setPicker(true)}
+        />
         <SpotlightTarget id="overview" enabled={active}>
-          <View
-            style={[
-              s.hero,
-              homeCardShape("balance", 40),
-              { backgroundColor: c.primaryContainer },
-            ]}
-          >
-            <View style={s.between}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: c.onPrimaryContainer,
-                }}
-              >
-                Balance
-              </Text>
-              {balance < 0 ? (
-                <View
-                  style={[s.errorChip, { backgroundColor: c.errorContainer }]}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "700",
-                      color: c.onErrorContainer,
-                    }}
-                  >
-                    Over by {money(balance)}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={[s.balance, { color: c.onPrimaryContainer }]}
+          {classic ? (
+            <ClassicHomeOverview
+              balance={balance}
+              received={received}
+              spent={spent}
+              money={money}
+              onIncome={() =>
+                setDetail({
+                  title: "Income",
+                  description: monthLabel(month),
+                  transactions: income,
+                  summary: { label: "Income", value: money(received) },
+                })
+              }
+              onSpent={() =>
+                setDetail({
+                  title: "Spent",
+                  description: monthLabel(month),
+                  transactions: expenses,
+                  summary: { label: "Spent", value: money(spent) },
+                })
+              }
+            />
+          ) : (
+            <View
+              style={[
+                s.hero,
+                homeCardShape("balance", 40),
+                { backgroundColor: classic ? c.surface : c.primaryContainer },
+                classic && { padding: 18, gap: 10 },
+              ]}
             >
-              {balance < 0 ? "−" : ""}
-              {money(balance)}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {(
-                [
-                  ["Income", received, "arrow-bottom-left", income],
-                  ["Spent", spent, "arrow-top-right", expenses],
-                ] as const
-              ).map(([name, value, icon, rows]) => (
-                <Pressable
-                  key={name}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View ${name.toLowerCase()} transactions`}
-                  onPress={() =>
-                    setDetail({
-                      title: name,
-                      description: monthLabel(month),
-                      transactions: rows,
-                      summary: { label: name, value: money(value) },
-                    })
-                  }
-                  style={[s.innerPill, { backgroundColor: c.background }]}
+              <View style={s.between}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    ...(classic ? typography.editorial.sectionLabel : {}),
+                    color: classic ? c.onSurface : c.onPrimaryContainer,
+                  }}
                 >
+                  Balance
+                </Text>
+                {balance < 0 ? (
                   <View
-                    style={[
-                      s.smallIcon,
-                      {
-                        backgroundColor:
-                          name === "Income"
-                            ? c.secondaryContainer
-                            : c.errorContainer,
-                      },
-                    ]}
+                    style={[s.errorChip, { backgroundColor: c.errorContainer }]}
                   >
-                    <Icon
-                      name={icon}
-                      size={22}
-                      color={
-                        name === "Income"
-                          ? c.onSecondaryContainer
-                          : c.onErrorContainer
-                      }
-                    />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
                     <Text
                       style={{
                         fontSize: 12,
-                        color: c.onSurfaceVariant,
-                        fontWeight: "600",
+                        fontWeight: "700",
+                        color: c.onErrorContainer,
                       }}
                     >
-                      {name}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      style={{
-                        fontSize: 17,
-                        fontWeight: "800",
-                        color: c.onPrimaryContainer,
-                      }}
-                    >
-                      {money(value)}
+                      Over by {money(balance)}
                     </Text>
                   </View>
-                </Pressable>
-              ))}
+                ) : null}
+              </View>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[
+                  s.balance,
+                  classic && {
+                    ...typography.bodyStrong,
+                    fontSize: 42,
+                    lineHeight: 52,
+                    letterSpacing: -1.5,
+                  },
+                  { color: classic ? c.onSurface : c.onPrimaryContainer },
+                ]}
+              >
+                {balance < 0 ? "−" : ""}
+                {money(balance)}
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {(
+                  [
+                    ["Income", received, "arrow-bottom-left", income],
+                    ["Spent", spent, "arrow-top-right", expenses],
+                  ] as const
+                ).map(([name, value, icon, rows]) => (
+                  <Pressable
+                    key={name}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${name.toLowerCase()} transactions`}
+                    onPress={() =>
+                      setDetail({
+                        title: name,
+                        description: monthLabel(month),
+                        transactions: rows,
+                        summary: { label: name, value: money(value) },
+                      })
+                    }
+                    style={[
+                      s.innerPill,
+                      {
+                        backgroundColor: classic ? "transparent" : c.background,
+                      },
+                      classic && {
+                        borderRadius: 0,
+                        padding: 0,
+                        paddingVertical: 8,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        s.smallIcon,
+                        {
+                          backgroundColor: classic
+                            ? "transparent"
+                            : name === "Income"
+                              ? c.secondaryContainer
+                              : c.errorContainer,
+                        },
+                      ]}
+                    >
+                      <Icon
+                        name={icon}
+                        size={22}
+                        color={
+                          name === "Income"
+                            ? c.onSecondaryContainer
+                            : c.onErrorContainer
+                        }
+                      />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: c.onSurfaceVariant,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {name}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        style={{
+                          fontSize: 17,
+                          fontWeight: "800",
+                          color: classic ? c.onSurface : c.onPrimaryContainer,
+                        }}
+                      >
+                        {money(value)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
         </SpotlightTarget>
         <HomeAttention
           onTransaction={onEdit}
@@ -288,7 +343,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepper: { flexDirection: "row", alignItems: "center", borderRadius: 24 },
   hero: { padding: 22, gap: 16, borderRadius: 40, borderBottomLeftRadius: 12 },
   balance: {
     fontWeight: "800",

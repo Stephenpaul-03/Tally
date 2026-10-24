@@ -125,7 +125,9 @@ export function MoneyHero({
   money,
   onIncome,
   onSpending,
+  contained = false,
 }: {
+  contained?: boolean;
   data: Data;
   money: (value: number) => string;
   onIncome: () => void;
@@ -149,11 +151,20 @@ export function MoneyHero({
         flexWrap: "wrap",
         alignItems: "center",
         gap: 10,
-        paddingVertical: 8,
+        paddingVertical: contained ? 12 : 8,
+        ...(contained
+          ? {
+              paddingHorizontal: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.colors.outlineVariant,
+              borderRadius: 18,
+              backgroundColor: theme.colors.surface,
+            }
+          : {}),
       }}
     >
       <View style={{ flexGrow: 1, flexBasis: 120, gap: 4 }}>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ gap: 2, justifyContent: "center" }}>
           <Text
             style={{
               ...typography.body,

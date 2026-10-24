@@ -1,12 +1,21 @@
-import { homeCardShape, homeCardTone } from "./homeCardAppearance";
+import { useClassicHome, useHomeCardShape } from "./HomeCardContext";
+import { homeCardTone } from "./homeCardAppearance";
 import React from "react";
-import { AppState, View, useWindowDimensions } from "react-native";
+import { AppState, Pressable, View, useWindowDimensions } from "react-native";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import { HomeWelcome } from "./HomeWelcome";
 
-export function HomeGreetingCards({ active }: { active: boolean }) {
-  const { dark } = useTheme();
+export function HomeGreetingCards({
+  active,
+  onChooseMonth,
+}: {
+  active: boolean;
+  onChooseMonth: () => void;
+}) {
+  const { dark, colors: c } = useTheme();
+  const classic = useClassicHome();
+  const homeCardShape = useHomeCardShape();
   const [greetingBackground] = homeCardTone("greeting", dark);
   const [dateBackground, dateForeground] = homeCardTone("date", dark);
   const { width } = useWindowDimensions();
@@ -25,6 +34,65 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
       subscription.remove();
     };
   }, [active]);
+  if (classic)
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 16,
+          paddingVertical: 6,
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <HomeWelcome active={active} hour={now.getHours()} />
+        </View>
+        <Pressable
+          onPress={onChooseMonth}
+          accessibilityRole="button"
+          accessibilityHint="Choose the month shown on Home"
+          accessible
+          accessibilityLabel={now.toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+          style={{
+            width: 76,
+            minHeight: 78,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 8,
+            gap: 1,
+            backgroundColor: c.surface,
+            borderRadius: 12,
+            borderWidth: 0.5,
+            borderColor: c.outlineVariant,
+          }}
+        >
+          <Text style={{ fontSize: 11, color: c.onSurfaceVariant }}>
+            {now.toLocaleDateString(undefined, { weekday: "short" })}
+          </Text>
+          <Text
+            style={{
+              fontSize: 26,
+              lineHeight: 30,
+              fontWeight: "700",
+              color: c.primary,
+            }}
+          >
+            {now.getDate()}
+          </Text>
+          <Text style={{ fontSize: 10, color: c.onSurfaceVariant }}>
+            {now.toLocaleDateString(undefined, {
+              month: "short",
+              year: "numeric",
+            })}
+          </Text>
+        </Pressable>
+      </View>
+    );
   return (
     <View
       onLayout={(event) => setRowWidth(event.nativeEvent.layout.width)}
@@ -36,13 +104,16 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
           minHeight: (rowWidth - 10) * 0.3,
           padding: 14,
           ...homeCardShape("greeting"),
-          backgroundColor: greetingBackground,
+          backgroundColor: classic ? c.surface : greetingBackground,
           justifyContent: "center",
         }}
       >
         <HomeWelcome active={active} hour={now.getHours()} />
       </View>
-      <View
+      <Pressable
+        onPress={onChooseMonth}
+        accessibilityRole="button"
+        accessibilityHint="Choose the month shown on Home"
         accessible
         accessibilityLabel={now.toLocaleDateString(undefined, {
           weekday: "long",
@@ -54,7 +125,7 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
           width: (rowWidth - 10) * 0.3,
           aspectRatio: 1,
           ...homeCardShape("date"),
-          backgroundColor: dateBackground,
+          backgroundColor: classic ? c.surface : dateBackground,
           alignItems: "center",
           justifyContent: "center",
           padding: 8,
@@ -66,7 +137,7 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
           style={{
             fontSize: 12,
             fontWeight: "600",
-            color: dateForeground,
+            color: classic ? c.onSurface : dateForeground,
           }}
         >
           {now.toLocaleDateString(undefined, { weekday: "short" })}
@@ -77,7 +148,7 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
           style={{
             fontSize: 32,
             fontWeight: "800",
-            color: dateForeground,
+            color: classic ? c.onSurface : dateForeground,
             lineHeight: 38,
           }}
         >
@@ -89,7 +160,7 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
           style={{
             fontSize: 11,
             fontWeight: "600",
-            color: dateForeground,
+            color: classic ? c.onSurface : dateForeground,
           }}
         >
           {now.toLocaleDateString(undefined, {
@@ -97,7 +168,7 @@ export function HomeGreetingCards({ active }: { active: boolean }) {
             year: "numeric",
           })}
         </Text>
-      </View>
+      </Pressable>
     </View>
   );
 }

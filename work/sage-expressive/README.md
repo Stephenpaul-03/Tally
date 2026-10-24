@@ -183,3 +183,154 @@ Final Android Home review confirmed the greeting-height budget/stat cards sharin
 Insights Balance and its amount now share a centered row; the amount is 28 points, slightly larger than the 24-point income/spending amounts. Section headings are Spending, Income, Accounts, Activity and Yearly. Spending/Income omit header totals; preview spending tiles and their parent omit budget warnings (budgets remain available in comparison/detail views). Header icons have no colored backing. Expressive headings sit directly on the page background, above rounded tonal card bodies without divider lines.
 
 The daily toggle uses one UI-thread progress value for its draggable indicator, changing segment widths, icon tints and label reveals. Only the selected label is visible at rest. Dragging blocks the Expressive main pager, supports cancellation and respects motion preferences. Android tests confirmed left drag selects Expenses and right drag selects Income, retaining the Insights tab in both cases. Android visual review confirmed the inline balance and simplified headers. Typecheck, lint, 36 analytics tests and 44 design tests passed; Android and iOS production bundles exported. No ledger/budget data was edited.
+
+
+## Classic dashboard and shared native page/bar motion
+
+Classic Home is now a dedicated dashboard instead of the old collapsed Insights/transaction split. It reuses Home's greeting/date, balance with tappable Income/Spent summaries, conditional draft picker, rotating facts, one-card budget carousel/setup action and up to three recent transactions. A presentation context gives these shared features uniform 20-point corners, fine borders, neutral greeting/draft/fact surfaces and a 54-point Classic balance amount. The floating Classic navigation bar, hide-label/disabled-bar preferences and Classic transaction timeline remain. Home uses posted workspace records independently of ledger filters.
+
+Classic has three persistently mounted horizontal pages. A shared Reanimated position drives both the pages and the floating pill; Gesture Handler tracks finger movement on the UI thread, with JavaScript selection updates only at settlement. Both page and bar drags use the tested one-neighbor clamp. Destination/progress checks reject stale commits after interruptions. The old per-move PanResponder/React state path is removed from the tab bar. Standalone Classic Insights has its own header/month/settings/comparison actions, retained content and once-only motion scope; Home clocks/facts pause when its native route loses focus. Transaction tools remain available above the timeline, with Add retained above the Classic bar.
+
+The full release checks passed, followed by final typecheck/lint and 45 design tests including new fractional Classic pill geometry coverage. Android and iOS production bundles exported. Android screenshots verified Classic dashboard styling and transaction timeline, bar navigation across all three tabs, an extreme Transactions swipe stopping at Home, interrupted tab selections, and the Settings round trip. The initial Expressive layout was restored after verification. No transaction, draft or budget data was edited; frame rate has not been measured.
+
+
+## Free navigation-pill drag and full Classic surfaces
+
+Pill gestures in both tab bars now use the full three-tab range, independently of the adjacent-page limit retained for screen swipes. Icon/label layers blend from the live shared position on the UI thread as the pill enters and leaves each tab. Expressive retains neutral icon colors; Classic retains its accent selection. Regression coverage distinguishes end-to-end pill targets from adjacent screen-swipe targets.
+
+Full Classic Home now uses neutral, finely outlined 12-point cards, a compact 42-point balance, plain income/spending summaries, neutral date and budget surfaces, and Classic typography. Its header has an unfilled month stepper/settings button. Standalone Insights also uses Classic header typography and plain controls when the Classic theme is selected. Expressive theme presentation and shared dashboard data/features remain available.
+
+Android verification passed direct Transactions-to-Insights and reverse pill drags. Typecheck, lint, 46 design tests and 36 analytics tests passed. No ledger, draft or budget data was edited.
+
+
+## Classic Transactions toolbar and modal handoff
+
+Classic Transactions now starts with one compact toolbar: month, Sort, Filter, Fold and a small search field. Focusing search smoothly expands it across the row; clearing and closing search restore the controls. The Transactions title and Settings action are removed from this screen only. Timeline dividers sit outside the clipped accordion body, meeting the left rail in expanded and folded states. Each pager page clips its own content so dividers cannot bleed onto adjacent pages.
+
+The Classic list no longer reserves a 300-point minimum footer. Clearance is based on the nav bar, floating Add action and safe area, accounting for the final section's existing padding. Expressive clearance similarly follows its nav/FAB footprint. The redundant footer rule is removed.
+
+Both transaction themes now close the view sheet fully before presenting Edit. An optional shared-modal after-exit callback performs the handoff, rejects stale/cancelled closes, and supports reduced motion without timers. Header mode is established before entry rather than springing between view/edit configurations. No transaction fields are saved during this transition.
+
+Validation: typecheck, clean lint, 47 design/motion tests and 36 analytics tests passed. Android review covered compact/full-width search, connected dividers, view-to-edit handoff in both themes, and expanded/folded final-row clearance. The original Classic layout/theme were restored after Expressive verification. No transaction, draft or budget data was modified.
+
+
+## Edit re-entry lifecycle and Classic toolbar buttons
+
+After-exit callbacks now run after the modal's closed render commits, rather than inside the animation-completion callback. This prevents the taller Edit form from reusing a still-mounted View panel and starting twice. The transaction mode is selected before releasing the local close state. Regression coverage verifies the old panel is absent before the handoff and that a taller presentation starts exactly once after it.
+
+Classic search is now a 44-point icon button matching Sort/Filter/Fold, expanding to the existing full-width search input. The month selector now has the same outlined neutral surface and corner radius, with a calendar icon, month label and chevron. Android screenshots verified the toolbar, search expansion/return and Edit entry; a frame-by-frame recording showed the View exit followed by a single Edit entrance. Typecheck, lint and 48 design/motion tests passed. No transaction data was changed.
+
+
+## Isolate View and Edit portal instances
+
+The previous after-unmount callback still reused one AnimatedPaperModal instance and its shared animation values. View-to-Edit now increments the modal presentation key only after View exits, creating fresh animation state for Edit. A small presentation hook keeps the replacement hidden until Edit mode and the matching transaction id arrive, preventing cached View content from reopening during delayed state updates. External closure cancels the handoff.
+
+New behavioral tests cover duplicate Edit taps, the closed waiting state, distinct presentation ids, delayed Edit content and cancellation. Typecheck, clean lint and all 50 design/motion tests passed. The exact Android reproduction was recorded and reviewed across 65 consecutive samples covering View exit, the empty interval and Edit entry; View did not flash back and Edit entered once. No transaction data was saved or changed.
+
+
+## Classic Home composition and interruption-safe budgets
+
+Full Classic Home now uses a distinct composition with the same shared dashboard information: inline greeting/name and date, a ruled two-column overview (balance beside stacked tappable Income/Spent), a full-width budget card, conditional full-width draft resume row, a compact horizontal rotating fact row, and a plain recent-transaction list. Expressive's composition remains unchanged. Draft selection, budget thresholds, transactions, month selection and currencies still use the same existing models/actions.
+
+Both budget carousels now have one UI-thread gesture/scroll owner. Horizontal drags claim the carousel before the outer page gesture; end/cancel/finalize settle to a complete bounded card. Resizing, changed card counts and leaving/returning to Home also align the selected card. Native scrolling/paging no longer competes with gesture-driven offset updates. Accessibility next/previous budget actions are available, and reduced motion is respected.
+
+Android checks passed short drags, diagonal drags, explicit ACTION_CANCEL, and leaving Home/returning in both Classic and Expressive; each resulting carousel had exactly one fully visible card. Classic was restored afterward. Typecheck, clean lint, 52 design/motion tests and 36 analytics tests passed, including new carousel settling tests across widths/counts and extreme velocities. No ledger, draft or budget data was changed.
+
+
+## Selected Home concept C, with header balance
+
+Implemented the chosen concept's restrained colored cards, unboxed statistic and recent-entry timeline. Per clarification, the compact balance replaces the header month selector; month navigation moves into the Overview section. Greeting/name sits beside a pronounced date card (42-point day, accent container). Income and Spent use separate subtle green/red tonal cards with existing detail actions. Budget/drafts/facts data and gesture handling remain shared and unchanged.
+
+Android review verified the header/date hierarchy and previous/next month controls. Typecheck, clean lint and 52 design/motion tests passed. SHA checks confirmed BottomTabBar.tsx, ExpressiveTabBar.tsx and AppNavigator.tsx are byte-for-byte unchanged during this task. Classic Insights concepts are previews only.
+
+
+## Classic Insights concept B
+
+Implemented B's grouped balance/income/spending overview, spending donut with a compact four-row legend (three categories plus combined remainder), unchanged income-source list, and compact three-column accounts strip. The donut uses native clipped ring arcs, without a new native chart dependency. Its segment colors come from the same category colors as legend icons; current-period amounts/shares stay currency-separated through the existing analytics model. Category rows and remainder retain transaction/all-category drill-down actions. Narrow screens and large fonts stack the ring/legend and retain account rows. Existing comparison/month controls, Activity, Yearly and detail flows remain in place; Expressive keeps its existing composition.
+
+Typecheck, clean lint, 39 analytics tests and 52 design/motion tests passed, including ring coverage, aggregate totals, recorded-zero and empty-state cases. Android review covered ring rendering, category/full-breakdown/account drill-down, account layout and switching September/October with October restored. Android and iOS Hermes bundles exported. Navigation-bar source hashes are unchanged. No ledger data was changed.
+
+
+## Home balance/date and 80/20 refinement
+
+Classic Home restores the header month stepper and the C-style balance card beside stacked Income/Spent cards. The date is now a smaller 76×78 neutral outlined box with a 26-point day, alongside the greeting. Budget and rotating facts share one equal-height 80/20 row; the narrow fact card uses compact labels and fitted values while retaining its caption, paging dots, tap/swipe actions and accessibility text. Conditional drafts remain full-width below that row; an absent budget lets the fact card use the row. Expressive's composition and all bottom-bar files remain unchanged.
+
+Android review confirmed the arrangement, statistic content and one complete budget card after gesture cancellation at the new width. Typecheck, clean lint and 52 design/motion tests passed. No ledger/draft/budget data was changed.
+
+
+### Classic Home compact summary and 70/30 refinement
+
+- Changed the budget/facts row from 80/20 to 70/30 while retaining whole-card carousel snapping.
+- Reduced the summary minimum height from 150 to 112; Income and Spent now place their icon, label and amount on one row. Narrowed Balance to leave more room for those amounts.
+- Replaced the Balance top stripe with the same subtle tint and border treatment as Income/Spent, using the selected accent; added a wallet icon.
+- Applied the selected accent to the Classic Tally wordmark and date number only; weekday and month remain secondary.
+- Verified the Android Home layout visually, including inline amounts and the narrower facts card. Typecheck, lint and all 52 design tests passed. Bottom bar/navigation source hashes remain unchanged during this refinement.
+
+
+### Classic Home budget/facts tones and draft action
+
+- Matched Classic budget/setup cards to the Balance accent wash and subtle accent border, retaining category-colored icons/progress and over/under budget details.
+- Gave each Classic compact statistic a stable distinct tint: teal for daily average, lavender for entry count, amber for largest expense. Reduced labels and enlarged bold values to establish a clear hierarchy.
+- Replaced the Classic draft card with a compact “Continue a draft” action, retaining single-draft resumption and the multiple-draft picker/count. Expressive draft presentation and navigation remain unchanged.
+- Verified the Android Home rendering. Typecheck, lint, all 52 design tests and diff whitespace checks passed.
+
+
+### Classic Home draft placement and budget category tint
+
+- Moved the Classic draft action into the header between the month control and Settings, using an accessible icon with an unfinished-entry count. It appears only when drafts exist and retains direct single-draft resumption and the multiple-draft picker.
+- Removed the standalone Classic draft button from the content flow.
+- Corrected each Classic budget card wash/border to use its configured category color, retaining its category icon/progress colors. The empty setup prompt has no category and keeps its general accent treatment.
+- Android visual review confirmed the header fits and the category tint is applied; typecheck, lint, all 52 design tests and diff whitespace checks passed. No bottom bar changes.
+
+
+### Home date month control and consistent draft selection
+
+- Removed the Home header month stepper in both Classic and Expressive. Both date cards are now accessible buttons opening the existing shared month selector; greeting/date styling is preserved.
+- Both layouts now open the draft picker for any nonzero draft count, including one draft. Selecting an entry in that picker resumes it.
+- Verified on Android that the Classic single-draft action opens the picker and tapping the date opens Choose month. Shared Expressive handlers use the same picker/month state. Typecheck, lint, all 52 design tests and diff whitespace checks passed.
+
+
+### Classic theme surface hierarchy
+
+- Created checkpoint commit `cb89f69` (“Moonlit waffles orbit quietly”) before palette edits, as requested.
+- Captured and reviewed Classic Insights in light, dark and AMOLED before/after; comparison is `reviews/classic-insights-surfaces.png` (before on top, after below).
+- Fixed identical white page/card colors in Light: cool-neutral #F2F2F5 page, white cards, #ECECF0 controls.
+- Strengthened Dark hierarchy: #121214 page, #242428 cards, #303036 controls.
+- Preserved true-black AMOLED page, with #141416 cards and #222226 controls; raised secondary text to #AAAAB2.
+- Updated shared Classic tokens rather than individual page styles, retaining accent palettes, card layouts and navigation implementation. Expressive continues to derive its own surfaces.
+- Added regression checks across all 12 accents and three modes for page/card/control separation, normal/secondary text contrast, true-black preservation, and unchanged accent roles. Typecheck, lint, 54 design tests and 39 analytics tests passed.
+
+
+### Classic transaction day cards
+
+- Added a neutral surface card behind each Classic day’s transactions: single-entry days have one card; multiple entries share one continuous card with hairline inner separators.
+- Retained timeline/date headings outside cards, transaction actions, and existing bottom clearance. Card surfaces follow Light/Dark/AMOLED theme tokens.
+- Classic disclosure now runs immediately with a 200ms native height/opacity transition, animating the group as one unit without duplicate nested row entrances. Expressive disclosure behavior remains unchanged.
+- Verified single and multi-entry day rendering plus collapse/reopen on Android; preview in `reviews/classic-transaction-cards.png`. Typecheck, lint, 54 design tests and whitespace checks passed.
+
+
+### Classic bottom bar and Home recent cards
+
+- Changed the Classic bottom bar to the shared card surface and hairline border, with active tint derived from that surface. Preserved its shape, dimensions, actions and drag/navigation behavior.
+- Gave each Classic recent transaction on Home its own neutral card, matching transaction-day card radius, surface and subtle border. Replaced the old timeline rail with clean spacing between cards.
+- Avoided outer overflow clipping, which hid Android row content inside the transformed Home pager; row ripple clipping remains intact.
+- Verified the Android Home rendering; preview is `reviews/classic-home-and-nav-cards.png`. Typecheck, lint, 54 design tests and whitespace checks passed. Includes the preceding Classic surface/day-card work in the user-requested checkpoint before Insights.
+
+
+### Main-page final refinement
+
+- Vertically centered the Insights balance label/amount group beside Income/Spent; put the Classic month selector on a card surface with a fine border.
+- Reused the Classic Spending donut/category component for Income, using income category colors/icons and placing the chart on the right. Existing category/detail/full-breakdown actions remain available; narrow/large-type screens stack responsively.
+- Replaced Classic Accounts’ fixed three-column layout and vertical rules with a full-width row list that supports any account count, retaining account icons/colors, amounts and detail actions.
+- Grouped Classic Home’s Recent transactions heading and rows inside one card with subtle internal separators, rather than separate row cards.
+- Shared Home’s header draft action and 70/30 budget/facts row across Classic and Expressive. Removed the old Expressive draft card and duplicate draft-picker state; any nonzero draft count still opens the picker before resuming.
+- Added the Classic Transactions title/calendar/Settings header. Calendar was moved out of the toolbar; sort/filter/fold/search behavior remains intact.
+- Android reviewed Classic Home/Transactions/Insights, Income/Accounts, and Expressive Home; verified the Expressive single-draft picker. Review sheet: `reviews/final-main-pages.png`.
+- Typecheck, clean lint, 54 design tests, 39 analytics tests, and Android/iOS offline exports passed. No ledger, account or budget data changed during QA.
+
+
+### Settings card-surface completion
+
+- Classic SheetCard groups now use the shared card surface rather than the elevation tint, restoring white cards against the neutral light page. Expressive keeps its existing surface treatment; row geometry and interactions remain unchanged.
+- Verified the light Settings page on Android (`reviews/classic-settings-light-cards.png`). Typecheck, clean lint, 54 design tests and whitespace checks passed.
+- Included this fix and the completed main-page refinement in the user-requested checkpoint before new features.

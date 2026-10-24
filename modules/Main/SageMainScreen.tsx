@@ -223,7 +223,7 @@ function LedgerPage(p: Props & { active: boolean }) {
         }
         ListHeaderComponent={header}
         contentContainerStyle={{
-          paddingBottom: 168 + bottom,
+          paddingBottom: 92 + 56 + 8 + bottom, // Nav/FAB top plus one small row clearance.
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

@@ -3,9 +3,7 @@ import { MotionItem } from "@/components/animations/Motion";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { SageMainScreen } from "@/modules/Main/SageMainScreen";
-import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { AlertModal } from "@/components/alert/AlertModal";
-import { InsightsScreen } from "@/modules/Insights/InsightsScreen";
 import { useAppShell } from "@/components/AppShellContext";
 import { EmptyState } from "@/components/EmptyStates";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -28,6 +26,7 @@ import {
   selectCategoryColors,
   selectCategoryIcons,
   selectTransactionDrafts,
+  selectTransactions,
 } from "@/modules/Core/Slices/TransactionSlice";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { AccountManagementModal } from "@/modules/Management/Account/Index";
@@ -68,7 +67,7 @@ import { TransactionModal } from "./Components/TransactionModal/Index";
 import { TransactionRow } from "./Components/TransactionRow";
 import TimelineSectionHeader from "./Components/TransactionSectionHeader";
 import { useTransactionsPage } from "./Hooks";
-import { GestureDualCardLayoutView } from "./Layouts/Views/GestureDualCardLayoutView";
+import { ClassicMainScreen } from "@/modules/Main/ClassicMainScreen";
 import { styles } from "./Styles";
 
 type TransactionsProps = {
@@ -84,9 +83,8 @@ type MonthSection = {
   transactions: (Transaction | TransactionDraft)[];
 };
 
-const TAB_BAR_TRANSACTION_LIST_CLEARANCE = 60;
-const NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE = 24;
-const TRANSACTION_LIST_FOOTER_MIN_HEIGHT = 300;
+const TAB_BAR_TRANSACTION_LIST_CLEARANCE = 40 + 8 + 8; // Add pill, gap above bar, and row clearance.
+const NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE = 40 + 8; // Detached Add pill and row clearance.
 const TRANSACTION_LIST_HORIZONTAL_TRIM = 6;
 const TRANSACTION_LIST_TIMELINE_LEFT = 24.5;
 
@@ -1448,6 +1446,7 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
   collapsed: boolean;
   onToggleCollapsed: (key: string) => void;
 }) {
+  const theme = useTheme<ExtendedMD3Theme>();
   return (
     <TimelineSectionHeader
       title={item.title}
@@ -1462,7 +1461,17 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
       {item.transactions.map((transaction, index) => {
         const isLast = index === item.transactions.length - 1;
         return (
-          <View key={transaction.id}>
+          <View
+            key={transaction.id}
+            style={
+              !theme.expressive && !isLast
+                ? {
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                    borderBottomColor: theme.colors.outlineVariant,
+                  }
+                : undefined
+            }
+          >
             <TransactionRow
               transaction={transaction}
               onPressTransaction={onPressTransaction}
@@ -1485,32 +1494,8 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
   );
 });
 
-function TransactionListFooter({
-  height,
-  borderColor,
-  showBorder,
-}: {
-  height: number;
-  borderColor: string;
-  showBorder: boolean;
-}) {
-  if (height <= 0) return null;
-
-  return (
-    <View
-      pointerEvents="none"
-      style={[local.transactionListFooter, { height }]}
-    >
-      {showBorder ? (
-        <View
-          style={[
-            local.transactionListFooterBorder,
-            { backgroundColor: borderColor },
-          ]}
-        />
-      ) : null}
-    </View>
-  );
+function TransactionListFooter({ height }: { height: number }) {
+  return height > 0 ? <View pointerEvents="none" style={{ height }} /> : null;
 }
 
 export default function Transactions({
@@ -1578,6 +1563,7 @@ export default function Transactions({
     handleEdit,
     handleAddPress,
   } = useTransactionsPage();
+  const postedTransactions = useAppSelector(selectTransactions);
   const currencyCode = activeWorkspace?.currencyCode ?? "INR";
   const currencySymbol = activeWorkspace?.currencySymbol ?? "";
   const todayKey = useMemo(() => getTodayKey(), []);
@@ -1867,12 +1853,12 @@ export default function Transactions({
   }, [handleAddTransaction, isFocused, setTabBarEdgeButton, shellActiveTab]);
 
   const transactionListBottomPadding = tabBarEnabled
-    ? tabBarHeight + bottom + TAB_BAR_TRANSACTION_LIST_CLEARANCE
+    ? Math.max(69, tabBarHeight) + bottom + TAB_BAR_TRANSACTION_LIST_CLEARANCE
     : bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE;
+  // Each day already contributes 18 points after its final row, even when folded.
   const transactionListFooterHeight = Math.max(
-    TRANSACTION_LIST_FOOTER_MIN_HEIGHT,
-    transactionListBottomPadding,
-    bottom * 2,
+    0,
+    transactionListBottomPadding - 18,
   );
 
   const renderMonthSection = useCallback(
@@ -1911,37 +1897,13 @@ export default function Transactions({
   );
 
   const transactionListFooter = useMemo(
-    () => (
-      <TransactionListFooter
-        height={transactionListFooterHeight}
-        borderColor={theme.colors.outlineVariant}
-        showBorder={monthSections.length > 0}
-      />
-    ),
-    [
-      monthSections.length,
-      theme.colors.outlineVariant,
-      transactionListFooterHeight,
-    ],
+    () => <TransactionListFooter height={transactionListFooterHeight} />,
+    [transactionListFooterHeight],
   );
 
   const transactionCard = useMemo(
     () => (
       <View style={local.transactionCardWrap}>
-        <SpotlightTarget
-          id="transaction-heading"
-          style={local.transactionCardHeader}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              local.transactionCardTitle,
-              { color: theme.colors.onSurface },
-            ]}
-          >
-            Transactions
-          </Text>
-        </SpotlightTarget>
         <FlatList
           style={local.transactionList}
           data={monthSections}
@@ -1965,7 +1927,6 @@ export default function Transactions({
       monthSections,
       renderMonthSection,
       shellActiveTab,
-      theme.colors.onSurface,
       transactionEmptyState,
       transactionListFooter,
     ],
@@ -2017,9 +1978,13 @@ export default function Transactions({
             onFold={handleToggleAllDaySections}
           />
         ) : (
-          <GestureDualCardLayoutView
-            topContent={<InsightsScreen />}
-            suspendLayout={filtersVisible || sortVisible}
+          <ClassicMainScreen
+            raw={postedTransactions}
+            month={selectedMonthKey}
+            currency={currencyCode}
+            symbol={currencySymbol}
+            onMonth={(month) => setSelectedDateOverride(`${month}-01`)}
+            onEdit={handleEdit}
             controlButtons={{
               left: {
                 label: "Sort",
@@ -2071,7 +2036,7 @@ export default function Transactions({
             }}
           >
             {transactionCard}
-          </GestureDualCardLayoutView>
+          </ClassicMainScreen>
         )}
       </View>
 

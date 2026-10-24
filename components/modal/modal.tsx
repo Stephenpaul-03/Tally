@@ -30,6 +30,8 @@ type Presentation = "modal" | "sheet";
 type Props = {
   visible: boolean;
   onDismiss: () => void;
+  /** Called after the panel has fully exited, including reduced-motion closes. */
+  onHidden?: () => void;
   children: ReactNode;
   presentation?: Presentation;
   style?: StyleProp<ViewStyle>;
@@ -49,6 +51,7 @@ type Props = {
 export function AnimatedPaperModal({
   visible,
   onDismiss,
+  onHidden,
   children,
   presentation = "modal",
   style,
@@ -75,7 +78,9 @@ export function AnimatedPaperModal({
   const renderedRef = useRef(rendered);
   const visibleRef = useRef(visible);
   const dismissRef = useRef(onDismiss);
+  const hiddenRef = useRef(onHidden);
   const generation = useRef(0);
+  const completedExit = useRef<number | null>(null);
   const processedVisibility = useRef<boolean | null>(null);
   const openingPending = useRef(visible);
   const measured = useRef(0);
@@ -83,6 +88,7 @@ export function AnimatedPaperModal({
   renderedRef.current = rendered;
   visibleRef.current = visible;
   dismissRef.current = onDismiss;
+  hiddenRef.current = onHidden;
   if (visible) lastChildren.current = children;
 
   const progress = useSharedValue(0);
@@ -105,8 +111,19 @@ export function AnimatedPaperModal({
   const completeClose = React.useCallback((token: number) => {
     if (generation.current !== token || visibleRef.current) return;
     openingPending.current = false;
+    completedExit.current = token;
     setRendered(false);
   }, []);
+  // Handoffs must wait for the closed render to commit. Reopening from the
+  // animation callback can reuse the old panel/layout and restart its entrance.
+  useEffect(() => {
+    if (rendered || completedExit.current === null) return;
+    const token = completedExit.current;
+    completedExit.current = null;
+    if (generation.current === token && !visibleRef.current)
+      hiddenRef.current?.();
+  }, [rendered]);
+
   const open = React.useCallback(() => {
     if (!openingPending.current) return;
     openingPending.current = false;

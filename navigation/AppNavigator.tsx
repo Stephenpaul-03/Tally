@@ -51,8 +51,7 @@ function TabBarHeightResetter() {
 
 function ShellBottomBar() {
   const edgeButtons = useTabBarEdgeButton();
-  const { activeTab, activeTabProgress, requestTab, requestTabProgress } =
-    useAppShell();
+  const { activeTab, activeTabProgress, requestTab } = useAppShell();
   const visibleRoutes = SHELL_TAB_ROUTES;
   const activeIndex = visibleRoutes.findIndex(
     (route) => route.key === activeTab,
@@ -94,9 +93,6 @@ function ShellBottomBar() {
         actionButtons={actionButtons}
         onTabPress={(index) => {
           requestTab(visibleRoutes[index].key as ShellTab);
-        }}
-        onTabDrag={(position) => {
-          requestTabProgress(position);
         }}
       />
     </View>

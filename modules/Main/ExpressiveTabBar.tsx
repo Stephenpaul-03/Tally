@@ -14,8 +14,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { DesignText as Text } from "@/components/DesignText";
 import {
-  clampSwipePosition,
-  snapSwipeIndex,
+  clampTabPosition,
+  snapTabIndex,
   tabBarGeometry,
   tabWeight,
 } from "./pagerGeometry";
@@ -46,7 +46,6 @@ export function ExpressiveTabBar({
   const { colors: c } = useTheme();
   const [width, setWidth] = React.useState(0);
   const start = useSharedValue(0);
-  const origin = useSharedValue(0);
   const dragging = useSharedValue(false);
   const indicator = useAnimatedStyle(() => {
     const geometry = tabBarGeometry(width, position.value);
@@ -77,32 +76,29 @@ export function ExpressiveTabBar({
       cancelAnimation(position);
       navigationTarget.value = -1;
       start.value = position.value;
-      origin.value = EXPRESSIVE_TABS.indexOf(activeTab);
       dragging.value = true;
       driving.value = true;
     })
     .onUpdate((event) => {
       const geometry = tabBarGeometry(width, start.value);
-      position.value = clampSwipePosition(
+      position.value = clampTabPosition(
         start.value + event.translationX / Math.max(1, geometry.step),
-        origin.value,
       );
     })
     .onEnd((event, success) => {
       const geometry = tabBarGeometry(width, position.value);
       dragging.value = false;
       finish(
-        snapSwipeIndex(
+        snapTabIndex(
           position.value,
           success ? event.velocityX / Math.max(1, geometry.step) : 0,
-          origin.value,
         ),
       );
     })
     .onFinalize(() => {
       if (!dragging.value) return;
       dragging.value = false;
-      finish(snapSwipeIndex(position.value, 0, origin.value));
+      finish(snapTabIndex(position.value, 0));
     });
   return (
     <GestureDetector gesture={pan}>
@@ -176,6 +172,12 @@ function TabItem({
       },
     ],
   }));
+  const activeIcon = useAnimatedStyle(() => ({
+    opacity: tabWeight(position.value, index),
+  }));
+  const inactiveIcon = useAnimatedStyle(() => ({
+    opacity: 1 - tabWeight(position.value, index),
+  }));
   const caption = useAnimatedStyle(() => ({
     opacity: width > 0 ? tabWeight(position.value, index) : 0,
     transform: [{ translateX: (1 - tabWeight(position.value, index)) * 6 }],
@@ -196,7 +198,12 @@ function TabItem({
       }}
     >
       <Animated.View style={iconStyle}>
-        <Icon name={icon} size={24} color={c.onSurface} />
+        <Animated.View style={inactiveIcon}>
+          <Icon name={icon} size={24} color={c.onSurfaceVariant} />
+        </Animated.View>
+        <Animated.View style={[{ position: "absolute" }, activeIcon]}>
+          <Icon name={icon} size={24} color={c.onSurface} />
+        </Animated.View>
       </Animated.View>
       <Animated.View
         pointerEvents="none"

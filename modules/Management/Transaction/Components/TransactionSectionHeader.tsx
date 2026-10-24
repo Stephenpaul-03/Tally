@@ -140,23 +140,42 @@ export function TransactionSectionHeader({
       ) : (
         <View style={styles.header}>{headerContent}</View>
       )}
-      <Disclosure open={!isCollapsed || renderContentWhenCollapsed}>
+      <View
+        style={[
+          styles.divider,
+          { backgroundColor: theme.colors.outlineVariant },
+        ]}
+      />
+      <Disclosure
+        open={!isCollapsed || renderContentWhenCollapsed}
+        immediate={!theme.expressive}
+      >
         <View
           style={[
-            styles.divider,
-            { backgroundColor: theme.colors.outlineVariant },
+            styles.content,
+            !theme.expressive && {
+              gap: 0,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 20,
+              backgroundColor: theme.colors.surface,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.colors.outlineVariant,
+              overflow: "hidden",
+            },
           ]}
-        />
-        <View style={styles.content}>
-          {React.Children.toArray(children).map((child, index) => (
-            <MotionItem
-              key={(child as React.ReactElement).key ?? index}
-              index={index}
-              active={!isCollapsed}
-            >
-              {child}
-            </MotionItem>
-          ))}
+        >
+          {theme.expressive
+            ? React.Children.toArray(children).map((child, index) => (
+                <MotionItem
+                  key={(child as React.ReactElement).key ?? index}
+                  index={index}
+                  active={!isCollapsed}
+                >
+                  {child}
+                </MotionItem>
+              ))
+            : children}
         </View>
       </Disclosure>
     </View>

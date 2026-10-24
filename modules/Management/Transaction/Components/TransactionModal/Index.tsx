@@ -1,3 +1,4 @@
+import { useTransactionPresentation } from "./useTransactionPresentation";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
 import { AmountKeypad } from "./Molecules/AmountKeypad";
 import { keypadAmount } from "./amountInput";
@@ -147,6 +148,16 @@ export function TransactionModal({
 
   const isEditMode = modalMode === "edit";
   const isViewMode = modalMode === "view";
+  const openEdit = React.useCallback(
+    (id: string) => dispatch(openEditModal(id)),
+    [dispatch],
+  );
+  const presentation = useTransactionPresentation({
+    isOpen,
+    mode: modalMode,
+    transactionId: editingTransactionId,
+    onEdit: openEdit,
+  });
 
   const [formData, setFormData] = useState<TransactionFormData>({
     title: "",
@@ -465,11 +476,11 @@ export function TransactionModal({
     saveDraft,
   ]);
 
+  const { requestEdit } = presentation;
   const handleSwitchToEdit = React.useCallback(() => {
-    if (!editingTransactionId) return;
-
-    dispatch(openEditModal(editingTransactionId));
-  }, [dispatch, editingTransactionId]);
+    Keyboard.dismiss();
+    requestEdit();
+  }, [requestEdit]);
 
   const handleTypeChange = (type: TransactionType) =>
     setFormData((prev) => ({
@@ -707,28 +718,11 @@ export function TransactionModal({
     return () => subscription.remove();
   }, [blurInputs]);
 
-  const wasOpen = React.useRef(false);
+  // View and edit are separate presentations; establish the next header before entry.
   useLayoutEffect(() => {
-    if (isOpen && !wasOpen.current) {
-      modeTransition.stopAnimation();
-      modeTransition.setValue(isViewMode ? 1 : 0);
-    }
-    wasOpen.current = isOpen;
-  }, [isOpen, isViewMode, modeTransition]);
-
-  useEffect(() => {
-    if (!motionEnabled) {
-      modeTransition.setValue(isViewMode ? 1 : 0);
-      return;
-    }
-    Animated.spring(modeTransition, {
-      toValue: isViewMode ? 1 : 0,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-      useNativeDriver: true,
-    }).start();
-  }, [isViewMode, modeTransition, motionEnabled]);
+    modeTransition.stopAnimation();
+    modeTransition.setValue(isViewMode ? 1 : 0);
+  }, [isViewMode, modeTransition]);
 
   const sectionEntranceStyle = (animation: Animated.Value) => ({
     opacity: animation,
@@ -1371,7 +1365,9 @@ export function TransactionModal({
     <>
       {isMobileLayout ? (
         <AnimatedPaperModal
-          visible={isOpen}
+          key={presentation.presentationId}
+          visible={presentation.visible}
+          onHidden={presentation.onHidden}
           animationDuration={280}
           dismissDuration={220}
           onDismiss={handleRequestClose}
@@ -1393,7 +1389,9 @@ export function TransactionModal({
         </AnimatedPaperModal>
       ) : (
         <AnimatedPaperModal
-          visible={isOpen}
+          key={presentation.presentationId}
+          visible={presentation.visible}
+          onHidden={presentation.onHidden}
           animationDuration={280}
           dismissDuration={220}
           onDismiss={handleRequestClose}

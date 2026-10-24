@@ -103,16 +103,15 @@ type BaseSurfaces = {
 };
 
 /**
- * Light — true white, cool-neutral.
- * Pure #FFFFFF page and card surfaces; no cream/paper tint. High contrast,
- * elderly-friendly readability, zero visual noise.
+ * Light — white cards on a cool-neutral page.
+ * Separate page, card and control tones keep groups visible without shadows.
  */
 const BASE_LIGHT: BaseSurfaces = {
-  background: "#FFFFFF",
+  background: "#F2F2F5",
   onBackground: "#0A0A0B",
   surface: "#FFFFFF",
   onSurface: "#0A0A0B",
-  surfaceVariant: "#F0F0F2", // chips/input fills — cool light gray, not warm
+  surfaceVariant: "#ECECF0", // chips/input fills — cool light gray, not warm
   onSurfaceVariant: "#4A4A52",
   outline: "#9A9AA8",
   outlineVariant: "#DDDDE2",
@@ -134,14 +133,14 @@ const BASE_LIGHT: BaseSurfaces = {
  * pure black.
  */
 const BASE_DARK: BaseSurfaces = {
-  background: "#151517",
+  background: "#121214",
   onBackground: "#EDEDED",
-  surface: "#1D1D20",
+  surface: "#242428",
   onSurface: "#EDEDED",
-  surfaceVariant: "#27272C",
+  surfaceVariant: "#303036",
   onSurfaceVariant: "#A1A1A8",
   outline: "#525259",
-  outlineVariant: "#323238",
+  outlineVariant: "#3B3B43",
   error: "#F87171",
   onError: "#7F1D1D",
   errorContainer: "#991B1B",
@@ -156,19 +155,18 @@ const BASE_DARK: BaseSurfaces = {
 /**
  * Amoled — true black.
  * Opt-in "true black" switch, only meaningful in dark mode. Battery-friendly
- * on OLED panels and maximum contrast for reading in the dark. Non-background
- * surfaces pulled darker still, so cards/chips sit closer to the pure-black
- * page instead of standing out as mid-gray islands.
+ * on OLED panels. Cards and controls retain distinct dark tones so grouping
+ * remains visible against the pure-black page.
  */
 const BASE_AMOLED: BaseSurfaces = {
   background: "#000000",
   onBackground: "#F2F2F2",
-  surface: "#050505",
+  surface: "#141416",
   onSurface: "#F2F2F2",
-  surfaceVariant: "#0D0D0D",
-  onSurfaceVariant: "#7A7A7A",
-  outline: "#2E2E2E",
-  outlineVariant: "#161616",
+  surfaceVariant: "#222226",
+  onSurfaceVariant: "#AAAAB2",
+  outline: "#505058",
+  outlineVariant: "#303036",
   error: "#F87171",
   onError: "#7F1D1D",
   errorContainer: "#5C1717",

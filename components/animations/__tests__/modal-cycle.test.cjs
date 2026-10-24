@@ -60,8 +60,9 @@ function harness() {
       useAnimatedStyle: (style) => style(),
       useReducedMotion: () => false,
       cancelAnimation() {},
-      withTiming: (value, options) => {
-        timings.push({ value, options });
+      runOnJS: (callback) => callback,
+      withTiming: (value, options, complete) => {
+        timings.push({ value, options, complete });
         return value === 1 ? 0.2 : value;
       },
       Easing: { bezier() {}, out() {}, cubic() {} },
@@ -95,12 +96,13 @@ function harness() {
     node.props?.children?.flat().forEach((child) => layout(child, size));
   }
   return {
-    render(visible, windowHeight = 844) {
+    render(visible, windowHeight = 844, onHidden) {
       cursor = 0;
       height = windowHeight;
       return loaded.exports.AnimatedPaperModal({
         visible,
         onDismiss() {},
+        onHidden,
         presentation: "sheet",
         children: "content",
       });
@@ -167,4 +169,62 @@ test("content measurements cannot move a partially opened sheet back toward its 
   h.flush();
   assert.equal(offset(tree), before);
   assert.equal(before, 844 * 0.8);
+});
+
+test("after-exit handoff waits for completion and ignores interrupted closes", () => {
+  const h = harness();
+  let exits = 0;
+  const afterExit = () => exits++;
+  const tree = h.render(true, 844, afterExit);
+  h.layout(tree, 400);
+  h.flush();
+  h.render(false, 844, afterExit);
+  h.flush();
+  const interruptedExit = h.timings.at(-1);
+  assert.equal(exits, 0);
+  interruptedExit.complete(false);
+  assert.equal(exits, 0);
+  h.render(true, 844, afterExit);
+  h.flush();
+  interruptedExit.complete(true);
+  assert.equal(exits, 0);
+  h.render(false, 844, afterExit);
+  h.flush();
+  h.timings.at(-1).complete(true);
+  assert.equal(
+    exits,
+    0,
+    "animation completion must not reopen a still-mounted panel",
+  );
+  assert.equal(h.render(false, 844, afterExit), null);
+  h.flush();
+  assert.equal(exits, 1);
+});
+
+test("an after-exit reopen starts once after the old panel unmounts", () => {
+  const h = harness();
+  let visible = true;
+  const reopen = () => {
+    visible = true;
+  };
+  let tree = h.render(visible, 844, reopen);
+  h.layout(tree, 300);
+  h.flush();
+  visible = false;
+  h.render(visible, 844, reopen);
+  h.flush();
+  h.timings.at(-1).complete(true);
+  assert.equal(visible, false);
+  assert.equal(h.render(visible, 844, reopen), null);
+  h.flush();
+  assert.equal(visible, true);
+  assert.equal(h.render(visible, 844, reopen), null);
+  h.flush();
+  tree = h.render(visible, 844, reopen);
+  h.layout(tree, 650); // New edit form is taller than the read-only panel.
+  h.flush();
+  h.layout(tree, 700);
+  h.render(visible, 844, reopen);
+  h.flush();
+  assert.equal(h.timings.filter((t) => t.value === 1).length, 2);
 });

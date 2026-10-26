@@ -19,8 +19,8 @@ function repository() {
     },
   };
   const load = loader({ 'expo-sqlite': { openDatabaseSync: () => db } });
-  const { SQLiteFinanceRepository } = load('modules/Core/Repository/SQLiteRepo.ts');
-  return { sqlite, repo: new SQLiteFinanceRepository('personal') };
+  const { SQLiteFinanceRepository, SQLiteWorkspaceRepository } = load('modules/Core/Repository/SQLiteRepo.ts');
+  return { sqlite, workspaceRepo: new SQLiteWorkspaceRepository(), repo: new SQLiteFinanceRepository('personal') };
 }
 
 module.exports = { repository };

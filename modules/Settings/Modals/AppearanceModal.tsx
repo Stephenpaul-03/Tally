@@ -1,6 +1,4 @@
 import { settingsShape } from "@/theme/settingsShape";
-import { DesignChoiceCards } from "../Components/DesignChoiceCards";
-import { useMainDesign } from "@/hooks/use-main-design";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
 import type { THEME_PRESETS, ThemeId } from "@/theme/presets";
@@ -299,7 +297,6 @@ function SheetShell({
 }
 
 function AppearanceContent({ modal = false, onBack }: ContentProps) {
-  const { design, setDesign } = useMainDesign();
   const {
     activeModeId,
     handleModeSelect,
@@ -318,13 +315,6 @@ function AppearanceContent({ modal = false, onBack }: ContentProps) {
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionLabel label="Theme style" />
-        <DesignChoiceCards
-          value={design.style}
-          onChange={(style) => setDesign({ style })}
-          classicDisabled={design.layout !== "classic"}
-          purpose="style"
-        />
         <AppearanceSection
           section="all"
           activeModeId={activeModeId}

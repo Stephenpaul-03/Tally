@@ -530,7 +530,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                     styles.emptySearch,
                     settingsShape(theme),
                     {
-                      backgroundColor: theme.colors.elevation.level1,
+                      backgroundColor: theme.colors.surface,
                       borderColor: theme.colors.outlineVariant,
                     },
                   ]}
@@ -591,7 +591,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                               styles.workspaceRow,
                               settingsShape(theme),
                               {
-                                backgroundColor: theme.colors.elevation.level1,
+                                backgroundColor: theme.colors.surface,
                                 opacity: pressed ? 0.72 : 1,
                               },
                             ]}
@@ -655,7 +655,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                     styles.emptySearch,
                     settingsShape(theme),
                     {
-                      backgroundColor: theme.colors.elevation.level1,
+                      backgroundColor: theme.colors.surface,
                       borderColor: theme.colors.outlineVariant,
                     },
                   ]}
@@ -692,7 +692,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                     styles.emptySearch,
                     settingsShape(theme),
                     {
-                      backgroundColor: theme.colors.elevation.level1,
+                      backgroundColor: theme.colors.surface,
                       borderColor: theme.colors.outlineVariant,
                     },
                   ]}

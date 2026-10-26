@@ -1,3 +1,4 @@
+import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
 import { ClassicSpending } from "./components/ClassicSpending";
 import { Gesture } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
@@ -28,7 +29,11 @@ import {
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
-import { getAccountColor, getAccountIconName } from "@/utils/Helpers";
+import {
+  getAccountColor,
+  getAccountIconName,
+  getCategoryColor,
+} from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -149,6 +154,64 @@ function WorkspaceInsights({
     return () => registerControls?.([]);
   }, [registerControls]);
   const money = (value: number) => formatInsightAmount(value, a.currency);
+  const reportWorkspace = useAppSelector(selectActiveWorkspace);
+  const reportSummary = React.useMemo(
+    () => ({
+      incomeTotal: a.data.income,
+      expenseTotal: a.data.expense,
+      balanceInHand: a.data.remaining,
+      fullExpenseBreakdown: a.data.expenseCategories
+        .filter((g) => g.count > 0)
+        .map((g) => ({
+          category: g.name,
+          amount: g.amount,
+          color: getCategoryColor(g.name, "expense", a.colors),
+        })),
+      fullIncomeBreakdown: a.data.incomeCategories
+        .filter((g) => g.count > 0)
+        .map((g) => ({
+          category: g.name,
+          amount: g.amount,
+          color: getCategoryColor(g.name, "income", a.colors),
+        })),
+    }),
+    [a.data, a.colors],
+  );
+  const reportExpenseComparison = React.useMemo(
+    () =>
+      a.data.expenseCategories.map((g) => ({
+        category: g.name,
+        currentAmount: g.amount,
+        previousAmount: g.previous,
+      })),
+    [a.data.expenseCategories],
+  );
+  const reportIncomeComparison = React.useMemo(
+    () =>
+      a.data.incomeCategories.map((g) => ({
+        category: g.name,
+        currentAmount: g.amount,
+        previousAmount: g.previous,
+      })),
+    [a.data.incomeCategories],
+  );
+  const report = useQuickShareInsights(
+    reportSummary,
+    monthLabel(a.month),
+    monthLabel(a.data.comparisonMonth),
+    reportWorkspace?.name,
+    a.currency,
+    reportWorkspace?.currencyCode === a.currency
+      ? reportWorkspace.currencySymbol
+      : formatInsightAmount(0, a.currency).replace(/[\d.,\s]/g, ""),
+    reportExpenseComparison,
+    reportIncomeComparison,
+    a.canCompareBudget ? a.overallBudget : undefined,
+    a.canCompareBudget ? a.categoryBudgets : undefined,
+    undefined,
+    a.data.comparisonDescription,
+  );
+
   const hasEntries = a.data.current.length > 0;
   const hasYearEntries = a.data.year.months.some(
     (row) => row.incomeCount || row.expenseCount,
@@ -728,6 +791,10 @@ function WorkspaceInsights({
         canCompareBudget={a.canCompareBudget}
         money={money}
         onChooseMonth={() => setPanel("comparison-month")}
+        onShare={() => {
+          void report.shareInsights(a.canCompareBudget ? "both" : "lastMonth");
+        }}
+        sharing={report.isGenerating}
         onSetBudget={() => {
           closeSheet();
           navigation.navigate("Settings", { section: "budget" });

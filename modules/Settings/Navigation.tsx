@@ -1,3 +1,4 @@
+import { GoalsScreen } from "@/modules/Goals/GoalsScreen";
 import {
   MotionEntranceScope,
   useMotionEnabled,
@@ -19,6 +20,7 @@ export type SettingsStackParamList = {
   Categories: undefined;
   Accounts: undefined;
   Budget: undefined;
+  Goals: undefined;
   Data: undefined;
   Defaults: undefined;
   Labs: undefined;
@@ -62,6 +64,7 @@ export function SettingsNavigator({
         />
         <Stack.Screen name="Categories" component={CategoriesScreen} />
         <Stack.Screen name="Accounts" component={AccountsScreen} />
+        <Stack.Screen name="Goals" component={GoalsScreen} />
         <Stack.Screen name="Budget" component={BudgetScreen} />
         <Stack.Screen name="Data" component={DataScreen} />
         <Stack.Screen name="Defaults" component={DefaultsScreen} />

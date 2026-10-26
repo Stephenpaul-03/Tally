@@ -68,6 +68,8 @@ export function DataScreen() {
         await dispatch(resetWorkspaceDataAsync()).unwrap();
         await dispatch(fetchWorkspaces()).unwrap();
         clearWorkspaceDefaults();
+        const { updateGoals } = await import("@/modules/Goals/store");
+        await updateGoals(() => []);
         await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
         toast.success("Tally reset");
         navigation.getParent()?.dispatch(
@@ -103,7 +105,7 @@ export function DataScreen() {
         section: "Backup & Restore",
         icon: "cloud-upload-outline",
         label: "Create Backup",
-        description: "Export your transactions as a backup file",
+        description: "Choose what to back up in one or separate files",
         onPress: openBackupExportModal,
         iconColor: theme.colors.primary,
       },
@@ -111,7 +113,7 @@ export function DataScreen() {
         section: "Backup & Restore",
         icon: "cloud-download-outline",
         label: "Restore Backup",
-        description: "Choose a backup file and review it before restoring",
+        description: "Choose backup files and review them before restoring",
         onPress: openBackupImportModal,
         iconColor: theme.colors.secondary,
       },

@@ -1,3 +1,4 @@
+import { MainEntrance } from "@/components/animations/MainEntrance";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { HomePage } from "./HomePage";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -498,12 +499,14 @@ export function SageMainScreen(p: Props) {
                       }
                     >
                       {tab === "insights" ? (
-                        <InsightsScreen
-                          pagePan={pan}
-                          expressive
-                          month={p.month}
-                          onMonthChange={p.onMonth}
-                        />
+                        <MainEntrance style={{ flex: 1 }}>
+                          <InsightsScreen
+                            pagePan={pan}
+                            expressive
+                            month={p.month}
+                            onMonthChange={p.onMonth}
+                          />
+                        </MainEntrance>
                       ) : tab === "transactions" ? (
                         <HomePage
                           pagePan={pan}
@@ -516,7 +519,9 @@ export function SageMainScreen(p: Props) {
                           onEdit={p.onEdit}
                         />
                       ) : (
-                        <LedgerPage {...p} active={tab === activeTab} />
+                        <MainEntrance style={{ flex: 1 }}>
+                          <LedgerPage {...p} active={tab === activeTab} />
+                        </MainEntrance>
                       )}
                     </View>
                   ))
@@ -562,7 +567,9 @@ export function SageMainScreen(p: Props) {
             </Text>
           </Pressable>
         </Animated.View>
-        <View
+        <MainEntrance
+          distance={32}
+          index={1}
           style={[
             s.nav,
             {
@@ -581,7 +588,7 @@ export function SageMainScreen(p: Props) {
             onSettle={settle}
             reduceMotion={reduceMotion}
           />
-        </View>
+        </MainEntrance>
       </View>
     </MotionEntranceScope>
   );

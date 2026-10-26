@@ -1,3 +1,4 @@
+import { MainEntrance } from "@/components/animations/MainEntrance";
 import React from "react";
 import {
   Keyboard,
@@ -267,14 +268,16 @@ export function ClassicMainScreen({
                     onEdit={onEdit}
                   />
                 ) : tab === "insights" ? (
-                  <InsightsScreen
-                    standalone
-                    pagePan={pan}
-                    month={month}
-                    onMonthChange={onMonth}
-                  />
+                  <MainEntrance distance={0} style={{ flex: 1 }}>
+                    <InsightsScreen
+                      standalone
+                      pagePan={pan}
+                      month={month}
+                      onMonthChange={onMonth}
+                    />
+                  </MainEntrance>
                 ) : (
-                  <>
+                  <MainEntrance distance={0} style={{ flex: 1 }}>
                     <SpotlightTarget id="transaction-heading">
                       <View
                         style={{
@@ -496,7 +499,7 @@ export function ClassicMainScreen({
                       </View>
                     </SpotlightTarget>
                     {children}
-                  </>
+                  </MainEntrance>
                 )}
               </View>
             ))}

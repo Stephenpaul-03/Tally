@@ -14,13 +14,14 @@
     "test:categories": "node --test hooks/__tests__/category-*.test.cjs",
     "test:notifications": "node --test hooks/__tests__/notifications.test.cjs",
     "test:release": "node --test scripts/__tests__/*.test.cjs",
-    "check:release": "npm run typecheck && npm run lint && npm run test:onboarding && npm run test:analytics && npm run test:import && npm run test:categories && npm run test:notifications && npm run test:release && npm run test:design",
+    "check:release": "npm run typecheck && npm run lint && npm run test:onboarding && npm run test:analytics && npm run test:import && npm run test:categories && npm run test:notifications && npm run test:release && npm run test:design && npm run test:features",
     "build:android:release": "node scripts/build-android-release.mjs",
     "check:fonts": "node scripts/check-fonts.mjs",
     "prestart": "npm run check:fonts",
     "preandroid": "npm run check:fonts",
     "preios": "npm run check:fonts",
-    "test:design": "node --test components/animations/__tests__/*.test.cjs hooks/__tests__/main-design.test.cjs modules/Main/__tests__/*.test.cjs modules/Management/Transaction/Components/TransactionModal/__tests__/*.test.cjs theme/__tests__/*.test.cjs"
+    "test:design": "node --test components/animations/__tests__/*.test.cjs hooks/__tests__/main-design.test.cjs modules/Main/__tests__/*.test.cjs modules/Management/Transaction/Components/TransactionModal/__tests__/*.test.cjs theme/__tests__/*.test.cjs",
+    "test:features": "node --test modules/Backup/__tests__/*.test.cjs modules/Goals/__tests__/*.test.cjs"
   },
   "dependencies": {
     "@craftzdog/react-native-buffer": "^6.1.2",

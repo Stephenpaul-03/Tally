@@ -1,7 +1,8 @@
 import { useTransactionPresentation } from "./useTransactionPresentation";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
 import { AmountKeypad } from "./Molecules/AmountKeypad";
-import { keypadAmount } from "./amountInput";
+import { amountSessionReducer, emptyAmountSession } from "./calculatorSession";
+import { CalculationControls } from "./Molecules/CalculationControls";
 import { AnimatedAmountDisplay } from "./Molecules/AnimatedAmountDisplay";
 import { TransactionEntityPickers } from "./Molecules/TransactionEntityPickers";
 import Reanimated, {
@@ -172,7 +173,18 @@ export function TransactionModal({
     currencySymbol: defaultTransactionCurrency.symbol,
   });
 
-  const [amountString, setAmountString] = useState("");
+  const [amountSession, dispatchAmount] = React.useReducer(
+    amountSessionReducer,
+    emptyAmountSession,
+  );
+  const amountString = amountSession.value;
+  const setAmountString = React.useCallback(
+    (value: string) => dispatchAmount({ type: "set", value }),
+    [],
+  );
+  React.useEffect(() => {
+    if (!isOpen) dispatchAmount({ type: "close" });
+  }, [isOpen]);
   const [errors, setErrors] = useState<
     Partial<Record<keyof TransactionFormData, string>>
   >({});
@@ -387,6 +399,7 @@ export function TransactionModal({
     defaultTransactionCurrency.name,
     defaultTransactionCurrency.symbol,
     noteWidthAnimation,
+    setAmountString,
   ]);
 
   React.useEffect(() => {
@@ -423,13 +436,16 @@ export function TransactionModal({
   }, [amountString, formData]);
 
   const saveDraft = React.useCallback(() => {
+    const draftAmount = amountSession.operation
+      ? amountSession.lhs || amountString
+      : amountString;
     dispatch(
       upsertTransactionDraft({
         id: activeDraftId,
-        amountInput: amountString,
+        amountInput: draftAmount,
         data: {
           ...formData,
-          amount: Math.abs(Number.parseFloat(amountString) || 0),
+          amount: Math.abs(Number.parseFloat(draftAmount) || 0),
           notes: formData.notes?.trim()
             ? formData.notes.trim().slice(0, MAX_NOTE_LENGTH)
             : undefined,
@@ -437,7 +453,14 @@ export function TransactionModal({
         },
       }),
     );
-  }, [activeDraftId, amountString, dispatch, formData]);
+  }, [
+    activeDraftId,
+    amountString,
+    amountSession.operation,
+    amountSession.lhs,
+    dispatch,
+    formData,
+  ]);
 
   // The shared modal owns the full exit; do not stage a second fade before closing.
   const closeWithAnimation = React.useCallback(
@@ -491,7 +514,9 @@ export function TransactionModal({
 
   const validateForm = (): boolean => {
     const next: Partial<Record<keyof TransactionFormData, string>> = {};
-    if (!amountString.trim()) next.amount = "Amount is required";
+    if (amountSession.operation)
+      next.amount = "Finish the calculation with = before saving";
+    else if (!amountString.trim()) next.amount = "Amount is required";
     else {
       const v = validateAmount(parseFloat(amountString) || 0);
       if (!v.valid) next.amount = v.error;
@@ -740,7 +765,7 @@ export function TransactionModal({
     (key: string) => {
       // Functional updates preserve every rapid tap, even before React commits a render.
       blurInputs();
-      setAmountString((current) => keypadAmount(current, key));
+      dispatchAmount({ type: "key", key });
       setErrors((previous) =>
         previous.amount ? { ...previous, amount: undefined } : previous,
       );
@@ -1166,6 +1191,36 @@ export function TransactionModal({
             sectionEntranceStyle(cardSectionEntrances[1]),
           ]}
         >
+          {!isViewMode &&
+          amountSession.lhs !== null &&
+          amountSession.operation ? (
+            <Text
+              accessibilityLabel="Pending calculation"
+              style={{
+                fontSize: 16,
+                color: amountColor,
+                opacity: 0.6,
+                textAlign: "center",
+                paddingTop: 6,
+                paddingBottom: 2,
+              }}
+            >
+              {amountSession.lhs} {amountSession.operation}
+            </Text>
+          ) : null}
+          {!isViewMode && amountSession.error ? (
+            <Text
+              accessibilityRole="alert"
+              style={{
+                fontSize: 12,
+                color: theme.colors.error,
+                textAlign: "center",
+                paddingBottom: 4,
+              }}
+            >
+              {amountSession.error}
+            </Text>
+          ) : null}
           <AnimatedAmountDisplay
             currencySymbol={selectedCurrency.symbol}
             value={amountString}
@@ -1282,7 +1337,26 @@ export function TransactionModal({
           <Animated.View
             style={[sectionEntranceStyle(cardSectionEntrances[3])]}
           >
-            <AmountKeypad styles={mainContent} onKey={handleKeypadPress} />
+            <AmountKeypad
+              styles={mainContent}
+              onKey={handleKeypadPress}
+              calculating={amountSession.open}
+              controls={
+                <CalculationControls
+                  open={amountSession.open}
+                  operation={amountSession.operation}
+                  onToggle={() => {
+                    blurInputs();
+                    dispatchAmount({ type: "toggle" });
+                  }}
+                  onOperation={(operation) =>
+                    dispatchAmount({ type: "operation", operation })
+                  }
+                  onClear={() => dispatchAmount({ type: "key", key: "clear" })}
+                  onEquals={() => dispatchAmount({ type: "equals" })}
+                />
+              }
+            />
           </Animated.View>
         ) : null}
 

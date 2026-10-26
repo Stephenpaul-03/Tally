@@ -26,7 +26,10 @@ import {
   settledTabIndex,
   tabWeight,
 } from "@/modules/Main/pagerGeometry";
-import { useMotionEnabled } from "@/components/animations/Motion";
+import {
+  useMotionFocus,
+  useMotionEnabled,
+} from "@/components/animations/Motion";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -196,13 +199,6 @@ function TabButton({
   index: number;
   position: SharedValue<number>;
 }) {
-  const { animStyle: mountStyle } = useFadeSlide({
-    distance: 10,
-    from: "bottom",
-    duration: 400,
-    delay: index * 55,
-  });
-
   const handlePress = () => {
     onPress();
   };
@@ -224,7 +220,7 @@ function TabButton({
       style={styles.tabButton}
       pointerEvents="auto"
     >
-      <Animated.View style={[mountStyle, styles.tabContentLayer]}>
+      <Animated.View style={styles.tabContentLayer}>
         <Animated.View style={styles.tabInner}>
           <View style={{ alignItems: "center", justifyContent: "center" }}>
             <Reanimated.View style={[styles.tabInner, inactiveStyle]}>
@@ -275,6 +271,7 @@ function BasicTabBar({
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
   const hidden = useTabBarHidden();
+  const focused = useMotionFocus();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const setTabBarHeight = useSetTabBarHeight();
@@ -378,10 +375,10 @@ function BasicTabBar({
     slideIn,
     slideOut,
   } = useFadeSlide({
-    distance: 80,
+    distance: 0,
     from: "bottom",
-    duration: 500,
-    autoPlay: true,
+    duration: motionEnabled ? 220 : 0,
+    autoPlay: false,
   });
 
   // Publish the bar's footprint, excluding the safe inset that consumers
@@ -392,18 +389,12 @@ function BasicTabBar({
     return () => setTabBarHeight(0);
   }, [hidden, surfaceHeight, setTabBarHeight]);
 
-  const isFirstRender = useRef(true);
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    if (hidden) {
-      slideOut();
-    } else {
-      slideIn();
-    }
-  }, [hidden]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (hidden) slideOut();
+    else if (focused) slideIn();
+    // Focus belongs to the main route, so tab selection never replays entrance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidden, focused, motionEnabled]);
 
   const inactiveColor = theme.colors.onBackground + 40;
   const activeTint = colorTreatment(

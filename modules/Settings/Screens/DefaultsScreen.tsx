@@ -1022,7 +1022,7 @@ function DefaultOptionTile({
           styles.optionTile,
           settingsShape(theme),
           {
-            backgroundColor: theme.colors.elevation.level1,
+            backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
             opacity: pressed ? 0.72 : 1,
           },

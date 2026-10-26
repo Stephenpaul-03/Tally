@@ -7,7 +7,11 @@ import { useAppSelector } from "@/hooks/Redux";
 import { useAbstractSearch } from "@/hooks/use-abstract-search";
 import type { Workspace } from "@/modules/Core/Repository/SQLiteRepo";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { ScrollView, View } from "react-native";
@@ -72,8 +76,11 @@ export function MainSettingsScreen() {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [appearanceOpen, setAppearanceOpen] = React.useState(false);
   const [interfaceOpen, setInterfaceOpen] = React.useState(false);
-  const settingsRoute = useRoute<RouteProp<SettingsStackParamList, "SettingsHome">>();
-  const [workspacesOpen, setWorkspacesOpen] = React.useState(Boolean(settingsRoute.params?.openWorkspaces));
+  const settingsRoute =
+    useRoute<RouteProp<SettingsStackParamList, "SettingsHome">>();
+  const [workspacesOpen, setWorkspacesOpen] = React.useState(
+    Boolean(settingsRoute.params?.openWorkspaces),
+  );
   const [backupExportOpen, setBackupExportOpen] = React.useState(false);
   const [backupImportOpen, setBackupImportOpen] = React.useState(false);
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
@@ -156,6 +163,14 @@ export function MainSettingsScreen() {
         onPress: openWorkspacesModal,
       },
       {
+        id: "goals",
+        icon: "target",
+        label: "Goals",
+        description: "Savings targets and progress",
+        keywords: ["goals", "saving", "target", "progress"],
+        onPress: () => navigateToScreen("Goals"),
+      },
+      {
         id: "categories",
         icon: "tag-multiple-outline",
         label: "Categories",
@@ -183,7 +198,7 @@ export function MainSettingsScreen() {
         id: "data",
         icon: "database-outline",
         label: "Data",
-        description: "Create or restore transaction backups",
+        description: "Back up or restore your Tally data",
         keywords: ["management", "backup", "restore", "export", "import"],
         onPress: () => navigateToScreen("Data"),
       },
@@ -237,8 +252,7 @@ export function MainSettingsScreen() {
         id: "create-backup",
         icon: "file-export-outline",
         label: "Create Backup",
-        description:
-          "Export your transactions as a backup file from the Data screen",
+        description: "Choose what to back up from the Data screen",
         keywords: ["data", "backup", "export", "transactions", "file"],
         onPress: () => navigateToScreen("Data"),
       },
@@ -246,7 +260,7 @@ export function MainSettingsScreen() {
         id: "restore-backup",
         icon: "file-import-outline",
         label: "Restore Backup",
-        description: "Choose a backup file and review it before restoring",
+        description: "Choose backup files and review them before restoring",
         keywords: ["data", "backup", "restore", "import", "review"],
         onPress: () => navigateToScreen("Data"),
       },
@@ -271,14 +285,6 @@ export function MainSettingsScreen() {
           "dark",
           "system",
         ],
-        onPress: openAppearanceModal,
-      },
-      {
-        id: "theme-style",
-        icon: "palette-swatch-outline",
-        label: "Theme style",
-        description: "Expressive and classic accent colors",
-        keywords: ["sage", "material", "colors", "theme", "style", "accent"],
         onPress: openAppearanceModal,
       },
       {
@@ -533,6 +539,13 @@ export function MainSettingsScreen() {
               <SectionLabel label="Management" />
               <SheetCard theme={theme}>
                 <ActionRow
+                  icon="target"
+                  label="Goals"
+                  description="Savings targets and progress"
+                  onPress={() => navigation.navigate("Goals")}
+                  theme={theme}
+                />
+                <ActionRow
                   icon="tag-multiple-outline"
                   label="Categories"
                   description="Personalize your transaction categories"
@@ -563,7 +576,7 @@ export function MainSettingsScreen() {
                 <ActionRow
                   icon="database-outline"
                   label="Data"
-                  description="Create or restore transaction backups"
+                  description="Back up or restore your Tally data"
                   onPress={() => navigation.navigate("Data")}
                   theme={theme}
                 />

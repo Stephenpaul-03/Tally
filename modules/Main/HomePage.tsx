@@ -1,3 +1,5 @@
+import { MainEntrance } from "@/components/animations/MainEntrance";
+import { HomeGoalsCard } from "@/modules/Goals/HomeGoalsCard";
 import { HomeDraftAction } from "./HomeDraftAction";
 import { ClassicHomeOverview } from "./ClassicHomeOverview";
 import { Gesture } from "react-native-gesture-handler";
@@ -119,7 +121,7 @@ function HomePageContent({
           paddingBottom: 104 + bottom,
         }}
       >
-        <View style={s.between}>
+        <MainEntrance index={0} distance={8} style={s.between}>
           <Text
             style={[
               { fontSize: 22, fontWeight: "800", color: c.primary },
@@ -138,181 +140,199 @@ function HomePageContent({
               navigation.navigate("Settings"),
             )}
           </View>
-        </View>
-        <HomeGreetingCards
-          active={active}
-          onChooseMonth={() => setPicker(true)}
-        />
-        <SpotlightTarget id="overview" enabled={active}>
-          {classic ? (
-            <ClassicHomeOverview
-              balance={balance}
-              received={received}
-              spent={spent}
-              money={money}
-              onIncome={() =>
-                setDetail({
-                  title: "Income",
-                  description: monthLabel(month),
-                  transactions: income,
-                  summary: { label: "Income", value: money(received) },
-                })
-              }
-              onSpent={() =>
-                setDetail({
-                  title: "Spent",
-                  description: monthLabel(month),
-                  transactions: expenses,
-                  summary: { label: "Spent", value: money(spent) },
-                })
-              }
-            />
-          ) : (
-            <View
-              style={[
-                s.hero,
-                homeCardShape("balance", 40),
-                { backgroundColor: classic ? c.surface : c.primaryContainer },
-                classic && { padding: 18, gap: 10 },
-              ]}
-            >
-              <View style={s.between}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "700",
-                    ...(classic ? typography.editorial.sectionLabel : {}),
-                    color: classic ? c.onSurface : c.onPrimaryContainer,
-                  }}
-                >
-                  Balance
-                </Text>
-                {balance < 0 ? (
-                  <View
-                    style={[s.errorChip, { backgroundColor: c.errorContainer }]}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: c.onErrorContainer,
-                      }}
-                    >
-                      Over by {money(balance)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
+        </MainEntrance>
+        <MainEntrance index={1}>
+          <HomeGreetingCards
+            active={active}
+            onChooseMonth={() => setPicker(true)}
+          />
+        </MainEntrance>
+        <MainEntrance index={2}>
+          <SpotlightTarget id="overview" enabled={active}>
+            {classic ? (
+              <ClassicHomeOverview
+                balance={balance}
+                received={received}
+                spent={spent}
+                money={money}
+                onIncome={() =>
+                  setDetail({
+                    title: "Income",
+                    description: monthLabel(month),
+                    transactions: income,
+                    summary: { label: "Income", value: money(received) },
+                  })
+                }
+                onSpent={() =>
+                  setDetail({
+                    title: "Spent",
+                    description: monthLabel(month),
+                    transactions: expenses,
+                    summary: { label: "Spent", value: money(spent) },
+                  })
+                }
+              />
+            ) : (
+              <View
                 style={[
-                  s.balance,
-                  classic && {
-                    ...typography.bodyStrong,
-                    fontSize: 42,
-                    lineHeight: 52,
-                    letterSpacing: -1.5,
-                  },
-                  { color: classic ? c.onSurface : c.onPrimaryContainer },
+                  s.hero,
+                  homeCardShape("balance", 40),
+                  { backgroundColor: classic ? c.surface : c.primaryContainer },
+                  classic && { padding: 18, gap: 10 },
                 ]}
               >
-                {balance < 0 ? "−" : ""}
-                {money(balance)}
-              </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {(
-                  [
-                    ["Income", received, "arrow-bottom-left", income],
-                    ["Spent", spent, "arrow-top-right", expenses],
-                  ] as const
-                ).map(([name, value, icon, rows]) => (
-                  <Pressable
-                    key={name}
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${name.toLowerCase()} transactions`}
-                    onPress={() =>
-                      setDetail({
-                        title: name,
-                        description: monthLabel(month),
-                        transactions: rows,
-                        summary: { label: name, value: money(value) },
-                      })
-                    }
-                    style={[
-                      s.innerPill,
-                      {
-                        backgroundColor: classic ? "transparent" : c.background,
-                      },
-                      classic && {
-                        borderRadius: 0,
-                        padding: 0,
-                        paddingVertical: 8,
-                      },
-                    ]}
+                <View style={s.between}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "700",
+                      ...(classic ? typography.editorial.sectionLabel : {}),
+                      color: classic ? c.onSurface : c.onPrimaryContainer,
+                    }}
                   >
+                    Balance
+                  </Text>
+                  {balance < 0 ? (
                     <View
                       style={[
-                        s.smallIcon,
-                        {
-                          backgroundColor: classic
-                            ? "transparent"
-                            : name === "Income"
-                              ? c.secondaryContainer
-                              : c.errorContainer,
-                        },
+                        s.errorChip,
+                        { backgroundColor: c.errorContainer },
                       ]}
                     >
-                      <Icon
-                        name={icon}
-                        size={22}
-                        color={
-                          name === "Income"
-                            ? c.onSecondaryContainer
-                            : c.onErrorContainer
-                        }
-                      />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text
                         style={{
                           fontSize: 12,
-                          color: c.onSurfaceVariant,
-                          fontWeight: "600",
+                          fontWeight: "700",
+                          color: c.onErrorContainer,
                         }}
                       >
-                        {name}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        style={{
-                          fontSize: 17,
-                          fontWeight: "800",
-                          color: classic ? c.onSurface : c.onPrimaryContainer,
-                        }}
-                      >
-                        {money(value)}
+                        Over by {money(balance)}
                       </Text>
                     </View>
-                  </Pressable>
-                ))}
+                  ) : null}
+                </View>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[
+                    s.balance,
+                    classic && {
+                      ...typography.bodyStrong,
+                      fontSize: 42,
+                      lineHeight: 52,
+                      letterSpacing: -1.5,
+                    },
+                    { color: classic ? c.onSurface : c.onPrimaryContainer },
+                  ]}
+                >
+                  {balance < 0 ? "−" : ""}
+                  {money(balance)}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {(
+                    [
+                      ["Income", received, "arrow-bottom-left", income],
+                      ["Spent", spent, "arrow-top-right", expenses],
+                    ] as const
+                  ).map(([name, value, icon, rows]) => (
+                    <Pressable
+                      key={name}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${name.toLowerCase()} transactions`}
+                      onPress={() =>
+                        setDetail({
+                          title: name,
+                          description: monthLabel(month),
+                          transactions: rows,
+                          summary: { label: name, value: money(value) },
+                        })
+                      }
+                      style={[
+                        s.innerPill,
+                        {
+                          backgroundColor: classic
+                            ? "transparent"
+                            : c.background,
+                        },
+                        classic && {
+                          borderRadius: 0,
+                          padding: 0,
+                          paddingVertical: 8,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          s.smallIcon,
+                          {
+                            backgroundColor: classic
+                              ? "transparent"
+                              : name === "Income"
+                                ? c.secondaryContainer
+                                : c.errorContainer,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={icon}
+                          size={22}
+                          color={
+                            name === "Income"
+                              ? c.onSecondaryContainer
+                              : c.onErrorContainer
+                          }
+                        />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: c.onSurfaceVariant,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {name}
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          style={{
+                            fontSize: 17,
+                            fontWeight: "800",
+                            color: classic ? c.onSurface : c.onPrimaryContainer,
+                          }}
+                        >
+                          {money(value)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
-            </View>
-          )}
-        </SpotlightTarget>
-        <HomeAttention
-          onTransaction={onEdit}
-          pagePan={pagePan}
-          active={active}
-          raw={raw}
-          month={month}
-          currency={currency}
-          symbol={symbol}
-          onBudget={() =>
-            navigation.navigate("Settings", { section: "budget" })
-          }
-        />
+            )}
+          </SpotlightTarget>
+        </MainEntrance>
+        <MainEntrance index={3}>
+          <HomeGoalsCard
+            onPress={() =>
+              navigation.navigate("Settings", { section: "goals" })
+            }
+          />
+        </MainEntrance>
+        <MainEntrance index={4}>
+          <HomeAttention
+            onTransaction={onEdit}
+            pagePan={pagePan}
+            active={active}
+            raw={raw}
+            month={month}
+            currency={currency}
+            symbol={symbol}
+            onBudget={() =>
+              navigation.navigate("Settings", { section: "budget" })
+            }
+          />
+        </MainEntrance>
       </ScrollView>
       <DetailsSheet
         detail={active ? detail : null}

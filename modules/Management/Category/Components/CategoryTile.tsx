@@ -61,7 +61,7 @@ export function CategoryTile({
         borderRadius: settingsShape(theme)?.borderRadius ?? 16,
         paddingHorizontal: 14,
         paddingVertical: 10,
-        backgroundColor: c.elevation.level1,
+        backgroundColor: c.surface,
         gap: 6,
         minHeight: 58,
         justifyContent: "center",

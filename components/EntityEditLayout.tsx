@@ -81,6 +81,8 @@ export type EntityEditLayoutProps = {
   // Optional delete button content (caller decides guard logic)
   deleteAccessory?: React.ReactNode;
 
+  additionalFields?: React.ReactNode;
+
   // Slot for a custom footer (replaces default save button)
   footer?: React.ReactNode;
 
@@ -143,6 +145,7 @@ export function EntityEditLayout({
   onBack,
   deleteAccessory,
   footer,
+  additionalFields,
   theme,
   background,
   nameLimit = MANAGEMENT_NAME_LIMIT,
@@ -750,6 +753,10 @@ export function EntityEditLayout({
           ) : null}
         </View>
 
+        {additionalFields ? (
+          <View style={{ gap: 16, marginTop: 20 }}>{additionalFields}</View>
+        ) : null}
+
         {/* Details */}
         {onChangeOwnerName || (localCurrency && onChangeCurrency) ? (
           <>
@@ -933,6 +940,7 @@ export function EntityEditLayout({
           overflow: "hidden",
           width: "100%",
         }}
+        keyboardAware
         dismissable={dismissable}
         onDismiss={onBack}
         presentation="sheet"

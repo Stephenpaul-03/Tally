@@ -15,16 +15,22 @@ const ROWS = [
 export const AmountKeypad = React.memo(function AmountKeypad({
   styles,
   onKey,
+  controls,
+  calculating,
 }: {
   styles: ReturnType<typeof createMainContentStyles>;
   onKey: (key: string) => void;
+  controls: React.ReactNode;
+  calculating: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   return (
     <View style={styles.iosKeypad}>
+      {controls}
       {ROWS.map((row, index) => (
         <View key={index} style={styles.iosKeypadRow}>
-          {row.map((key) => {
+          {row.map((original) => {
+            const key = original === "clear" && calculating ? "." : original;
             const clear = key === "clear",
               backspace = key === "backspace";
             return (

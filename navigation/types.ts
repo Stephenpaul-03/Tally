@@ -13,7 +13,7 @@ export type RootParamList = {
     | undefined;
   Settings:
     | {
-        section?: "notification-reminders" | "workspaces" | "budget";
+        section?: "notification-reminders" | "workspaces" | "budget" | "goals";
         source?: "notification";
       }
     | undefined;

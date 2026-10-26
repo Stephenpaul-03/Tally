@@ -1,3 +1,10 @@
+import { backupFailure } from "@/modules/Backup/errors";
+import {
+  combineImportPreviews,
+  type ImportFileResult,
+  type ImportPreview,
+} from "@/hooks/use-import-export";
+import { SECTION_LABELS, backupItemCount } from "@/modules/Backup/model";
 import { settingsShape } from "@/theme/settingsShape";
 import { ImportReviewModal } from "../import/ImportReview";
 import {
@@ -9,7 +16,6 @@ import { AlertModal } from "@/components/alert/AlertModal";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { usePasswordPrompt } from "@/components/PasswordPrompt";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
-import type { ImportPreview } from "@/hooks/use-import-export";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
@@ -162,14 +168,14 @@ function EmptyState({
       </Animated.View>
 
       <Text style={[styles.dropTitle, { color: theme.colors.onSurface }]}>
-        {isLoading ? "Reading file…" : "Choose a backup file"}
+        {isLoading ? "Reading files…" : "Choose backup files"}
       </Text>
       <Text
         style={[styles.dropSubtitle, { color: theme.colors.onSurfaceVariant }]}
       >
         {isLoading
           ? "Checking contents"
-          : "JSON transaction files and Tally backups"}
+          : "One or more JSON files or Tally backups"}
       </Text>
 
       {!isLoading ? (
@@ -450,6 +456,23 @@ export function BackupImportModal({
     problems?: ImportProblem[];
   } | null>(null);
   const [preview, setPreview] = React.useState<ImportPreview | null>(null);
+  const [files, setFiles] = React.useState<ImportFileResult[]>([]);
+  const [batchIssue, setBatchIssue] = React.useState("");
+  React.useEffect(() => {
+    setBatchIssue("");
+    setReviewOpen(false);
+    if (!files.length || files.some((file) => file.error || !file.preview)) {
+      setPreview(null);
+      return;
+    }
+    try {
+      setPreview(combineImportPreviews(files.map((file) => file.preview!)));
+    } catch (error) {
+      setPreview(null);
+      const issue = backupFailure(error, "read");
+      setBatchIssue(`${issue.reason} ${issue.recovery}`);
+    }
+  }, [files]);
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isPickingFile, setIsPickingFile] = React.useState(false);
@@ -463,6 +486,7 @@ export function BackupImportModal({
     setReviewOpen(false);
     setValidationError(null);
     setPreview(null);
+    setFiles([]);
     onDismiss();
   }, [isImporting, onDismiss]);
 
@@ -471,32 +495,50 @@ export function BackupImportModal({
       setConfirmOpen(false);
       setReviewOpen(false);
       setPreview(null);
+      setFiles([]);
     }
   }, [visible]);
 
   const handleSelectFile = React.useCallback(async () => {
     if (isPickingFile) return;
+    setIsPickingFile(true);
+    setValidationError(null);
     try {
-      setIsPickingFile(true);
-      setValidationError(null);
-      setPreview(null);
-
       const result = await dataTransfer.buildImportPreview();
-
       if ("canceled" in result) return;
-      if ("error" in result) {
-        setValidationError({
-          message: result.error,
-          problems: result.problems,
-        });
-        return;
-      }
-      setPreview(result.preview);
-      setReviewOpen(
-        result.preview.rows.some((row) =>
-          needsReview(row, result.preview.catalog),
+      const added: ImportFileResult[] =
+        "files" in result
+          ? result.files
+          : "preview" in result
+            ? [
+                {
+                  id: result.preview.uri,
+                  fileName: result.preview.fileName,
+                  preview: result.preview,
+                },
+              ]
+            : [
+                {
+                  id: `error-${Date.now()}`,
+                  fileName: result.fileName || "Selected file",
+                  error: result.error,
+                  problems: result.problems,
+                },
+              ];
+      setFiles((previous) => [
+        ...previous.filter(
+          (old) =>
+            !added.some(
+              (next) =>
+                next.id === old.id ||
+                (old.error && next.fileName === old.fileName),
+            ),
         ),
-      );
+        ...added,
+      ]);
+    } catch (error) {
+      const issue = backupFailure(error, "read");
+      setValidationError({ message: `${issue.reason} ${issue.recovery}` });
     } finally {
       setIsPickingFile(false);
     }
@@ -508,6 +550,7 @@ export function BackupImportModal({
       await dataTransfer.confirmImportPreview(
         preview.rows,
         preview.workspaceId,
+        preview.appBackup,
       );
       setConfirmOpen(false);
       setReviewOpen(false);
@@ -519,7 +562,7 @@ export function BackupImportModal({
       setConfirmOpen(false);
       if (e instanceof ImportSavedError) setPreview(null);
       setValidationError({
-        message: e instanceof Error ? e.message : "Couldn't import that backup",
+        message: `${backupFailure(e, "restore").reason} ${backupFailure(e, "restore").recovery}`,
       });
       return false;
     } finally {
@@ -560,18 +603,170 @@ export function BackupImportModal({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {validationError ? (
+          <View
+            style={{
+              padding: 16,
+              gap: 10,
+              borderRadius: 20,
+              backgroundColor: theme.colors.errorContainer,
+            }}
+          >
+            <Text
+              accessibilityRole="alert"
+              style={{
+                color: theme.colors.onErrorContainer,
+                fontWeight: "800",
+              }}
+            >
+              Import needs attention
+            </Text>
+            <Text style={{ color: theme.colors.onErrorContainer }}>
+              {validationError.message}
+            </Text>
+            {preview ? (
+              <Button
+                mode="outlined"
+                disabled={isImporting}
+                onPress={() => {
+                  setValidationError(null);
+                  setConfirmOpen(true);
+                }}
+              >
+                Retry import
+              </Button>
+            ) : null}
+            <Button onPress={handleSelectFile} disabled={isPickingFile}>
+              Choose corrected files
+            </Button>
+          </View>
+        ) : null}
+        {files.length ? (
+          <View style={{ gap: 10 }}>
+            <Text style={{ color: theme.colors.onSurface, fontWeight: "800" }}>
+              {files.filter((file) => file.preview).length} ready ·{" "}
+              {files.filter((file) => file.error).length} need attention
+            </Text>
+            {files.map((file) => (
+              <View
+                key={file.id}
+                style={{
+                  padding: 14,
+                  borderRadius: 20,
+                  gap: 8,
+                  backgroundColor: file.error
+                    ? theme.colors.errorContainer
+                    : theme.colors.surface,
+                }}
+              >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      flex: 1,
+                      fontWeight: "700",
+                      color: file.error
+                        ? theme.colors.onErrorContainer
+                        : theme.colors.onSurface,
+                    }}
+                  >
+                    {file.fileName}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove file ${file.fileName}`}
+                    onPress={() =>
+                      setFiles((previous) =>
+                        previous.filter((f) => f.id !== file.id),
+                      )
+                    }
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name="close"
+                      size={20}
+                      color={theme.colors.onSurface}
+                    />
+                  </Pressable>
+                </View>
+                {file.error ? (
+                  <>
+                    <Text style={{ color: theme.colors.onErrorContainer }}>
+                      {file.error}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: theme.colors.onErrorContainer,
+                      }}
+                    >
+                      {backupFailure(file.error, "read").recovery}
+                    </Text>
+                    {file.problems?.slice(0, 5).map((problem, index) => (
+                      <Text
+                        key={index}
+                        style={{
+                          color: theme.colors.onErrorContainer,
+                          fontSize: 12,
+                        }}
+                      >
+                        Row {problem.rowNumber || "?"}: {problem.message}
+                      </Text>
+                    ))}
+                  </>
+                ) : (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.colors.onSurfaceVariant,
+                    }}
+                  >
+                    {file.preview?.appBackup
+                      ? file.preview.appBackup.sections
+                          .map((section) => SECTION_LABELS[section])
+                          .join(" · ")
+                      : `${file.preview?.transactionCount} transactions`}
+                  </Text>
+                )}
+              </View>
+            ))}
+            {!!batchIssue && (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: theme.colors.error }}
+              >
+                {batchIssue}
+              </Text>
+            )}
+            <Button
+              icon="file-plus-outline"
+              mode="outlined"
+              onPress={handleSelectFile}
+              disabled={isPickingFile}
+            >
+              Add or retry files
+            </Button>
+          </View>
+        ) : null}
         {/* File zone */}
-        {!preview ? (
+        {!preview && !files.length ? (
           <EmptyState onPress={handleSelectFile} isLoading={isPickingFile} />
-        ) : (
+        ) : preview && !files.length ? (
           <FilePreviewCard
             preview={preview}
             onSwap={handleSelectFile}
             isLoading={isPickingFile}
           />
-        )}
+        ) : null}
 
-        {preview ? (
+        {preview && !preview.appBackup ? (
           <View style={{ paddingVertical: 12, gap: 8 }}>
             <Text style={{ color: theme.colors.onSurfaceVariant }}>
               {preview.rows.some((row) => needsReview(row, preview.catalog))
@@ -589,7 +784,44 @@ export function BackupImportModal({
         ) : null}
         {/* Summary or hints */}
         {preview ? (
-          <SummaryCard preview={preview} />
+          preview.appBackup ? (
+            <View
+              style={{
+                padding: 16,
+                gap: 10,
+                backgroundColor: theme.colors.surface,
+                borderRadius: 20,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "800",
+                  fontSize: 18,
+                }}
+              >
+                Restore backup
+              </Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                {backupItemCount(preview.appBackup)} items ·{" "}
+                {preview.appBackup.sections
+                  .map((section) => SECTION_LABELS[section])
+                  .join(" · ")}
+              </Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                Merges saved workspaces and data. Matching transaction and goal
+                IDs are updated; other entries are kept. Required
+                workspace/category references are included.
+              </Text>
+              {!!Object.keys(preview.appBackup.preferences).length && (
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                  Reopen Tally after restoring to apply appearance and defaults.
+                </Text>
+              )}
+            </View>
+          ) : (
+            <SummaryCard preview={preview} />
+          )
         ) : (
           <View style={[styles.hintsCard, settingsShape(theme)]}>
             {[
@@ -656,10 +888,14 @@ export function BackupImportModal({
           {preview
             ? preview.rows.some((row) => needsReview(row, preview.catalog))
               ? "Review transactions"
-              : "Import transactions"
+              : preview.appBackup
+                ? "Restore backup"
+                : "Import transactions"
             : isPickingFile
               ? "Opening…"
-              : "Choose file"}
+              : files.length
+                ? "Add or retry files"
+                : "Choose files"}
         </Button>
       </View>
 
@@ -680,33 +916,18 @@ export function BackupImportModal({
       ) : null}
       {PasswordPromptModal}
       <AlertModal
-        isOpen={!!validationError}
-        title="Import needs attention"
-        message={validationError?.message}
-        confirmLabel="Got it"
-        onConfirm={() => setValidationError(null)}
-        onCancel={() => setValidationError(null)}
-        icon="alert-circle-outline"
-      >
-        {validationError?.problems ? (
-          <View style={{ gap: 10 }}>
-            {validationError.problems.map((problem, index) => (
-              <Text key={index} style={{ color: theme.colors.onSurface }}>
-                {problem.rowNumber ? `Row ${problem.rowNumber}: ` : ""}
-                {problem.message}
-              </Text>
-            ))}
-          </View>
-        ) : null}
-      </AlertModal>
-
-      <AlertModal
         isOpen={confirmOpen}
-        title="Import these transactions?"
+        title={
+          preview?.appBackup
+            ? "Restore this backup?"
+            : "Import these transactions?"
+        }
         message={
-          preview
-            ? `You're about to add ${preview.transactionCount} transactions from "${preview.fileName}" to this workspace.`
-            : "You're about to import the selected backup file."
+          preview?.appBackup
+            ? "Merge the selected backup into Tally? Matching IDs and included settings will be updated. Other data is kept."
+            : preview
+              ? `You're about to add ${preview.transactionCount} transactions from "${preview.fileName}" to this workspace.`
+              : "You're about to import the selected backup file."
         }
         confirmLabel="Slide to import"
         cancelLabel="Go back"

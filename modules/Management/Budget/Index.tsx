@@ -359,7 +359,7 @@ export function BudgetScreen() {
               style={[
                 budgetStyles.emptyState,
                 {
-                  backgroundColor: theme.colors.elevation.level1,
+                  backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.outlineVariant,
                 },
               ]}
@@ -588,7 +588,7 @@ function BudgetCategoryRow({
         settingsShape(theme),
         !expanded && budgetStyles.accountLikeTileCompact,
         {
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: theme.colors.surface,
           opacity: pressed ? 0.75 : 1,
         },
       ]}

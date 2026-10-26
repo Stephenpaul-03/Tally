@@ -334,3 +334,22 @@ Android review confirmed the arrangement, statistic content and one complete bud
 - Classic SheetCard groups now use the shared card surface rather than the elevation tint, restoring white cards against the neutral light page. Expressive keeps its existing surface treatment; row geometry and interactions remain unchanged.
 - Verified the light Settings page on Android (`reviews/classic-settings-light-cards.png`). Typecheck, clean lint, 54 design tests and whitespace checks passed.
 - Included this fix and the completed main-page refinement in the user-requested checkpoint before new features.
+
+
+### Calculator, Goals, complete backups and Insights reports
+
+- Kept the transaction numpad and added a compact draggable + / − / × / ÷ control, separate Clear/Equals actions, and a subdued pending calculation above the amount. Invalid/division-by-zero results preserve input and explain recovery.
+- Added manually tracked Goals in Settings and Home for both layouts. Reused the category/account editor and shared icon/color lists, added target/reason/optional date fields, and redesigned color-tinted goal cards. Goal editor and progress sheets are keyboard-aware.
+- Added selectable complete or per-section JSON backups covering all workspaces, catalogs, transactions, budgets/defaults, goals, preferences/reminder settings and optional drafts (off by default). Restore validates and remaps references inside an atomic database merge.
+- Added multi-file import with per-file problems, correction guidance, remove/reselect/retry, deduplication and pre-write conflict detection. Mixed legacy and complete backups are reviewed in separate batches. Export errors retain selections and show a reason/recovery/retry; fixed the All-time card to use one rounded frame.
+- Updated the existing Insights PDF renderer with Classic/Expressive layouts, selected accent, embedded fonts, category charts/tables, comparison and budget data. Available through Insights → Compare → Share Insights PDF. Both generated two-page reports were rendered and visually reviewed in output/pdf.
+- Android QA: shared goal customization/editor scrolling, keyboard-raised progress input and Save, 12 × 3 = 36, All-time export card, valid-plus-invalid multi-import and removing the invalid file. No transactions or goal progress were saved during QA. Screenshots in reviews/.
+- Validation: full release checks passed (including 58 design, 41 analytics and 9 feature tests); clean TypeScript/lint; Android and iOS offline production exports passed. Restored preferences apply after reopening Tally, as explained in the import preview.
+
+
+### Settings surfaces, locked layout styles and main entrances
+
+- Standardized Settings groups, category/account tiles, budget/default tiles and workspace rows on the shared card surface. Raised controls and category icon tones retain their own roles.
+- Removed the Appearance theme-style selector and its search result. Layout selection now determines the style in both directions, including migration of old mixed Classic/Expressive preferences; mode, accent and AMOLED remain in Appearance.
+- Added UI-thread opacity/translation entrances for main-route entry and return from Settings. Home staggers header, greeting/date, summary, Goals and budget/activity content without animating dimensions. Expressive navigation slides/fades; Classic navigation fades as one unit, replacing independent icon mount motion. Tab changes and modal presentation do not restart these entrances. Reduced motion and the animation preference are respected.
+- Verified the current Android bundle removes the style selector and renders both Home layouts and Settings card surfaces. Restored Expressive after QA. Full release checks (58 design tests included), clean typecheck/lint, whitespace check, and Android/iOS offline production exports passed.

@@ -127,6 +127,11 @@ const transactionSlice = createSlice({
   name: "transactions",
   initialState,
   reducers: {
+    restoreDrafts: (state, action: PayloadAction<TransactionDraft[]>) => {
+      const merged = new Map((state.transactionDrafts || []).map(draft => [draft.id, draft]));
+      action.payload.forEach(draft => merged.set(draft.id, draft));
+      state.transactionDrafts = [...merged.values()];
+    },
     // Modal actions
     openAddModal: (state, action: PayloadAction<OpenAddModalPayload>) => {
       state.modalMode = "add";
@@ -1029,6 +1034,7 @@ const transactionSlice = createSlice({
 
 // Export actions
 export const {
+  restoreDrafts,
   openAddModal,
   openDraftModal,
   openEditModal,

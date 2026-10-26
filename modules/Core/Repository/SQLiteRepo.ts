@@ -731,6 +731,26 @@ export class SQLiteWorkspaceRepository {
     });
   }
 
+  /** Merge validated portable backups, remapping category IDs on this installation. */
+  async restoreAppDatabase(backup: Partial<DatabaseBackup>, overwrite = { workspaces: true, catalogs: true }) {
+    await db.withExclusiveTransactionAsync(async transaction => {
+      for (const w of backup.workspaces || []) await transaction.runAsync(
+        `INSERT INTO workspaces (id, name, icon, color, owner_name, currency_code, currency_symbol, currency_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET name=excluded.name, icon=excluded.icon, color=excluded.color, owner_name=excluded.owner_name, currency_code=excluded.currency_code, currency_symbol=excluded.currency_symbol, currency_name=excluded.currency_name ${overwrite.workspaces ? "" : "WHERE 0"}`,
+        [w.id,w.name,w.icon,w.color,w.ownerName ?? null,w.currencyCode,w.currencySymbol,w.currencyName]);
+      const categoryIds = new Map<string, number>();
+      for (const c of backup.categories || []) {
+        await transaction.runAsync(`INSERT INTO categories (workspace_id,name,type,icon,color,is_deleted) VALUES (?,?,?,?,?,?) ON CONFLICT(workspace_id,name,type) DO UPDATE SET icon=excluded.icon,color=excluded.color,is_deleted=excluded.is_deleted ${overwrite.catalogs ? "" : "WHERE 0"}`, [c.workspace_id,c.name,c.type,c.icon ?? null,c.color ?? null,c.is_deleted]);
+        const mapped = await transaction.getFirstAsync<{id:number}>("SELECT id FROM categories WHERE workspace_id=? AND name=? AND type=?",[c.workspace_id,c.name,c.type]);
+        if (!mapped) throw Error("Category could not be restored"); categoryIds.set(`${c.workspace_id}:${c.id}`,mapped.id);
+      }
+      for (const a of backup.accounts || []) await transaction.runAsync(`INSERT INTO accounts (workspace_id,name,icon,color,sort_order,is_deleted) VALUES (?,?,?,?,?,?) ON CONFLICT(workspace_id,name) DO UPDATE SET icon=excluded.icon,color=excluded.color,sort_order=excluded.sort_order,is_deleted=excluded.is_deleted ${overwrite.catalogs ? "" : "WHERE 0"}`,[a.workspace_id,a.name,a.icon ?? null,a.color ?? null,a.sort_order ?? 0,a.is_deleted]);
+      for (const t of backup.transactions || []) await transaction.runAsync(`INSERT INTO transactions (id,workspace_id,title,amount,date,category_id,type,account,currency_code,currency_symbol,currency_name,notes,tags,created_by,is_deleted,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET workspace_id=excluded.workspace_id,title=excluded.title,amount=excluded.amount,date=excluded.date,category_id=excluded.category_id,type=excluded.type,account=excluded.account,currency_code=excluded.currency_code,currency_symbol=excluded.currency_symbol,currency_name=excluded.currency_name,notes=excluded.notes,tags=excluded.tags,created_by=excluded.created_by,is_deleted=excluded.is_deleted,updated_at=excluded.updated_at`,[t.id,t.workspace_id,t.title,t.amount,t.date,categoryIds.get(`${t.workspace_id}:${t.category_id}`)!,t.type,t.account ?? null,t.currency_code ?? null,t.currency_symbol ?? null,t.currency_name ?? null,t.notes ?? null,t.tags ?? null,t.created_by ?? "Me",t.is_deleted,t.created_at ?? new Date().toISOString(),t.updated_at ?? new Date().toISOString()]);
+      for (const b of backup.budgets || []) await transaction.runAsync(`INSERT INTO budgets (workspace_id,monthly_amount) VALUES (?,?) ON CONFLICT(workspace_id) DO UPDATE SET monthly_amount=excluded.monthly_amount`,[b.workspace_id,b.monthly_amount]);
+      for (const b of backup.categoryBudgets || []) await transaction.runAsync(`INSERT INTO category_budgets (workspace_id,category_id,amount) VALUES (?,?,?) ON CONFLICT(workspace_id,category_id) DO UPDATE SET amount=excluded.amount`,[b.workspace_id,categoryIds.get(`${b.workspace_id}:${b.category_id}`)!,b.amount]);
+    });
+  }
+
   async getDatabaseBackup(): Promise<DatabaseBackup> {
     const [
       workspaces,

@@ -18,6 +18,8 @@ export function ComparisonSheet({
   money,
   onChooseMonth,
   onSetBudget,
+  onShare,
+  sharing,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -28,6 +30,8 @@ export function ComparisonSheet({
   money: (amount: number) => string;
   onChooseMonth: () => void;
   onSetBudget: () => void;
+  onShare: () => void;
+  sharing: boolean;
 }) {
   const { colors: c } = useTheme();
   const [mode, setMode] = React.useState<"month" | "budget">("month");
@@ -241,6 +245,27 @@ export function ComparisonSheet({
           </Pressable>
         </View>
       )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Share Insights PDF"
+        disabled={sharing}
+        onPress={onShare}
+        style={{
+          minHeight: 48,
+          borderRadius: 24,
+          backgroundColor: c.primary,
+          flexDirection: "row",
+          gap: 10,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: sharing ? 0.6 : 1,
+        }}
+      >
+        <Icon name="file-pdf-box" size={22} color={c.onPrimary} />
+        <Text style={{ color: c.onPrimary, fontWeight: "800" }}>
+          {sharing ? "Creating report…" : "Share Insights PDF"}
+        </Text>
+      </Pressable>
     </ControlsSheet>
   );
 }

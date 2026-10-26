@@ -1,3 +1,9 @@
+import { backupFailure } from "@/modules/Backup/errors";
+import {
+  BACKUP_SECTIONS,
+  SECTION_LABELS,
+  type BackupSection,
+} from "@/modules/Backup/model";
 import { settingsShape } from "@/theme/settingsShape";
 /* eslint-disable react/no-unescaped-entities */
 import { AlertModal } from "@/components/alert/AlertModal";
@@ -7,7 +13,6 @@ import { usePasswordPrompt } from "@/components/PasswordPrompt";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useDataTransferControls } from "@/hooks/use-datatransfer-controls";
 import type { ExportResult } from "@/hooks/use-import-export";
-import { selectNonDeletedTransactions } from "@/modules/Core/Slices/TransactionSlice";
 import {
   markWorkspaceBackedUpAsync,
   selectActiveWorkspaceId,
@@ -289,15 +294,9 @@ function AllTransactionsSummary({
     <View
       style={[
         styles.conjoinedSummary,
-        settingsShape(theme) && {
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
-        },
         {
-          backgroundColor: theme.colors.elevation.level1,
-          borderColor: theme.colors.primary,
-          borderTopColor: theme.colors.primary,
-          borderTopWidth: 0,
+          backgroundColor: "transparent",
+          borderWidth: 0,
         },
       ]}
     >
@@ -628,6 +627,7 @@ function ShareModal({
   onShare: () => void;
   onDismiss: () => void;
 }) {
+  const [shareIssue, setShareIssue] = React.useState("");
   return (
     <AlertModal
       isOpen={visible}
@@ -637,13 +637,52 @@ function ShareModal({
           ? `"${exportResult.fileName ?? `${fileName}.json`}" — ${exportResult.exportedItemCount} items${exportResult.encrypted ? " · Encrypted" : ""}`
           : "Your backup was saved successfully."
       }
-      confirmLabel={isSharing ? "Sharing…" : "Share file"}
+      confirmLabel={
+        exportResult?.files && exportResult.files.length > 1
+          ? "Done"
+          : isSharing
+            ? "Sharing…"
+            : "Share file"
+      }
       cancelLabel="Not now"
-      onConfirm={onShare}
+      onConfirm={
+        exportResult?.files && exportResult.files.length > 1
+          ? onDismiss
+          : onShare
+      }
       onCancel={onDismiss}
       confirmDisabled={isSharing}
       icon="check-circle-outline"
-    />
+    >
+      {!!shareIssue && <Text accessibilityRole="alert">{shareIssue}</Text>}
+      {exportResult?.files && exportResult.files.length > 1 ? (
+        <View style={{ gap: 8 }}>
+          {exportResult.files.map((file) => (
+            <Button
+              key={file.fileName}
+              mode="outlined"
+              icon="share-variant"
+              onPress={async () => {
+                try {
+                  setShareIssue("");
+                  if (!(await Sharing.isAvailableAsync()))
+                    throw Error("Sharing is unavailable on this device");
+                  await Sharing.shareAsync(file.shareUri, {
+                    mimeType: "application/json",
+                    UTI: "public.json",
+                  });
+                } catch (error) {
+                  const issue = backupFailure(error, "save");
+                  setShareIssue(`${issue.reason}. ${issue.recovery}`);
+                }
+              }}
+            >
+              {file.fileName}
+            </Button>
+          ))}
+        </View>
+      ) : null}
+    </AlertModal>
   );
 }
 
@@ -657,7 +696,8 @@ function ExportConfirmModal({
   rangeEndDate,
   availableMonths,
   encryptBackup,
-  transactionCount,
+  selectedSections,
+  separateFiles,
   onConfirm,
   onDismiss,
 }: {
@@ -668,7 +708,8 @@ function ExportConfirmModal({
   rangeEndDate: string;
   availableMonths: { label: string; value: string }[];
   encryptBackup: boolean;
-  transactionCount: number;
+  selectedSections: BackupSection[];
+  separateFiles: boolean;
   onConfirm: () => void;
   onDismiss: () => void;
 }) {
@@ -680,7 +721,7 @@ function ExportConfirmModal({
 
   let dateRangeText = "";
   if (exportScope === "all" && sorted.length > 0) {
-    dateRangeText = `${formatYearMonth(sorted[0].value)} → ${formatYearMonth(sorted[sorted.length - 1].value)}`;
+    dateRangeText = "All time, every workspace";
   } else if (exportScope === "month" && singleMonth) {
     dateRangeText = formatYearMonth(singleMonth);
   } else if (exportScope === "range" && rangeStartDate && rangeEndDate) {
@@ -692,7 +733,11 @@ function ExportConfirmModal({
       <Text
         style={[styles.confirmDesc, { color: theme.colors.onSurfaceVariant }]}
       >
-        Review the details below before saving.
+        {selectedSections.map((section) => SECTION_LABELS[section]).join(" · ")}
+        {"\n"}
+        {separateFiles
+          ? "One file per selected section"
+          : "One combined JSON file"}
       </Text>
       <View
         style={[
@@ -717,12 +762,12 @@ function ExportConfirmModal({
               { color: theme.colors.onSurfaceVariant },
             ]}
           >
-            Transactions
+            Sections
           </Text>
           <Text
             style={[styles.confirmRowValue, { color: theme.colors.onSurface }]}
           >
-            {transactionCount.toLocaleString()}
+            {selectedSections.length}
           </Text>
         </View>
 
@@ -845,36 +890,8 @@ export function BackupExportModal({
     rangeStartMonth,
     rangeEndMonth,
   } = useDataTransferControls();
-  const nonDeletedTransactions = useAppSelector(selectNonDeletedTransactions);
-
-  // For "range" scope we now use full ISO dates instead of month strings
   const [rangeStartDate, setRangeStartDate] = React.useState("");
   const [rangeEndDate, setRangeEndDate] = React.useState("");
-
-  const transactionCount = React.useMemo(() => {
-    if (exportScope === "all") return nonDeletedTransactions.length;
-    if (exportScope === "month") {
-      return singleMonth
-        ? nonDeletedTransactions.filter((tx) => tx.date.startsWith(singleMonth))
-            .length
-        : 0;
-    }
-    if (!rangeStartDate || !rangeEndDate) return 0;
-    const [from, to] =
-      rangeStartDate <= rangeEndDate
-        ? [rangeStartDate.slice(0, 7), rangeEndDate.slice(0, 7)]
-        : [rangeEndDate.slice(0, 7), rangeStartDate.slice(0, 7)];
-    return nonDeletedTransactions.filter((tx) => {
-      const month = tx.date.slice(0, 7);
-      return month >= from && month <= to;
-    }).length;
-  }, [
-    exportScope,
-    nonDeletedTransactions,
-    rangeEndDate,
-    rangeStartDate,
-    singleMonth,
-  ]);
 
   const suggestedName = buildDefaultExportFileName(
     exportScope as ScopeOption,
@@ -885,11 +902,24 @@ export function BackupExportModal({
 
   const [fileNameDraft, setFileNameDraft] = React.useState(suggestedName);
   const [fileNameTouched, setFileNameTouched] = React.useState(false);
+  const [sections, setSections] = React.useState<BackupSection[]>([
+    "transactions",
+    "catalogs",
+    "budgets",
+    "goals",
+    "workspaces",
+    "preferences",
+  ]);
+  const [separateFiles, setSeparateFiles] = React.useState(false);
   const [encryptBackup, setEncryptBackup] = React.useState(false);
   const [exportPassword, setExportPassword] = React.useState("");
   const [exportResult, setExportResult] = React.useState<ExportResult | null>(
     null,
   );
+  const [exportIssue, setExportIssue] = React.useState<{
+    reason: string;
+    recovery: string;
+  } | null>(null);
   const [isExporting, setIsExporting] = React.useState(false);
   const [isSharing, setIsSharing] = React.useState(false);
   const [shareVisible, setShareVisible] = React.useState(false);
@@ -902,6 +932,7 @@ export function BackupExportModal({
   const hasMonths = availableMonths.length > 0;
 
   const canExport =
+    sections.length > 0 &&
     fileNameDraft.trim().length > 0 &&
     (exportScope === "all" ||
       (exportScope === "month" && Boolean(singleMonth)) ||
@@ -911,6 +942,7 @@ export function BackupExportModal({
 
   const handleExport = React.useCallback(async () => {
     setIsExporting(true);
+    setExportIssue(null);
     try {
       // For range scope, pass the full ISO date strings
       const effectiveStartMonth =
@@ -923,6 +955,8 @@ export function BackupExportModal({
           : rangeEndMonth;
 
       const result = await exportTransactions({
+        sections,
+        separateFiles,
         scope: exportScope,
         month: exportScope === "month" ? singleMonth : undefined,
         startMonth: exportScope === "range" ? effectiveStartMonth : undefined,
@@ -932,19 +966,29 @@ export function BackupExportModal({
         exportPassword: encryptBackup ? exportPassword.trim() : undefined,
       });
       if (result) {
+        setExportResult(result);
+        setShareVisible(true);
         await dispatch(
           markWorkspaceBackedUpAsync({
             id: activeWorkspaceId,
             kind: exportScope === "all" ? "full" : exportScope,
           }) as any,
         );
-        setExportResult(result);
-        setShareVisible(true);
+      } else {
+        setExportIssue({
+          reason: "Backup was not saved",
+          recovery:
+            "Choose a writable folder and allow access, then retry. If encryption is enabled, enter a backup password. Your selections are kept.",
+        });
       }
+    } catch (error) {
+      setExportIssue(backupFailure(error, "save"));
     } finally {
       setIsExporting(false);
     }
   }, [
+    sections,
+    separateFiles,
     encryptBackup,
     exportPassword,
     exportScope,
@@ -970,12 +1014,14 @@ export function BackupExportModal({
         dialogTitle: "Share backup file",
         UTI: "public.json",
       });
-    } catch (e) {
-      console.error("Share failed:", e);
-    } finally {
-      setIsSharing(false);
       setShareVisible(false);
       onDismiss();
+    } catch (e) {
+      console.error("Share failed:", e);
+      setExportIssue(backupFailure(e, "save"));
+      setShareVisible(false);
+    } finally {
+      setIsSharing(false);
     }
   }, [exportResult, isSharing, onDismiss]);
 
@@ -1153,23 +1199,133 @@ export function BackupExportModal({
           </View>
         )}
 
+        {exportIssue ? (
+          <View
+            style={{
+              padding: 16,
+              gap: 10,
+              borderRadius: 20,
+              backgroundColor: theme.colors.errorContainer,
+            }}
+          >
+            <Text
+              accessibilityRole="alert"
+              style={{
+                fontWeight: "800",
+                color: theme.colors.onErrorContainer,
+              }}
+            >
+              {exportIssue.reason}
+            </Text>
+            <Text style={{ color: theme.colors.onErrorContainer }}>
+              {exportIssue.recovery}
+            </Text>
+            <Button
+              mode="outlined"
+              disabled={isExporting}
+              onPress={() => void handleExport()}
+            >
+              Retry save
+            </Button>
+          </View>
+        ) : null}
+        <SectionHeader label="Backup contents" />
+        <View
+          style={{
+            borderRadius: 20,
+            backgroundColor: theme.colors.surface,
+            padding: 8,
+          }}
+        >
+          {BACKUP_SECTIONS.map((section) => (
+            <Pressable
+              key={section}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`Back up ${SECTION_LABELS[section]}`}
+              accessibilityState={{ checked: sections.includes(section) }}
+              onPress={() =>
+                setSections((previous) =>
+                  previous.includes(section)
+                    ? previous.filter((s) => s !== section)
+                    : [...previous, section],
+                )
+              }
+              style={{
+                minHeight: 48,
+                paddingHorizontal: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <MaterialCommunityIcons
+                name={
+                  sections.includes(section)
+                    ? "checkbox-marked"
+                    : "checkbox-blank-outline"
+                }
+                size={23}
+                color={theme.colors.primary}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  color: theme.colors.onSurface,
+                  fontWeight: "700",
+                }}
+              >
+                {SECTION_LABELS[section]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityLabel="Separate JSON files"
+          accessibilityState={{ checked: separateFiles }}
+          onPress={() => setSeparateFiles(!separateFiles)}
+          style={{
+            minHeight: 60,
+            padding: 12,
+            borderRadius: 20,
+            backgroundColor: theme.colors.surface,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={{ color: theme.colors.onSurface, fontWeight: "800" }}>
+              Separate files
+            </Text>
+            <Text
+              style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
+            >
+              One JSON per selected section
+            </Text>
+          </View>
+          <Switch value={separateFiles} onValueChange={setSeparateFiles} />
+        </Pressable>
+        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+          One complete JSON by default. Includes data from all workspaces.
+          Required workspace and category references travel with each file.
+          Drafts are off by default.
+        </Text>
         {/* ── What to export — scope cards with inline pickers ── */}
-        <SectionHeader label="What to export" />
+        <SectionHeader label="Transaction period" />
         <View style={styles.scopeCards}>
           {/* All transactions + conjoined summary */}
-          <View>
-            <ScopeCard
-              icon="layers-outline"
-              label="All transactions"
-              description="Export everything in your account"
-              active={exportScope === "all"}
-              onPress={() => setExportScope("all")}
-              squareBottom={exportScope === "all" && hasMonths}
-            />
+          <ScopeCard
+            icon="layers-outline"
+            label="All time"
+            description="All selected data across your workspaces"
+            active={exportScope === "all"}
+            onPress={() => setExportScope("all")}
+          >
             {exportScope === "all" && hasMonths ? (
               <AllTransactionsSummary availableMonths={availableMonths} />
             ) : null}
-          </View>
+          </ScopeCard>
 
           {hasMonths ? (
             <ScopeCard
@@ -1257,7 +1413,8 @@ export function BackupExportModal({
         rangeEndDate={rangeEndDate}
         availableMonths={availableMonths}
         encryptBackup={encryptBackup}
-        transactionCount={transactionCount}
+        selectedSections={sections}
+        separateFiles={separateFiles}
         onConfirm={() => {
           setConfirmVisible(false);
           void handleExport();
@@ -1359,12 +1516,10 @@ const styles = StyleSheet.create({
   // Conjoined summary card under "all"
   conjoinedSummary: {
     borderRadius: 12,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginTop: -4,
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    marginTop: 0,
   },
   summaryRow: {
     flexDirection: "row",

@@ -5,8 +5,10 @@ import React from "react";
 import { Keyboard, Pressable, TextInput, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
+import { HomeIcon } from "./HomeIcon";
 import { useTheme } from "react-native-paper";
-import { DesignText as Text } from "@/components/DesignText";
+import { HomeText as Text } from "./HomeText";
+import { DesignText } from "@/components/DesignText";
 
 const NAME_KEY = "tally.homeWelcomeName.v1";
 export function HomeWelcome({
@@ -83,9 +85,9 @@ export function HomeWelcome({
               color: classic ? c.onSurface : c.onPrimaryContainer,
             }}
           />
-          <Text style={{ fontSize: 11, color: c.onSurface }}>
+          <DesignText style={{ fontSize: 11, color: c.onSurface }}>
             {draft.length}/30
-          </Text>
+          </DesignText>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Save welcome name"
@@ -126,6 +128,8 @@ export function HomeWelcome({
           }}
         >
           <Text
+            characterReveal
+            delay={300}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.2}
@@ -140,7 +144,7 @@ export function HomeWelcome({
             {name || "Your name"}
           </Text>
           {!name ? (
-            <Icon name="pencil-outline" size={18} color={c.primary} />
+            <HomeIcon name="pencil-outline" size={18} color={c.primary} />
           ) : null}
         </Pressable>
       )}

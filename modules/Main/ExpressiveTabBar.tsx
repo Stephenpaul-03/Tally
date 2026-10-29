@@ -1,3 +1,4 @@
+import { MainEntrance } from "@/components/animations/MainEntrance";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -121,7 +122,7 @@ export function ExpressiveTabBar({
               bottom: 0,
               left: 0,
               borderRadius: 28,
-              backgroundColor: c.surface,
+              backgroundColor: c.primary,
             },
             indicator,
           ]}
@@ -197,12 +198,14 @@ function TabItem({
         borderRadius: 28,
       }}
     >
+      <MainEntrance delay={380 + index * 60} duration={180} distance={6}
+        style={{ width: "100%", height: 48, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={iconStyle}>
         <Animated.View style={inactiveIcon}>
           <Icon name={icon} size={24} color={c.onSurfaceVariant} />
         </Animated.View>
         <Animated.View style={[{ position: "absolute" }, activeIcon]}>
-          <Icon name={icon} size={24} color={c.onSurface} />
+          <Icon name={icon} size={24} color={c.onPrimary} />
         </Animated.View>
       </Animated.View>
       <Animated.View
@@ -223,12 +226,13 @@ function TabItem({
           style={{
             fontWeight: "800",
             fontSize: 12,
-            color: c.onSurface,
+            color: c.onPrimary,
           }}
         >
           {label}
         </Text>
       </Animated.View>
+      </MainEntrance>
     </Pressable>
   );
 }

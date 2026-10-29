@@ -3,7 +3,7 @@ import { homeCardTone } from "./homeCardAppearance";
 import React from "react";
 import { AppState, Pressable, View, useWindowDimensions } from "react-native";
 import { useTheme } from "react-native-paper";
-import { DesignText as Text } from "@/components/DesignText";
+import { HomeDateText as Text } from "./HomeText";
 import { HomeWelcome } from "./HomeWelcome";
 
 export function HomeGreetingCards({

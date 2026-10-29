@@ -32,6 +32,8 @@ type Props = {
   onDismiss: () => void;
   /** Called after the panel has fully exited, including reduced-motion closes. */
   onHidden?: () => void;
+  /** Called once the opening animation completes. */
+  onShown?: () => void;
   children: ReactNode;
   presentation?: Presentation;
   style?: StyleProp<ViewStyle>;
@@ -52,6 +54,7 @@ export function AnimatedPaperModal({
   visible,
   onDismiss,
   onHidden,
+  onShown,
   children,
   presentation = "modal",
   style,
@@ -79,6 +82,7 @@ export function AnimatedPaperModal({
   const visibleRef = useRef(visible);
   const dismissRef = useRef(onDismiss);
   const hiddenRef = useRef(onHidden);
+  const shownRef = useRef(onShown);
   const generation = useRef(0);
   const completedExit = useRef<number | null>(null);
   const processedVisibility = useRef<boolean | null>(null);
@@ -89,6 +93,7 @@ export function AnimatedPaperModal({
   visibleRef.current = visible;
   dismissRef.current = onDismiss;
   hiddenRef.current = onHidden;
+  shownRef.current = onShown;
   if (visible) lastChildren.current = children;
 
   const progress = useSharedValue(0);
@@ -124,15 +129,22 @@ export function AnimatedPaperModal({
       hiddenRef.current?.();
   }, [rendered]);
 
+  const completeOpen = React.useCallback((token: number) => {
+    if (generation.current === token && visibleRef.current) shownRef.current?.();
+  }, []);
+
   const open = React.useCallback(() => {
     if (!openingPending.current) return;
     openingPending.current = false;
     closing.value = false;
+    const token = generation.current;
     progress.value = withTiming(1, {
       duration: reduceMotion ? 0 : animationDuration,
       easing: Easing.bezier(0.2, 0, 0, 1),
+    }, (finished) => {
+      if (finished) runOnJS(completeOpen)(token);
     });
-  }, [animationDuration, reduceMotion, progress, closing]);
+  }, [animationDuration, reduceMotion, progress, closing, completeOpen]);
 
   useEffect(() => {
     if (processedVisibility.current === visible) return;

@@ -3,6 +3,7 @@ import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
+import { InsightsLayoutContext } from "./InsightsLayoutContext";
 import { StyleSheet, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
@@ -22,10 +23,12 @@ export function InsightCard({
   index = 0,
   active = true,
   initiallyVisible = false,
+  headerGap = 0,
 }: {
   index?: number;
   active?: boolean;
   initiallyVisible?: boolean;
+  headerGap?: number;
   title?: string;
   icon?: Icon;
   color?: string;
@@ -34,20 +37,22 @@ export function InsightCard({
   children: React.ReactNode;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const layoutOverride = React.useContext(InsightsLayoutContext);
+  const expressiveLayout = layoutOverride ?? theme.expressive;
   const accent = color ?? theme.colors.primary;
   const header = title ? (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        gap: 10,
-        minHeight: headerAction ? 52 : 48,
-        paddingHorizontal: theme.expressive ? 12 : 5,
+        gap: expressiveLayout ? 10 : 8,
+        minHeight: headerAction ? (expressiveLayout ? 52 : 50) : expressiveLayout ? 48 : 36,
+        paddingHorizontal: expressiveLayout ? 12 : 5,
       }}
     >
       <MaterialCommunityIcons
         name={icon}
-        size={22}
+        size={expressiveLayout ? 22 : 20}
         color={theme.expressive ? theme.colors.onSurface : accent}
       />
       <Text
@@ -56,8 +61,8 @@ export function InsightCard({
         adjustsFontSizeToFit
         style={{
           ...typography.editorial.sectionLabel,
-          fontSize: 20,
-          lineHeight: 26,
+          fontSize: expressiveLayout ? 20 : 18,
+          lineHeight: expressiveLayout ? 26 : 24,
           minWidth: 0,
           flex: 1,
           color: theme.colors.onSurface,
@@ -86,8 +91,8 @@ export function InsightCard({
       initiallyVisible={initiallyVisible}
       animateLayout={!initiallyVisible}
       style={
-        theme.expressive
-          ? { gap: 0 }
+        expressiveLayout
+          ? { gap: headerGap }
           : {
               padding: 14,
               borderRadius: 20,
@@ -100,10 +105,10 @@ export function InsightCard({
       }
     >
       {header}
-      {!theme.expressive && title ? <CardDivider /> : null}
+      {!expressiveLayout && title ? <CardDivider /> : null}
       <View
         style={
-          theme.expressive
+          expressiveLayout
             ? {
                 backgroundColor: theme.colors.surface,
                 borderRadius: 32,

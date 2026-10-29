@@ -34,7 +34,7 @@ async function fixture() {
         "goals",
       ],
       database: await source.workspaceRepo.getDatabaseBackup(),
-      preferences: { appThemeId: "sakura", tallyWorkspaceDefaults: "{}" },
+      preferences: { appThemeId: "sakura", tallyWorkspaceDefaults: "{}", "tally.insightsStyle.v1": "classic" },
       goals: [],
     },
   };
@@ -62,6 +62,7 @@ test("backup validation rejects missing references, invalid transactions, unknow
     (b) => (b.database.transactions[0].date = "2026-02-30"),
     (b) => (b.database.transactions[0].amount = Infinity),
     (b) => (b.preferences.password = "secret"),
+    (b) => (b.preferences["tally.insightsStyle.v1"] = "invalid"),
     (b) => (b.sections = ["preferences"]),
     (b) => b.database.transactions.push(b.database.transactions[0]),
   ]) {

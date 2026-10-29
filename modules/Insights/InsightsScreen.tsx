@@ -1,3 +1,5 @@
+import { InsightsLayoutContext } from "./components/InsightsLayoutContext";
+import { useMainDesign } from "@/hooks/use-main-design";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
 import { ClassicSpending } from "./components/ClassicSpending";
 import { Gesture } from "react-native-gesture-handler";
@@ -36,12 +38,13 @@ import {
 } from "@/utils/Helpers";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import Animated, {
   interpolate,
   useAnimatedStyle,
+  useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { calculateInsights, monthLabel, type Group } from "./calculations";
@@ -51,7 +54,6 @@ import {
   YearOverview,
 } from "./charts/Charts";
 import { InsightsEmptyState } from "./components/InsightsEmptyState";
-import { CardEmptyState } from "./components/CardEmptyState";
 import { CategorySection } from "./components/CategorySection";
 import { MotionPressable } from "./components/Motion";
 import { InsightCard, MoneyHero } from "./components/Overview";
@@ -73,14 +75,13 @@ type InsightsProps = {
 };
 export function InsightsScreen(props: InsightsProps = {}) {
   const workspace = useAppSelector(selectActiveWorkspace);
+  const { design, insightsStyle } = useMainDesign();
+  const selectedStyle = insightsStyle ?? design.layout;
   if (!workspace) return null;
-  return (
-    <WorkspaceInsights
-      key={workspace.id}
-      workspaceCurrency={workspace.currencyCode}
-      {...props}
-    />
-  );
+  return <InsightsLayoutContext.Provider value={selectedStyle === "sage"}>
+    <WorkspaceInsights key={workspace.id} workspaceCurrency={workspace.currencyCode}
+      {...props} standalone={props.standalone || selectedStyle === "classic"} expressive={selectedStyle === "sage"} />
+  </InsightsLayoutContext.Provider>;
 }
 
 function WorkspaceInsights({
@@ -98,9 +99,10 @@ function WorkspaceInsights({
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const dispatch = useAppDispatch();
   const theme = useTheme<ExtendedMD3Theme>();
+  const { fontScale } = useWindowDimensions();
   const tabBarHeight = useTabBarHeight();
   const { bottom } = useSafeAreaInsets();
-  const classicB = standalone && !expressive && !theme.expressive;
+  const classicB = standalone && !expressive;
   const expanded = expressive || standalone || activeTab === "insights";
   // Keep the same period and hero mounted as Home expands into Insights.
   const a = useInsights(workspaceCurrency, true, { month, onMonthChange });
@@ -125,12 +127,13 @@ function WorkspaceInsights({
   const [panel, setPanel] = useState<Panel | null>(null);
   const accountIcons = useAppSelector(selectAccountIcons);
   const accountColors = useAppSelector(selectAccountColors);
-  const [browse, setBrowse] = useState<"expense" | "income" | "year" | null>(
+  const [browse, setBrowse] = useState<"expense" | "income" | "year" | "accounts" | null>(
     null,
   );
   const [activityType, setActivityType] = useState<"income" | "expense">(
     "expense",
   );
+  const activityProgress = useSharedValue(activityType === "income" ? 1 : 0);
   const [detail, setDetail] = useState<Detail | null>(null);
   const registerControls = useExpandedControls();
   const registerHeading = useInsightsHeading();
@@ -328,12 +331,139 @@ function WorkspaceInsights({
       onShowAll={() => setBrowse(type)}
     />
   );
+  const accountPreviewLimit = expressive && fontScale <= 1.25 ? 6 : 3;
+  const accountRows = (showAll = false) => (
+    <View style={{ gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: expressive ? "row" : "column",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                {(showAll ? accounts : accounts.slice(0, accountPreviewLimit)).map((account, index) => {
+                  const color = getAccountColor(account.name, accountColors);
+                  const icon = getAccountIconName(
+                    account.name,
+                    accountIcons,
+                  ) as React.ComponentProps<
+                    typeof MaterialCommunityIcons
+                  >["name"];
+                  const [background, foreground] = categoryTone(
+                    "",
+                    theme.dark,
+                    color,
+                  );
+                  const onPress = () =>
+                    setDetail({
+                      title: account.name || "Unspecified account",
+                      description: a.data.periodLabel,
+                      summary: {
+                        label: "Spent",
+                        value: money(account.expense),
+                      },
+                      transactions: account.transactions.filter(
+                        (row) => row.type === "expense",
+                      ),
+                    });
+                  return expressive ? (
+                    <TonalSummaryTile
+                      key={account.name}
+                      index={index}
+                      icon={icon}
+                      background={background}
+                      foreground={foreground}
+                      value={money(account.expense)}
+                      caption={account.name || "Unspecified account"}
+                      onPress={onPress}
+                    />
+                  ) : (
+                    <MotionPressable
+                      key={account.name}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${account.name || "Unspecified account"}, ${money(account.expense)} spent. View entries.`}
+                      onPress={onPress}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        width: "100%",
+                        gap: 10,
+                        minHeight: 44,
+                        paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.surfaceVariant,
+                      }}
+                    >
+                      <CategoryIconBadge
+                        icon={icon}
+                        color={color}
+                        style={{ width: 34, height: 34, borderRadius: 12 }}
+                      />
+                      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            ...typography.bodyMedium,
+                            fontSize: 14,
+                            color: theme.colors.onSurface,
+                          }}
+                        >
+                          {account.name || "Unspecified account"}
+                        </Text>
+                        <Text
+                          style={{
+                            ...typography.body,
+                            fontSize: 11,
+                            color: theme.colors.onSurfaceVariant,
+                          }}
+                        >
+                          Spent this month
+                        </Text>
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        style={{
+                          ...typography.bodyStrong,
+                          maxWidth: "40%",
+                          fontSize: 15,
+                          color: theme.colors.onSurface,
+                        }}
+                      >
+                        {money(account.expense)}
+                      </Text>
+                      <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                    </MotionPressable>
+                  );
+                })}
+              </View>
+      {!showAll && accounts.length > accountPreviewLimit ? (
+        <MotionPressable accessibilityRole="button" accessibilityLabel={`View ${accounts.length - accountPreviewLimit} more accounts`}
+          onPress={() => setBrowse("accounts")}
+          style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48,
+            paddingHorizontal: 12, borderRadius: 16, backgroundColor: theme.colors.surfaceVariant }}>
+          <MaterialCommunityIcons name="dots-horizontal" size={22} color={theme.colors.onSurfaceVariant} />
+          <Text style={{ ...typography.bodyMedium, flex: 1, color: theme.colors.onSurface }}>
+            {accounts.length - accountPreviewLimit} more
+          </Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.onSurfaceVariant} />
+        </MotionPressable>
+      ) : null}
+    </View>
+  );
   const browsePanel = browse
     ? {
         title:
           browse === "year"
             ? `${a.data.year.label} monthly totals`
-            : browse === "expense"
+            : browse === "accounts"
+              ? "All accounts"
+              : browse === "expense"
               ? "All expense categories"
               : "All income categories",
         description:
@@ -348,6 +478,8 @@ function WorkspaceInsights({
               money={money}
               onMonth={selectMonth}
             />
+          ) : browse === "accounts" ? (
+            accountRows(true)
           ) : (
             <View style={{ gap: 12 }}>{categoryRows(browse, true)}</View>
           ),
@@ -600,114 +732,7 @@ function WorkspaceInsights({
               icon="wallet-outline"
               color={theme.dark ? "#C4A7F5" : "#7950B5"}
             >
-              <View
-                style={{
-                  flexDirection: expressive ? "row" : "column",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-                {accounts.map((account, index) => {
-                  const color = getAccountColor(account.name, accountColors);
-                  const icon = getAccountIconName(
-                    account.name,
-                    accountIcons,
-                  ) as React.ComponentProps<
-                    typeof MaterialCommunityIcons
-                  >["name"];
-                  const [background, foreground] = categoryTone(
-                    "",
-                    theme.dark,
-                    color,
-                  );
-                  const onPress = () =>
-                    setDetail({
-                      title: account.name || "Unspecified account",
-                      description: a.data.periodLabel,
-                      summary: {
-                        label: "Spent",
-                        value: money(account.expense),
-                      },
-                      transactions: account.transactions.filter(
-                        (row) => row.type === "expense",
-                      ),
-                    });
-                  return expressive ? (
-                    <TonalSummaryTile
-                      key={account.name}
-                      index={index}
-                      icon={icon}
-                      background={background}
-                      foreground={foreground}
-                      value={money(account.expense)}
-                      caption={account.name || "Unspecified account"}
-                      onPress={onPress}
-                    />
-                  ) : (
-                    <MotionPressable
-                      key={account.name}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${account.name || "Unspecified account"}, ${money(account.expense)} spent. View entries.`}
-                      onPress={onPress}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        width: "100%",
-                        gap: 10,
-                        minHeight: 44,
-                        paddingVertical: 8,
-                        paddingHorizontal: 8,
-                        borderRadius: 12,
-                        backgroundColor: theme.colors.surfaceVariant,
-                      }}
-                    >
-                      <CategoryIconBadge
-                        icon={icon}
-                        color={color}
-                        style={{ width: 34, height: 34, borderRadius: 12 }}
-                      />
-                      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            ...typography.bodyMedium,
-                            fontSize: 14,
-                            color: theme.colors.onSurface,
-                          }}
-                        >
-                          {account.name || "Unspecified account"}
-                        </Text>
-                        <Text
-                          style={{
-                            ...typography.body,
-                            fontSize: 11,
-                            color: theme.colors.onSurfaceVariant,
-                          }}
-                        >
-                          Spent this month
-                        </Text>
-                      </View>
-                      <Text
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        style={{
-                          ...typography.bodyStrong,
-                          maxWidth: "40%",
-                          fontSize: 15,
-                          color: theme.colors.onSurface,
-                        }}
-                      >
-                        {money(account.expense)}
-                      </Text>
-                      <MaterialCommunityIcons
-                        name="chevron-right"
-                        size={16}
-                        color={theme.colors.onSurfaceVariant}
-                      />
-                    </MotionPressable>
-                  );
-                })}
-              </View>
+              {accountRows()}
             </InsightCard>
           ) : null}
           {hasEntries ? (
@@ -716,50 +741,25 @@ function WorkspaceInsights({
               active={expressive || standalone || activeTab === "insights"}
               initiallyVisible={expressive || standalone}
               title="Activity"
+              headerGap={12}
               icon="calendar-blank-outline"
               color={theme.dark ? "#67C8E8" : "#087FA3"}
               headerAction={
                 <ActivityTypeToggle
                   pagePan={pagePan}
+                  dragProgress={activityProgress}
                   value={activityType}
                   onChange={setActivityType}
                 />
               }
             >
-              <View style={{ gap: 12 }}>
-                {(
-                  activityType === "expense"
-                    ? a.data.hasSpending
-                    : a.data.hasIncome
-                ) ? (
-                  <ActivityHeatmap
-                    days={a.data.days}
-                    type={activityType}
-                    money={money}
-                    onDay={(day) =>
-                      setDetail(dailyActivityDetail(day, activityType, money))
-                    }
-                  />
-                ) : (
-                  <CardEmptyState
-                    icon={
-                      activityType === "expense"
-                        ? "basket-outline"
-                        : "cash-plus"
-                    }
-                    message={
-                      activityType === "expense"
-                        ? "No spending days to show"
-                        : "No income days to show"
-                    }
-                    description={
-                      activityType === "expense"
-                        ? "Switch to income to see when money came in."
-                        : "Switch to spending to see where money went."
-                    }
-                  />
-                )}
-              </View>
+              <ActivityHeatmap
+                days={a.data.days}
+                type={activityType}
+                dragProgress={activityProgress}
+                money={money}
+                onDay={(day) => setDetail(dailyActivityDetail(day, activityType, money))}
+              />
             </InsightCard>
           ) : null}
           {hasYearEntries ? (

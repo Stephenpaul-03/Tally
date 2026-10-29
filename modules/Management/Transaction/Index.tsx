@@ -1,3 +1,4 @@
+import { TransactionMutationScope, TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "./Components/TransactionMutation";
 import { DesignText as Text } from "@/components/DesignText";
 import { MotionItem } from "@/components/animations/Motion";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
@@ -1458,11 +1459,10 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
       collapsed={collapsed}
       onToggleCollapsed={() => onToggleCollapsed(item.key)}
     >
-      {item.transactions.map((transaction, index) => {
-        const isLast = index === item.transactions.length - 1;
+      <TransactionRowsPresence rows={item.transactions} renderRow={(transaction, index, count) => {
+        const isLast = index === count - 1;
         return (
           <View
-            key={transaction.id}
             style={
               !theme.expressive && !isLast
                 ? {
@@ -1477,7 +1477,7 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
               onPressTransaction={onPressTransaction}
               grouped
               groupPosition={
-                item.transactions.length === 1
+                count === 1
                   ? "single"
                   : index === 0
                     ? "first"
@@ -1489,7 +1489,7 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
             />
           </View>
         );
-      })}
+      }} />
     </TimelineSectionHeader>
   );
 });
@@ -1567,6 +1567,11 @@ export default function Transactions({
   const currencyCode = activeWorkspace?.currencyCode ?? "INR";
   const currencySymbol = activeWorkspace?.currencySymbol ?? "";
   const todayKey = useMemo(() => getTodayKey(), []);
+  const addDateRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!isFocused || shellActiveTab !== "calendar") addDateRef.current = null;
+  }, [isFocused, shellActiveTab]);
+  useEffect(() => { addDateRef.current = null; }, [activeWorkspace?.id, initialSelectedDate]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -1780,6 +1785,8 @@ export default function Transactions({
     transactionDrafts,
   ]);
 
+  const sectionPresence = useTransactionPresence(monthSections, (section) => section.key);
+
   const handleToggleDaySection = useCallback((key: string) => {
     setCollapsedDaySections((prev) => ({
       ...prev,
@@ -1805,8 +1812,17 @@ export default function Transactions({
     });
   }, [monthSections]);
 
+  const handleTransactionAdded = useCallback((date: string) => {
+    setCollapsedDaySections((previous) => previous[date] ? { ...previous, [date]: false } : previous);
+    if (date.slice(0, 7) !== selectedMonthKey) setSelectedDateOverride(date);
+  }, [selectedMonthKey]);
+
+  const handleAddDateChange = useCallback((date: string) => {
+    if (shellActiveTab === "calendar") addDateRef.current = date;
+  }, [shellActiveTab]);
+
   const handleAddTransaction = useCallback(() => {
-    handleAddPress(activeTab, selectedDate);
+    handleAddPress(activeTab, addDateRef.current ?? selectedDate);
   }, [activeTab, handleAddPress, selectedDate]);
 
   const handleOpenFilters = useCallback(() => {
@@ -1862,17 +1878,21 @@ export default function Transactions({
   );
 
   const renderMonthSection = useCallback(
-    ({ item }: { item: MonthSection }) => (
+    ({ item }: { item: PresenceRecord<MonthSection> }) => (
+      <TransactionPresenceItem record={item} complete={sectionPresence.complete} register={sectionPresence.register}>
       <TimelineDaySection
-        item={item}
+        item={item.item}
         currencyCode={currencyCode}
         currencySymbol={currencySymbol}
         onPressTransaction={handleEdit}
         collapsed={Boolean(collapsedDaySections[item.key])}
         onToggleCollapsed={handleToggleDaySection}
       />
+      </TransactionPresenceItem>
     ),
     [
+      sectionPresence.complete,
+      sectionPresence.register,
       collapsedDaySections,
       currencyCode,
       currencySymbol,
@@ -1906,7 +1926,7 @@ export default function Transactions({
       <View style={local.transactionCardWrap}>
         <FlatList
           style={local.transactionList}
-          data={monthSections}
+          data={sectionPresence.records}
           renderItem={renderMonthSection}
           keyExtractor={(item) => item.key}
           ListEmptyComponent={transactionEmptyState}
@@ -1914,7 +1934,7 @@ export default function Transactions({
           contentContainerStyle={local.transactionListContent}
           initialNumToRender={5}
           maxToRenderPerBatch={4}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           updateCellsBatchingPeriod={80}
           windowSize={5}
           keyboardShouldPersistTaps="handled"
@@ -1924,7 +1944,7 @@ export default function Transactions({
       </View>
     ),
     [
-      monthSections,
+      sectionPresence.records,
       renderMonthSection,
       shellActiveTab,
       transactionEmptyState,
@@ -1955,6 +1975,7 @@ export default function Transactions({
           },
         ]}
       >
+        <TransactionMutationScope>
         {design.layout === "sage" ? (
           <SageMainScreen
             sections={monthSections}
@@ -2038,6 +2059,7 @@ export default function Transactions({
             {transactionCard}
           </ClassicMainScreen>
         )}
+        </TransactionMutationScope>
       </View>
 
       <TransactionModal
@@ -2046,6 +2068,8 @@ export default function Transactions({
         onClose={handleCloseModal}
         defaultType={modalDefaultType}
         initialDate={modalInitialDate}
+        onAddDateChange={handleAddDateChange}
+        onTransactionAdded={handleTransactionAdded}
       />
 
       <AlertModal

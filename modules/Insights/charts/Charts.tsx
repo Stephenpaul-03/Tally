@@ -1,8 +1,11 @@
 import React from "react";
-import { categoryTone } from "@/theme/sage";
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import { useMotionEnabled } from "@/components/animations/Motion";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { colorTreatment } from "@/theme/colorTreatment";
 import { View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { DesignText as Text } from "@/components/DesignText";
+import { DesignText as Text, resolveDesignTextStyle } from "@/components/DesignText";
 import { AnimatedBar, MotionPressable } from "../components/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { Muted, styles, CardFooterAction } from "../components/Primitives";
@@ -44,7 +47,7 @@ export function SpendingHistory({
                   {row.isPartial ? " · so far" : ""}
                 </Text>
                 {(type === "income" ? row.incomeCount : row.expenseCount) ? (
-                  <Text style={styles.value}>{money(row[type])}</Text>
+                  <Text style={styles.value}>{money(type === "income" ? row.income : row.expense)}</Text>
                 ) : (
                   <Muted>No entries</Muted>
                 )}
@@ -62,7 +65,7 @@ export function SpendingHistory({
               key={row.month}
               onPress={() => onMonth(row.month)}
               accessibilityRole="button"
-              accessibilityLabel={`${label}${row.isPartial ? ", so far" : ""}, ${(type === "income" ? row.incomeCount : row.expenseCount) ? money(row[type]) + (type === "income" ? " received" : " spent") : `no ${type === "income" ? "income" : "spending"} recorded`}. View month.`}
+              accessibilityLabel={`${label}${row.isPartial ? ", so far" : ""}, ${(type === "income" ? row.incomeCount : row.expenseCount) ? money(type === "income" ? row.income : row.expense) + (type === "income" ? " received" : " spent") : `no ${type === "income" ? "income" : "spending"} recorded`}. View month.`}
             >
               {content}
             </MotionPressable>
@@ -74,19 +77,53 @@ export function SpendingHistory({
   );
 }
 
+/** Highlight layers share the same drag progress as the date-number colors. */
+function DayHighlight({ day, progress }: { day: Data["days"][number]; progress: SharedValue<number> }) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  const expense = useAnimatedStyle(() => ({ opacity: day.expense ? 1 - progress.value : 0 }));
+  const income = useAnimatedStyle(() => ({ opacity: day.income ? progress.value : 0 }));
+  return <>
+    {(["expense", "income"] as const).map((kind) => <Animated.View key={kind} pointerEvents="none"
+      style={[{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 12,
+        borderWidth: 1, borderColor: theme.semantic[kind] + "60", backgroundColor: theme.semantic[kind] + "24" },
+        kind === "expense" ? expense : income]} />)}
+  </>;
+}
+
+function DayNumber({ day, number, progress }: {
+  day: Data["days"][number]; number: number; progress: SharedValue<number>;
+}) {
+  const theme = useTheme<ExtendedMD3Theme>();
+  const expenseColor = day.expense ? theme.semantic.expense : theme.colors.onSurface;
+  const incomeColor = day.income ? theme.semantic.income : theme.colors.onSurface;
+  const color = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [expenseColor, incomeColor]),
+  }));
+  return <Animated.Text style={[resolveDesignTextStyle(theme, { ...typography.bodyMedium, fontSize: 15 }), color]}>
+    {number}
+  </Animated.Text>;
+}
+
 export function ActivityHeatmap({
   days,
   type,
   money,
   onDay,
+  dragProgress,
 }: {
+  dragProgress?: SharedValue<number>;
   days: Data["days"];
   type: "income" | "expense";
   money: (value: number) => string;
   onDay: (day: Data["days"][number]) => void;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
-  const highlight = theme.semantic[type];
+  const enabled = useMotionEnabled();
+  const localProgress = useSharedValue(type === "income" ? 1 : 0);
+  const progress = dragProgress ?? localProgress;
+  React.useEffect(() => {
+    if (!dragProgress) localProgress.value = withTiming(type === "income" ? 1 : 0, { duration: enabled ? 160 : 0 });
+  }, [dragProgress, type, enabled, localProgress]);
   const offset = (new Date(days[0].date + "T00:00:00").getDay() + 6) % 7;
   const weekdays = [
     "Monday",
@@ -139,25 +176,14 @@ export function ActivityHeatmap({
               style={{
                 minHeight: 44,
                 borderRadius: 12,
-                borderWidth: day[type] ? 1 : 0,
-                borderColor: highlight + "60",
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: day[type]
-                  ? highlight + "24"
-                  : theme.colors.elevation.level1,
+                backgroundColor: theme.colors.elevation.level1,
                 opacity: day.future ? 0.4 : 1,
               }}
             >
-              <Text
-                style={{
-                  ...typography.bodyMedium,
-                  fontSize: 15,
-                  color: day[type] ? highlight : theme.colors.onSurface,
-                }}
-              >
-                {i + 1}
-              </Text>
+              <DayHighlight day={day} progress={progress} />
+              <DayNumber day={day} number={i + 1} progress={progress} />
             </MotionPressable>
           </View>
         ))}
@@ -181,16 +207,12 @@ export function YearOverview({
   if (!year.months.some((row) => row.incomeCount || row.expenseCount)) {
     return <CardEmptyState message="No entries this year" />;
   }
-  const [incomeBackground, incomeForeground] = categoryTone(
-    "",
-    theme.dark,
-    "#226A2B",
-  );
-  const [expenseBackground, expenseForeground] = categoryTone(
-    "",
-    theme.dark,
-    "#BA1A1A",
-  );
+  const incomeTone = colorTreatment(theme.semantic.income, theme.dark, false, theme.colors.surface);
+  const expenseTone = colorTreatment(theme.semantic.expense, theme.dark, false, theme.colors.surface);
+  const incomeBackground = incomeTone.backgroundColor;
+  const incomeForeground = incomeTone.foregroundColor;
+  const expenseBackground = expenseTone.backgroundColor;
+  const expenseForeground = expenseTone.foregroundColor;
   const max = Math.max(
     1,
     ...year.months.flatMap((row) => [row.income, row.expense]),
@@ -277,7 +299,7 @@ export function YearOverview({
                   flex: 1,
                   height: Math.max(2, (row.income / max) * 80),
                   backgroundColor: row.incomeCount
-                    ? incomeBackground
+                    ? incomeForeground
                     : theme.colors.outlineVariant,
                   borderRadius: 2,
                 }}
@@ -287,7 +309,7 @@ export function YearOverview({
                   flex: 1,
                   height: Math.max(2, (row.expense / max) * 80),
                   backgroundColor: row.expenseCount
-                    ? expenseBackground
+                    ? expenseForeground
                     : theme.colors.outlineVariant,
                   borderRadius: 2,
                 }}
@@ -329,85 +351,38 @@ export function YearMonthlyTotals({
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   return (
-    <View>
-      <View style={{ flexDirection: "row", gap: 12, paddingBottom: 8 }}>
-        <View style={{ width: 36 }} />
-        <Text
-          style={{
-            ...typography.body,
-            fontSize: 12,
-            flex: 1,
-            color: theme.semantic.income,
-          }}
-        >
-          Income
-        </Text>
-        <Text
-          style={{
-            ...typography.body,
-            fontSize: 12,
-            flex: 1,
-            color: theme.semantic.expense,
-          }}
-        >
-          Spent
-        </Text>
-      </View>
-      {[...year.months]
-        .sort((a, b) => a.month.localeCompare(b.month))
-        .map((row) => (
-          <MotionPressable
-            key={row.month}
-            onPress={() => onMonth(row.month)}
-            disabled={row.future}
+    <View style={{ gap: 8 }}>
+      {[...year.months].sort((a, b) => a.month.localeCompare(b.month)).map((row) => {
+        const selected = row.month === selectedMonth;
+        return (
+          <MotionPressable key={row.month} onPress={() => onMonth(row.month)} disabled={row.future}
             accessibilityRole="button"
-            accessibilityState={{
-              selected: row.month === selectedMonth,
-              disabled: row.future,
-            }}
+            accessibilityState={{ selected, disabled: row.future }}
             accessibilityLabel={`${monthLabel(row.month)}${row.isPartial ? ", so far" : ""}. ${row.future ? "Upcoming" : `Income ${row.incomeCount ? money(row.income) : "not recorded"}, spent ${row.expenseCount ? money(row.expense) : "not recorded"}. View month.`}`}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              minHeight: 48,
-              paddingVertical: 10,
-              marginHorizontal: -20,
-              paddingHorizontal: 20,
-              borderBottomWidth: 0.5,
-              borderColor: theme.colors.outlineVariant,
-            }}
-          >
-            <Text style={{ ...typography.body, fontSize: 13, width: 36 }}>
-              {new Date(`${row.month}-01T00:00:00`).toLocaleDateString(
-                undefined,
-                { month: "short" },
-              )}
-            </Text>
-            {row.future ? (
-              <Muted>Upcoming</Muted>
-            ) : (
-              <>
-                <Text style={{ ...typography.body, fontSize: 13, flex: 1 }}>
-                  {row.incomeCount ? money(row.income) : "—"}
+            style={{ padding: 14, gap: 12, borderRadius: theme.expressive ? 24 : 16,
+              backgroundColor: selected ? theme.colors.secondaryContainer : theme.colors.surface,
+              opacity: row.future ? 0.5 : 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={{ ...typography.bodyStrong, fontSize: 16, flex: 1 }}>
+                {new Date(`${row.month}-01T00:00:00`).toLocaleDateString(undefined, { month: "long" })}
+              </Text>
+              <Text style={{ ...typography.body, fontSize: 11, color: theme.colors.onSurfaceVariant }}>
+                {row.future ? "Upcoming" : row.isPartial ? "So far" : selected ? "Selected" : ""}
+              </Text>
+              {!row.future ? <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.onSurfaceVariant} /> : null}
+            </View>
+            {!row.future ? <View style={{ flexDirection: "row", gap: 12 }}>
+              {(["income", "expense"] as const).map((type) => <View key={type} style={{ flex: 1, gap: 4 }}>
+                <Text style={{ ...typography.body, fontSize: 11, color: theme.colors.onSurfaceVariant }}>{type === "income" ? "Income" : "Spent"}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ ...typography.bodyStrong, fontSize: 16, color: theme.semantic[type] }}>
+                  {(type === "income" ? row.incomeCount : row.expenseCount) ? money(type === "income" ? row.income : row.expense) : "—"}
                 </Text>
-                <Text style={{ ...typography.body, fontSize: 13, flex: 1 }}>
-                  {row.expenseCount ? money(row.expense) : "—"}
-                </Text>
-              </>
-            )}
+              </View>)}
+            </View> : null}
           </MotionPressable>
-        ))}
-      <Text
-        style={{
-          ...typography.body,
-          fontSize: 12,
-          paddingTop: 10,
-          color: theme.colors.onSurfaceVariant,
-        }}
-      >
-        — No entries · tap a month to explore
-      </Text>
+        );
+      })}
+      <Text style={{ ...typography.body, fontSize: 12, paddingTop: 4, color: theme.colors.onSurfaceVariant }}>— No entries · tap a month to explore</Text>
     </View>
   );
 }

@@ -1,3 +1,10 @@
+import Color from "color";
+
+/** Slightly richer category hues without adding a gray/black overlay. */
+export function richerCategoryColor(value: string): string {
+  return Color(value).saturate(0.4).darken(0.04).hex();
+}
+
 /** Tonal Material surfaces derived from the selected accent, shared by every screen. */
 export function mixHex(
   surface: string,

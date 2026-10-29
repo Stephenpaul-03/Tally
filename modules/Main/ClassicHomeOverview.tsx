@@ -1,8 +1,8 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
-import { DesignText as Text } from "@/components/DesignText";
+import { HomeIcon as Icon } from "./HomeIcon";
+import { HomeText as Text } from "./HomeText";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { mixHex } from "@/theme/expressivePalette";
@@ -52,6 +52,8 @@ export function ClassicHomeOverview({
           </Text>
         </View>
         <Text
+          amount
+          delay={300}
           numberOfLines={1}
           adjustsFontSizeToFit
           style={{
@@ -122,6 +124,8 @@ export function ClassicHomeOverview({
               </Text>
             </View>
             <Text
+              amount
+              delay={380}
               numberOfLines={1}
               adjustsFontSizeToFit
               style={{

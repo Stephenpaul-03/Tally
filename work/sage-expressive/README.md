@@ -353,3 +353,68 @@ Android review confirmed the arrangement, statistic content and one complete bud
 - Removed the Appearance theme-style selector and its search result. Layout selection now determines the style in both directions, including migration of old mixed Classic/Expressive preferences; mode, accent and AMOLED remain in Appearance.
 - Added UI-thread opacity/translation entrances for main-route entry and return from Settings. Home staggers header, greeting/date, summary, Goals and budget/activity content without animating dimensions. Expressive navigation slides/fades; Classic navigation fades as one unit, replacing independent icon mount motion. Tab changes and modal presentation do not restart these entrances. Reduced motion and the animation preference are respected.
 - Verified the current Android bundle removes the style selector and renders both Home layouts and Settings card surfaces. Restored Expressive after QA. Full release checks (58 design tests included), clean typecheck/lint, whitespace check, and Android/iOS offline production exports passed.
+
+
+### Home simplification and text reveals
+
+- Removed the Goals card and the budget/facts carousel row from both Home layouts. Goals and budget management remain available in Settings; draft access remains in the header.
+- Preserved greeting/date, balance/income/spending and recent transactions. Added staged content reveals within card shells: labels first, amounts next, then recent rows. Updated amounts replay their reveal; unchanged text does not replay on ordinary rerenders or tab changes. Animation preferences and system reduced motion remain respected.
+- Shared text wrappers retain the existing typography, responsive amount fitting and flex allocation; motion uses only opacity/translation. No balance counting or ledger values are changed.
+- Full release checks, typecheck/lint and whitespace validation passed. No Android emulator was connected for live motion QA in this pass.
+
+- Follow-up: amount reveals now animate glyphs individually using the add-modal 140ms fade/rise, staggered by 28ms. Card shells complete before the 500ms content start; labels precede the amount sequence. A hidden full-string measure preserves final geometry and fitting, and assistive technology reads the amount once. Typecheck, lint, whitespace and 58 design tests passed; live device motion remains unverified with no emulator connected.
+
+- Extended the same glyph reveal to the welcome name and every numeric Home label, including calendar/date metadata and recent transaction amounts. Mixed labels reveal their nonnumeric text before digits. Recent-row reveal is opt-in on Home, preserving list behavior elsewhere. The temporary 4× Home timing preview remains enabled.
+
+
+### Home motion performance pass
+
+- Replaced per-character entrance components/focus subscriptions with one UI-thread timeline per text line. Glyphs now render as native animated Text nodes, sharing the existing typography resolver; mixed captions group nonnumeric runs instead of animating each letter.
+- Gated the timeline on text measurement, preserving final text geometry, and retained the initial delay while an asynchronously loaded welcome name arrives. Kept once-only Settings-return behavior and live value-change reveals.
+- Shortened card motion from 320ms to 240ms with a brief initial layout buffer. Content starts at 470ms after all card shells settle at 410ms; labels finish before digits. Stagger is now 20ms or less, capped to 220ms for long names; glyph rise is 6px.
+- Reviewed Android recording and sampled frames; preview: reviews/home-motion-optimized.mp4. Data was not edited. Development reload metrics include bundle/startup work and are not a reliable physical-device FPS benchmark: baseline 47 frames / 8 janky, final 95 frames / 18 janky, with different rendered-frame counts. The overall jank rate is not demonstrably lower; startup frame spikes remain.
+- Full release checks, 62 design tests, clean TypeScript/lint and Android/iOS offline production exports passed during this pass.
+
+
+### Home icons, whole dates and navigation stagger
+
+- Added once-only icon fades aligned with Home's label content start for Settings, greeting pencil, summary icons, draft action and recent-row category/chevron icons. Icon/label reveals retain native opacity/translation and reduced-motion handling.
+- Calendar text and recent transaction date captions now reveal as complete phrases, avoiding visible ordinal/month fragments before their day numbers. Amounts and the welcome name retain the glyph sequence.
+- Added staggered icon/label entrances to both Expressive and Classic bottom bars after the bar surface appears, preserving the measured pill geometry, drag behavior and no-replay-on-Settings-return policy.
+- Android recording captured; UI inspection verified complete date text nodes, including “22nd October 2026”. Typecheck, clean lint, 62 design tests, whitespace checks and Android/iOS offline exports passed.
+
+
+### Transaction mutation motion, calculator expansion and session date
+
+- Added animated native list-cell and row wrappers for transaction insertions/removals in Classic and Expressive. Initial/recycled identities are tracked separately, newly created day groups avoid duplicate row entrances, and removed identities can animate again on real re-insertion. Cell retention and disabled clipping allow exit animations to complete.
+- Mutation entrances/exits and open-group height adjustments wait 220ms so the movement remains visible after transaction/delete sheets close; existing accordion open/close remains immediate. Added registry regression checks for recycled and removed/reinserted identities.
+- Calculator controls remain mounted and expand/collapse their clipped frame from 44px to 332px over 220ms, crossfading the compact button and expanded controls without changing keypad height. Reduced motion is respected.
+- New-transaction date selections are remembered for the Transactions-page session using a ref, avoiding form resets while selecting. Leaving that tab/page, visiting Settings, or switching workspace clears the date. Edit/view transactions and resumed drafts do not overwrite this default.
+- Android verified calculator expand/collapse without altering the user's open transaction. Live add/delete and date-session persistence were not exercised against the user's ledger. Full release checks, clean typecheck/lint, 64 design tests, whitespace checks and Android/iOS offline exports passed during this pass.
+
+
+### Synchronized transaction mutations
+
+- Created the requested checkpoint first: `79e1d37` (Refine Home motion and transaction interactions).
+- Replaced independent native row exits, delayed group measurement animation and delayed cell-layout transitions with retained presence records. Each inserted/deleted row now drives height and opacity from one UI-thread progress value; open day cards remain in normal layout flow so following cards move in the same frame.
+- Transaction-only FlowDisclosure preserves animated fold/unfold while allowing natural height changes when open. Restored the generic Settings disclosure behavior, and removed the superseded identity registry and nested transaction entrance wrappers.
+- Removed rows stay in their original slot until their fade/collapse completes. Interrupted deletion can reverse without a stale completion removing the revived row. Virtualized/offscreen records settle without cutting off a mounted row animation.
+- Fixed an onLayout/SharedValue race found during native QA: the first entrance trusts the event's measured height rather than reading an asynchronous height write back immediately. Added a regression test that simulates that pending UI-thread write.
+- Native QA used a disposable emulator clone and a QA-only Oct 30/29/27 dataset, leaving the user's running device and ledger unchanged. Recorded insertion into an existing Oct 29 group and multi-row deletion in both Expressive and Classic; verified fold/unfold, new Oct 31 insertion and removal of its final row/day card. Review: `reviews/transaction-flow-synchronized.mp4` (Expressive add/delete, then Classic add/delete).
+- Full release checks, 68 design tests, clean TypeScript/lint, whitespace checks and Android/iOS offline production exports passed. The synchronization fix remains uncommitted after the checkpoint for review.
+
+
+### Saved transaction visibility recovery
+
+- Completed entrance wrappers now explicitly restore automatic height and full opacity. Non-flattened native measurement nodes and a bounded presence watchdog prevent a missing layout/completion callback from leaving a saved row or day at zero height. Added regression coverage for stalled mounted entrances and final layout restoration.
+- Transaction saves now await database success before closing or removing a resumed draft. Duplicate saves are blocked; failures retain the form and show the underlying error for correction/retry. Successful additions open their destination day and switch the displayed month when necessary.
+- Verified on a disposable Android emulator clone: adding into a folded day unfolds it; a new date card remains visible after a Home/Transactions round trip and in Classic. A QA-only database failure retained all entered values and allowed a successful retry. The user's emulator and ledger were not modified. Screenshots: `reviews/tally-visibility-*.png`.
+- Full release checks, 71 design tests, TypeScript/lint, whitespace checks and Android/iOS offline exports passed. Changes remain uncommitted after the requested checkpoint.
+
+
+### Yearly and Daily Insights refinement
+
+- Replaced the yearly monthly-totals table with month cards: full month names, selected/partial/upcoming states, and separate labeled income/spending values. Existing month navigation and accessibility descriptions are preserved.
+- Daily toggle icons use white in dark mode. Added a 12px expressive header/content gap and a cancellable fade-out/swap/fade-in for calendar mode changes, respecting animation preferences.
+- Added a compact draggable Classic/Expressive Insights style selector in Settings → Interface. The saved preference overrides Insights only, preserving the surrounding app layout and navigation. Until explicitly selected, Insights follows the app layout. Added preference backup support and invalid-value validation.
+- TypeScript, lint and full release checks passed; backup tests cover the new preference. Physical-device visual/motion review remains outstanding.

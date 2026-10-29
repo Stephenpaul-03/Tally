@@ -1,3 +1,4 @@
+import { ActivityTypeToggle } from "@/modules/Insights/components/ActivityTypeToggle";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { DesignChoiceCards } from "../Components/DesignChoiceCards";
 import { ActionRow } from "@/components/ActionRow";
@@ -53,7 +54,7 @@ function SheetShell({
 
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
-  const { design, setDesign } = useMainDesign();
+  const { design, setDesign, insightsStyle, setInsightsStyle } = useMainDesign();
   const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
     useTabBarModePreference();
   const {
@@ -79,6 +80,12 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
         />
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
+          <ActionRow icon="chart-box-outline" label="Insights type"
+            description="Choose how Insights looks" theme={theme} showChevron={false}
+            onPress={() => setInsightsStyle((insightsStyle ?? design.layout) === "classic" ? "sage" : "classic")}
+            rightElement={<ActivityTypeToggle stylePicker value={(insightsStyle ?? design.layout) === "sage" ? "expense" : "income"}
+              onChange={(type) => setInsightsStyle(type === "expense" ? "sage" : "classic")} />}
+          />
           <ActionRow
             icon="palette-outline"
             label="Minimal icons"

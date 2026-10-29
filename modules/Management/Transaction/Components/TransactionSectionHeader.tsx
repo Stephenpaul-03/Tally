@@ -1,4 +1,5 @@
-import { Disclosure, MotionItem } from "@/components/animations/Motion";
+import { FlowDisclosure } from "@/components/animations/FlowDisclosure";
+import { MotionItem } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import { formatCurrencyWithSymbol } from "@/utils/Helpers";
@@ -146,10 +147,7 @@ export function TransactionSectionHeader({
           { backgroundColor: theme.colors.outlineVariant },
         ]}
       />
-      <Disclosure
-        open={!isCollapsed || renderContentWhenCollapsed}
-        immediate={!theme.expressive}
-      >
+      <FlowDisclosure open={!isCollapsed || renderContentWhenCollapsed}>
         <View
           style={[
             styles.content,
@@ -177,7 +175,7 @@ export function TransactionSectionHeader({
               ))
             : children}
         </View>
-      </Disclosure>
+      </FlowDisclosure>
     </View>
   );
 }

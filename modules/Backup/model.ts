@@ -29,6 +29,7 @@ export const PREFERENCE_KEYS = [
   "appThemeTrueBlack",
   "themeModePreference",
   "tally.mainDesign.v1",
+  "tally.insightsStyle.v1",
   "appTabBarMode",
   "appTabBarEnabled",
   "appHideControlLabels",
@@ -182,6 +183,8 @@ export function validateBackup(raw: unknown): AppBackup {
   )
     throw Error("Invalid category budgets");
   for (const [key, value] of Object.entries(b.preferences)) {
+    if (key === "tally.insightsStyle.v1" && value !== "classic" && value !== "sage")
+      throw Error(`Invalid preference: ${key}`);
     if (
       ![...PREFERENCE_KEYS, "tallyWorkspaceDefaults"].includes(key) ||
       typeof value !== "string"

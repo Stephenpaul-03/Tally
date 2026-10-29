@@ -1,7 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { loader } = require("../../../scripts/test-support/load-ts.cjs");
-const { ringArcs, spendingRingItems } = loader()(
+const { ringArcs, spendingRingItems, spendingRingSegments } = loader()(
   "modules/Insights/spendingRingModel.ts",
 );
 const group = (name, amount, count = 1) => ({
@@ -72,4 +72,18 @@ test("empty and recorded-zero data never invent chart segments or shares", () =>
       .length,
     2,
   );
+});
+
+test("ring keeps remainder categories separate while the legend stays compact", () => {
+  const groups = [group("Rent", 50), group("Food & Dining", 20), group("Education", 15), group("Shopping", 10), group("Other Expense", 5), group("Previous", 0, 0)];
+  const segments = spendingRingSegments(groups);
+  const legend = spendingRingItems(groups);
+  assert.equal(segments.length, 5);
+  assert.equal(legend.length, 4);
+  assert.deepEqual(segments.slice(0, 3).map(s => s.label), legend.slice(0, 3).map(s => s.label));
+  assert.equal(segments.slice(3).reduce((sum, s) => sum + s.amount, 0), legend[3].amount);
+  assert.ok(Math.abs(segments.reduce((sum, s) => sum + s.share, 0) - 1) < 1e-12);
+  assert.equal(new Set(segments.map(s => s.group.name)).size, 5);
+  assert.deepEqual(spendingRingSegments([]), []);
+  assert.equal(spendingRingSegments([group("Zero", 0)])[0].share, 0);
 });

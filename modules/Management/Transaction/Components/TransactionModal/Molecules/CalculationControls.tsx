@@ -4,6 +4,7 @@ import { useTheme } from "react-native-paper";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
+  Easing,
   interpolateColor,
   runOnJS,
   useAnimatedStyle,
@@ -36,6 +37,13 @@ export function CalculationControls({
 }) {
   const { colors: c, dark } = useTheme();
   const motion = useMotionEnabled();
+  const expansion = useSharedValue(open ? 1 : 0);
+  React.useEffect(() => {
+    expansion.value = withTiming(open ? 1 : 0, { duration: motion ? 220 : 0, easing: Easing.out(Easing.cubic) });
+  }, [open, motion, expansion]);
+  const frame = useAnimatedStyle(() => ({ width: 44 + 288 * expansion.value }));
+  const compact = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - expansion.value * 2) }));
+  const expanded = useAnimatedStyle(() => ({ opacity: expansion.value }));
   const selected = operation ? OPERATIONS.indexOf(operation) : 0;
   const position = useSharedValue(selected),
     start = useSharedValue(selected),
@@ -107,28 +115,16 @@ export function CalculationControls({
     );
   };
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        minHeight: 48,
-      }}
-    >
-      {!open ? (
-        auxiliary(
-          "Open calculator",
-          <Icon
-            name="calculator-variant-outline"
-            size={21}
-            color={c.primary}
-          />,
-          onToggle,
-          "#64748B",
-        )
-      ) : (
-        <>
+    <View style={{ alignItems: "center", height: 50 }}>
+      <Animated.View style={[{ height: 50, borderRadius: 25, overflow: "hidden" }, frame]}>
+        <Animated.View pointerEvents={open ? "none" : "auto"}
+          accessibilityElementsHidden={open} importantForAccessibility={open ? "no-hide-descendants" : "auto"}
+          style={[{ position: "absolute", top: 3, left: 0, width: 44 }, compact]}>
+          {auxiliary("Open calculator", <Icon name="calculator-variant-outline" size={21} color={c.primary} />, onToggle, "#64748B")}
+        </Animated.View>
+        <Animated.View pointerEvents={open ? "auto" : "none"}
+          accessibilityElementsHidden={!open} importantForAccessibility={!open ? "no-hide-descendants" : "auto"}
+          style={[{ position: "absolute", top: 0, left: 0, width: 332, height: 50, flexDirection: "row", alignItems: "center", gap: 6 }, expanded]}>
           <GestureDetector gesture={pan}>
             <View
               accessibilityRole="tablist"
@@ -222,8 +218,8 @@ export function CalculationControls({
           >
             <Icon name="chevron-down" size={19} color={c.onSurfaceVariant} />
           </Pressable>
-        </>
-      )}
+        </Animated.View>
+      </Animated.View>
     </View>
   );
 }

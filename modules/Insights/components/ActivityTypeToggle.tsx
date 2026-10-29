@@ -9,6 +9,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -22,14 +23,20 @@ export function ActivityTypeToggle({
   value,
   onChange,
   pagePan,
+  stylePicker = false,
+  dragProgress,
 }: {
+  stylePicker?: boolean;
+  dragProgress?: SharedValue<number>;
   value: "income" | "expense";
   onChange: (type: "income" | "expense") => void;
   pagePan?: ReturnType<typeof Gesture.Pan>;
 }) {
+  const controlHeight = stylePicker ? 38 : 44;
   const { colors: c, dark } = useTheme();
   const enabled = useMotionEnabled();
-  const progress = useSharedValue(value === "income" ? 1 : 0);
+  const localProgress = useSharedValue(value === "income" ? 1 : 0);
+  const progress = dragProgress ?? localProgress;
   const start = useSharedValue(0);
   const dragging = useSharedValue(false);
   const [expenseBackground, expenseForeground] = categoryTone(
@@ -81,7 +88,7 @@ export function ActivityTypeToggle({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      [expenseBackground, incomeBackground],
+      stylePicker ? [c.secondaryContainer, c.secondaryContainer] : [expenseBackground, incomeBackground],
     ),
   }));
   const expenseWidth = useAnimatedStyle(() => ({
@@ -95,21 +102,21 @@ export function ActivityTypeToggle({
     opacity: 1 - progress.value,
   }));
   const incomeLabel = useAnimatedStyle(() => ({
-    width: 44 * progress.value,
+    width: (stylePicker ? 56 : 44) * progress.value,
     opacity: progress.value,
   }));
   const expenseTint = useAnimatedStyle(() => ({
     color: interpolateColor(
       progress.value,
       [0, 1],
-      [expenseForeground, c.onSurfaceVariant],
+      [dark ? "#FFFFFF" : stylePicker ? c.onSecondaryContainer : expenseForeground, dark ? "#FFFFFF" : c.onSurfaceVariant],
     ),
   }));
   const incomeTint = useAnimatedStyle(() => ({
     color: interpolateColor(
       progress.value,
       [0, 1],
-      [c.onSurfaceVariant, incomeForeground],
+      [dark ? "#FFFFFF" : c.onSurfaceVariant, dark ? "#FFFFFF" : stylePicker ? c.onSecondaryContainer : incomeForeground],
     ),
   }));
   return (
@@ -131,7 +138,7 @@ export function ActivityTypeToggle({
               position: "absolute",
               left: 3,
               top: 3,
-              height: 44,
+              height: controlHeight,
               width: 100,
               borderRadius: 22,
             },
@@ -141,13 +148,14 @@ export function ActivityTypeToggle({
         {(["expense", "income"] as const).map((type) => (
           <AnimatedPressable
             key={type}
+            hitSlop={stylePicker ? { top: 3, bottom: 3 } : undefined}
             onPress={() => onChange(type)}
             accessibilityRole="tab"
-            accessibilityLabel={type === "expense" ? "Expenses" : "Income"}
+            accessibilityLabel={stylePicker ? (type === "expense" ? "Simple insights" : "Detailed insights") : type === "expense" ? "Expenses" : "Income"}
             accessibilityState={{ selected: value === type }}
             style={[
               {
-                height: 44,
+                height: controlHeight,
                 borderRadius: 22,
                 flexDirection: "row",
                 alignItems: "center",
@@ -159,7 +167,7 @@ export function ActivityTypeToggle({
             ]}
           >
             <AnimatedIcon
-              name={type === "expense" ? "trending-down" : "trending-up"}
+              name={stylePicker ? (type === "expense" ? "shape-outline" : "view-list-outline") : type === "expense" ? "trending-down" : "trending-up"}
               size={18}
               style={type === "expense" ? expenseTint : incomeTint}
             />
@@ -173,14 +181,14 @@ export function ActivityTypeToggle({
               <Text
                 numberOfLines={1}
                 style={{
-                  width: type === "expense" ? 54 : 44,
+                  width: type === "expense" ? 54 : stylePicker ? 56 : 44,
                   fontSize: 11,
                   fontWeight: "700",
                   color:
-                    type === "expense" ? expenseForeground : incomeForeground,
+                    stylePicker ? c.onSurface : type === "expense" ? expenseForeground : incomeForeground,
                 }}
               >
-                {type === "expense" ? "Expenses" : "Income"}
+                {stylePicker ? (type === "expense" ? "Simple" : "Detailed") : type === "expense" ? "Expenses" : "Income"}
               </Text>
             </Animated.View>
           </AnimatedPressable>

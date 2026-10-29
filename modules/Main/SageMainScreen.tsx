@@ -1,10 +1,10 @@
+import { FlowDisclosure } from "@/components/animations/FlowDisclosure";
+import { TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "@/modules/Management/Transaction/Components/TransactionMutation";
 import { MainEntrance } from "@/components/animations/MainEntrance";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { HomePage } from "./HomePage";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import {
-  MotionItem,
-  Disclosure,
   useMotionEnabled,
   MotionEntranceScope,
 } from "@/components/animations/Motion";
@@ -60,7 +60,7 @@ type Section = {
   metric?: "spent" | "earned";
   transactions: Row[];
 };
-type LedgerItem = Section | "tools";
+type LedgerItem = PresenceRecord<Section> | "tools";
 type Props = {
   sections: Section[];
   raw: Transaction[];
@@ -89,7 +89,8 @@ function LedgerPage(p: Props & { active: boolean }) {
     list.current?.scrollToOffset({ offset: 0, animated: false });
   }, [p.month]);
   const [monthPicker, setMonthPicker] = React.useState(false);
-  const sections = p.sections.filter((section) => section.transactions.length);
+  const sections = React.useMemo(() => p.sections.filter((section) => section.transactions.length), [p.sections]);
+  const presence = useTransactionPresence(sections, (section) => section.key);
   const shownRows = sections
     .flatMap((section) => section.transactions)
     .filter((row) => !("isDraft" in row));
@@ -216,7 +217,7 @@ function LedgerPage(p: Props & { active: boolean }) {
     <View style={{ flex: 1 }}>
       <FlatList
         ref={list}
-        data={["tools", ...sections] as LedgerItem[]}
+        data={["tools", ...presence.records] as LedgerItem[]}
         stickyHeaderIndices={[1]}
         removeClippedSubviews={false}
         keyExtractor={(item) =>
@@ -230,10 +231,10 @@ function LedgerPage(p: Props & { active: boolean }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ListEmptyComponent={emptyState}
-        ListFooterComponent={!sections.length ? emptyState : null}
-        renderItem={({ item, index: listIndex }) => {
-          if (item === "tools") return transactionTools;
-          const dayIndex = listIndex - 1;
+        ListFooterComponent={!presence.records.length ? emptyState : null}
+        renderItem={({ item: record }) => {
+          if (record === "tools") return transactionTools;
+          const item = record.item;
           const totals = separateLedgerTotals(
             item.transactions,
             p.currency,
@@ -242,12 +243,8 @@ function LedgerPage(p: Props & { active: boolean }) {
           const date = new Date(`${item.key}T12:00:00`),
             valid = !Number.isNaN(date.getTime());
           return (
-            <MotionItem
-              initiallyVisible
-              animateLayout={false}
-              index={dayIndex}
-              style={[s.day, { backgroundColor: c.surface }]}
-            >
+            <TransactionPresenceItem record={record} complete={presence.complete} register={presence.register}>
+            <View style={[s.day, { backgroundColor: c.surface }]}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${p.collapsed[item.key] ? "Expand" : "Collapse"} ${item.title}`}
@@ -327,24 +324,25 @@ function LedgerPage(p: Props & { active: boolean }) {
                   </View>
                 }
               </Pressable>
-              <Disclosure open={!p.collapsed[item.key]} immediate>
-                {item.transactions.map((row, index) => (
-                  <View key={row.id} style={{ paddingTop: index > 0 ? 4 : 0 }}>
+              <FlowDisclosure open={!p.collapsed[item.key]}>
+                <TransactionRowsPresence rows={item.transactions} renderRow={(row, index, count) => (
+                  <View style={{ paddingTop: index > 0 ? 4 : 0 }}>
                     <TransactionRow
                       transaction={row}
                       onPressTransaction={p.onEdit}
                       grouped
                       groupPosition={
-                        index === item.transactions.length - 1
+                        index === count - 1
                           ? "last"
                           : "middle"
                       }
                       secondaryLabelMode="time"
                     />
                   </View>
-                ))}
-              </Disclosure>
-            </MotionItem>
+                )} />
+              </FlowDisclosure>
+            </View>
+            </TransactionPresenceItem>
           );
         }}
       />

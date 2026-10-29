@@ -1,6 +1,8 @@
 import { AlertModal } from "@/components/alert/AlertModal";
 import { toast } from "@/components/toast/ToastProvider";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
+import { HomeIconReveal } from "@/modules/Main/HomeIcon";
+import { HomeText, HomeDateText } from "@/modules/Main/HomeText";
 import { DesignText } from "@/components/DesignText";
 import { ledgerMoney } from "@/modules/Main/presentation";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -41,6 +43,7 @@ interface TransactionRowProps {
   groupPosition?: TransactionGroupPosition;
   secondaryLabelMode?: SecondaryLabelMode;
   disableLongPress?: boolean;
+  homeReveal?: boolean;
 }
 
 function TransactionRowComponent({
@@ -51,8 +54,13 @@ function TransactionRowComponent({
   groupPosition,
   secondaryLabelMode = "time",
   disableLongPress = false,
+  homeReveal = false,
 }: TransactionRowProps) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const RowText = homeReveal ? HomeText : Text;
+  const RowDesignText = homeReveal ? HomeText : DesignText;
+  const RowDateText = homeReveal ? HomeDateText : DesignText;
+  const RowIconReveal = homeReveal ? HomeIconReveal : React.Fragment;
   const dispatch = useAppDispatch();
   const workspace = useAppSelector(selectActiveWorkspace);
   const categoryIcons = useAppSelector(selectCategoryIcons);
@@ -153,6 +161,7 @@ function TransactionRowComponent({
               padding: 10,
             }}
           >
+            <RowIconReveal>
             <CategoryIconBadge
               categoryName={transaction.category}
               icon={
@@ -162,8 +171,9 @@ function TransactionRowComponent({
               }
               color={categoryColor}
             />
+            </RowIconReveal>
             <View style={{ flex: 1, minWidth: 0, opacity: isDraft ? 0.65 : 1 }}>
-              <DesignText
+              <RowDesignText
                 numberOfLines={1}
                 style={{
                   fontSize: 16,
@@ -172,8 +182,8 @@ function TransactionRowComponent({
                 }}
               >
                 {title}
-              </DesignText>
-              <DesignText
+              </RowDesignText>
+              <RowDateText
                 numberOfLines={1}
                 style={{
                   fontSize: 12,
@@ -182,9 +192,9 @@ function TransactionRowComponent({
                 }}
               >
                 {[meta, secondaryMetaLabel].filter(Boolean).join(" · ")}
-              </DesignText>
+              </RowDateText>
             </View>
-            <DesignText
+            <RowDesignText
               numberOfLines={1}
               style={{
                 fontSize: 16,
@@ -194,11 +204,12 @@ function TransactionRowComponent({
               }}
             >
               {amount}
-            </DesignText>
+            </RowDesignText>
           </View>
         ) : (
           <View style={styles.row}>
             <View style={styles.left}>
+              <RowIconReveal>
               <CategoryIconBadge
                 icon={
                   categoryIcon as React.ComponentProps<
@@ -208,14 +219,15 @@ function TransactionRowComponent({
                 color={categoryColor}
                 style={isDraft ? styles.draftIconCluster : undefined}
               />
+              </RowIconReveal>
               <View style={styles.info}>
-                <Text
+                <RowText
                   style={[styles.name, { color: theme.colors.onSurface }]}
                   numberOfLines={1}
                 >
                   {title}
-                </Text>
-                <Text
+                </RowText>
+                <RowText
                   style={[
                     styles.meta,
                     { color: theme.colors.onSurfaceVariant },
@@ -223,19 +235,19 @@ function TransactionRowComponent({
                   numberOfLines={1}
                 >
                   {meta}
-                </Text>
+                </RowText>
               </View>
             </View>
             <View style={styles.right}>
               <View style={styles.amountInfo}>
-                <Text
+                <RowText
                   style={[styles.amount, { color: amountColor }]}
                   numberOfLines={1}
                 >
                   {amount}
-                </Text>
+                </RowText>
                 {secondaryMetaLabel ? (
-                  <Text
+                  <RowDateText
                     style={[
                       styles.time,
                       { color: theme.colors.onSurfaceVariant },
@@ -243,15 +255,17 @@ function TransactionRowComponent({
                     numberOfLines={1}
                   >
                     {secondaryMetaLabel}
-                  </Text>
+                  </RowDateText>
                 ) : null}
               </View>
+              <RowIconReveal>
               <MaterialCommunityIcons
                 name="chevron-right"
                 size={16}
                 color={theme.colors.onSurfaceDisabled}
                 style={styles.chevron}
               />
+              </RowIconReveal>
             </View>
           </View>
         )}
@@ -289,6 +303,7 @@ function areTransactionRowPropsEqual(
     previous.groupPosition === next.groupPosition &&
     previous.secondaryLabelMode === next.secondaryLabelMode &&
     previous.disableLongPress === next.disableLongPress &&
+    previous.homeReveal === next.homeReveal &&
     previous.onPressTransaction === next.onPressTransaction
   );
 }

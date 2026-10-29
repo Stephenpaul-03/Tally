@@ -1,4 +1,8 @@
 import React from "react";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { richerCategoryColor } from "@/theme/expressivePalette";
+import { categoryTone } from "@/theme/sage";
+import { colorTreatment } from "@/theme/colorTreatment";
 import { View, useWindowDimensions } from "react-native";
 import { useTheme } from "react-native-paper";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -7,9 +11,8 @@ import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import { typography } from "@/theme/typography";
 import { getCategoryColor, getCategoryIconName } from "@/utils/Helpers";
 import { percentLabel, type Group } from "../calculations";
-import { ringArcs, spendingRingItems } from "../spendingRingModel";
+import { ringArcs, spendingRingItems, spendingRingSegments } from "../spendingRingModel";
 import { MotionPressable } from "./Motion";
-import { CardFooterAction } from "./Primitives";
 import { CardEmptyState } from "./CardEmptyState";
 
 function RingArc({
@@ -101,16 +104,25 @@ export function ClassicSpending({
   onSelect: (group: Group) => void;
   onShowAll: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const { colors: c } = theme;
   const { width, fontScale } = useWindowDimensions();
   const stacked = width < 370 || fontScale > 1.2;
   const items = spendingRingItems(groups);
-  const palette = items.map((item) =>
+  const categoryColors = items.map((item) =>
     item.group
       ? getCategoryColor(item.label, type, colors)
       : c.onSurfaceVariant,
   );
-  const arcs = ringArcs(items.map((item) => item.share));
+  const segments = spendingRingSegments(groups);
+  const palette = segments.map((item) => {
+    const color = getCategoryColor(item.label, type, colors);
+    const chartColor = theme.expressive
+      ? categoryTone(item.label, theme.dark, color)[0]
+      : colorTreatment(color, theme.dark, false, c.surface).foregroundColor;
+    return theme.dark ? chartColor : richerCategoryColor(chartColor);
+  });
+  const arcs = ringArcs(segments.map((item) => item.share));
   const size = stacked ? 152 : 128;
   if (!items.length)
     return (
@@ -134,7 +146,7 @@ export function ClassicSpending({
         <View
           accessible
           accessibilityRole="image"
-          accessibilityLabel={`${type === "income" ? "Income" : "Spending"} breakdown, ${money(total)} total. ${items.map((item) => `${item.label} ${percentLabel(item.share * 100)}`).join(", ")}`}
+          accessibilityLabel={`${type === "income" ? "Income" : "Spending"} breakdown, ${money(total)} total. ${segments.map((item) => `${item.label} ${percentLabel(item.share * 100)}`).join(", ")}`}
           style={{
             width: size,
             height: size,
@@ -214,8 +226,9 @@ export function ClassicSpending({
                       ) as React.ComponentProps<typeof Icon>["name"])
                     : "dots-horizontal"
                 }
-                color={palette[index]}
+                color={categoryColors[index]}
                 categoryName={item.group?.name}
+                richerBackground={!theme.dark}
                 style={{ width: 28, height: 28, borderRadius: 9 }}
               />
               <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -255,12 +268,7 @@ export function ClassicSpending({
           ))}
         </View>
       </View>
-      {items.some((item) => !item.group) && (
-        <CardFooterAction
-          label={`View ${groups.filter((group) => group.count > 0).length - 3} more`}
-          onPress={onShowAll}
-        />
-      )}
+
     </View>
   );
 }

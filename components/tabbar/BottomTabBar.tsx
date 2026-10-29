@@ -1,4 +1,4 @@
-import { colorTreatment } from "@/theme/colorTreatment";
+import { MainEntrance } from "@/components/animations/MainEntrance";
 import { useFadeSlide } from "@/components/animations/UseFadeSlide";
 import {
   useSetTabBarHeight,
@@ -220,7 +220,7 @@ function TabButton({
       style={styles.tabButton}
       pointerEvents="auto"
     >
-      <Animated.View style={styles.tabContentLayer}>
+      <MainEntrance delay={260 + index * 60} duration={180} distance={6} style={styles.tabContentLayer}>
         <Animated.View style={styles.tabInner}>
           <View style={{ alignItems: "center", justifyContent: "center" }}>
             <Reanimated.View style={[styles.tabInner, inactiveStyle]}>
@@ -250,7 +250,7 @@ function TabButton({
             </Reanimated.View>
           </View>
         </Animated.View>
-      </Animated.View>
+      </MainEntrance>
     </Pressable>
   );
 }
@@ -389,21 +389,23 @@ function BasicTabBar({
     return () => setTabBarHeight(0);
   }, [hidden, surfaceHeight, setTabBarHeight]);
 
+  const barEntered = useRef(false);
+  const barWasHidden = useRef(hidden);
   useEffect(() => {
-    if (hidden) slideOut();
-    else if (focused) slideIn();
-    // Focus belongs to the main route, so tab selection never replays entrance.
+    if (hidden) {
+      barWasHidden.current = true;
+      slideOut();
+    } else if (focused && (!barEntered.current || barWasHidden.current)) {
+      barEntered.current = true;
+      barWasHidden.current = false;
+      slideIn();
+    }
+    // Returning from Settings retains the already-visible bar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hidden, focused, motionEnabled]);
 
   const inactiveColor = theme.colors.onBackground + 40;
-  const activeTint = colorTreatment(
-    theme.colors.primary,
-    theme.dark,
-    true,
-    theme.colors.surface,
-  );
-  const activeColor = activeTint.foregroundColor;
+  const activeColor = theme.colors.onPrimary;
 
   const activeActions = getActiveActions(routes, activeIndex, actionButtons);
 
@@ -458,9 +460,9 @@ function BasicTabBar({
             style={[
               styles.activePill,
               {
-                backgroundColor: activeTint.backgroundColor,
+                backgroundColor: theme.colors.primary,
                 borderWidth: 1,
-                borderColor: activeTint.borderColor,
+                borderColor: theme.colors.primary,
               },
               pillMotion,
             ]}

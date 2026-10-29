@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, View } from "react-native";
-import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
+import { HomeIcon as Icon } from "./HomeIcon";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import { useAppDispatch, useAppSelector } from "@/hooks/Redux";

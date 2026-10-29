@@ -1,5 +1,4 @@
 import { MainEntrance } from "@/components/animations/MainEntrance";
-import { HomeGoalsCard } from "@/modules/Goals/HomeGoalsCard";
 import { HomeDraftAction } from "./HomeDraftAction";
 import { ClassicHomeOverview } from "./ClassicHomeOverview";
 import { Gesture } from "react-native-gesture-handler";
@@ -17,7 +16,7 @@ import {
 } from "@/modules/Insights/sheets/DetailsSheet";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
+import { HomeIcon as Icon } from "./HomeIcon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
@@ -25,7 +24,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import type { RootParamList } from "@/navigation/types";
 import type { Transaction } from "@/utils/Types";
-import { DesignText as Text } from "@/components/DesignText";
+import { HomeText as Text } from "./HomeText";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { monthLabel } from "@/modules/Insights/calculations";
 import { ledgerMoney } from "./presentation";
@@ -45,7 +44,6 @@ export function HomePage(
 
 function HomePageContent({
   active,
-  pagePan,
   raw,
   month,
   currency,
@@ -121,7 +119,7 @@ function HomePageContent({
           paddingBottom: 104 + bottom,
         }}
       >
-        <MainEntrance index={0} distance={8} style={s.between}>
+        <MainEntrance delay={80} duration={240} distance={8} style={s.between}>
           <Text
             style={[
               { fontSize: 22, fontWeight: "800", color: c.primary },
@@ -141,13 +139,13 @@ function HomePageContent({
             )}
           </View>
         </MainEntrance>
-        <MainEntrance index={1}>
+        <MainEntrance delay={110} duration={240} distance={8}>
           <HomeGreetingCards
             active={active}
             onChooseMonth={() => setPicker(true)}
           />
         </MainEntrance>
-        <MainEntrance index={2}>
+        <MainEntrance delay={140} duration={240} distance={8}>
           <SpotlightTarget id="overview" enabled={active}>
             {classic ? (
               <ClassicHomeOverview
@@ -212,6 +210,8 @@ function HomePageContent({
                   ) : null}
                 </View>
                 <Text
+                  amount
+                  delay={300}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   style={[
@@ -294,6 +294,8 @@ function HomePageContent({
                           {name}
                         </Text>
                         <Text
+                          amount
+                          delay={400}
                           numberOfLines={1}
                           adjustsFontSizeToFit
                           style={{
@@ -312,25 +314,12 @@ function HomePageContent({
             )}
           </SpotlightTarget>
         </MainEntrance>
-        <MainEntrance index={3}>
-          <HomeGoalsCard
-            onPress={() =>
-              navigation.navigate("Settings", { section: "goals" })
-            }
-          />
-        </MainEntrance>
-        <MainEntrance index={4}>
+        <MainEntrance delay={170} duration={240} distance={8}>
           <HomeAttention
             onTransaction={onEdit}
-            pagePan={pagePan}
-            active={active}
             raw={raw}
             month={month}
             currency={currency}
-            symbol={symbol}
-            onBudget={() =>
-              navigation.navigate("Settings", { section: "budget" })
-            }
           />
         </MainEntrance>
       </ScrollView>

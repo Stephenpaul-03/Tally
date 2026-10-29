@@ -26,6 +26,18 @@ export function spendingRingItems(groups: Group[]) {
   }));
 }
 
+/** The chart retains every category even when its legend groups the remainder. */
+export function spendingRingSegments(groups: Group[]) {
+  const rows = sortCategories(groups.filter((group) => group.count > 0), (group) => group.name);
+  const total = rows.reduce((sum, group) => sum + Math.max(0, group.amount), 0);
+  return rows.map((group) => ({
+    label: group.name,
+    amount: group.amount,
+    group,
+    share: total > 0 ? Math.max(0, group.amount) / total : 0,
+  }));
+}
+
 /** Native half-plane clips draw arcs up to 180°, with no chart dependency. */
 export function ringArcs(shares: number[]) {
   const valid = shares.map((share) =>

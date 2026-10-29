@@ -83,6 +83,8 @@ interface TransactionModalProps {
   defaultType?: TransactionType;
   initialAmount?: string | null;
   initialDate?: string | null;
+  onAddDateChange?: (date: string) => void;
+  onTransactionAdded?: (date: string) => void;
   nested?: boolean;
 }
 
@@ -101,6 +103,8 @@ export function TransactionModal({
   defaultType = "expense",
   initialAmount = null,
   initialDate = null,
+  onAddDateChange,
+  onTransactionAdded,
   nested = false,
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
@@ -160,6 +164,8 @@ export function TransactionModal({
     onEdit: openEdit,
   });
 
+  const savingRef = React.useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<TransactionFormData>({
     title: "",
     date: getTodayDate(),
@@ -469,7 +475,7 @@ export function TransactionModal({
   );
 
   const handleRequestClose = React.useCallback(() => {
-    if (closeHandledRef.current) return;
+    if (savingRef.current || closeHandledRef.current) return;
     closeHandledRef.current = true;
     if (skipDraftOnCloseRef.current) {
       closeWithAnimation(onClose);
@@ -527,8 +533,8 @@ export function TransactionModal({
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (!validateForm()) return;
+  const handleSubmit = async () => {
+    if (savingRef.current || !validateForm()) return;
     const amount = Math.abs(parseFloat(amountString) || 0);
     const data: TransactionFormData = {
       ...formData,
@@ -539,16 +545,29 @@ export function TransactionModal({
         : undefined,
       tags: undefined,
     };
-    if (isEditMode && editingTransactionId) {
-      dispatch(updateTransactionAsync({ id: editingTransactionId, data }));
-      toast.success("Transaction updated");
-    } else {
-      skipDraftOnCloseRef.current = true;
-      if (activeDraftId) dispatch(removeTransactionDraft(activeDraftId));
-      dispatch(addTransactionAsync(data));
-      toast.success("Transaction added");
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      if (isEditMode && editingTransactionId) {
+        await dispatch(updateTransactionAsync({ id: editingTransactionId, data })).unwrap();
+        toast.success("Transaction updated");
+      } else {
+        const saved = await dispatch(addTransactionAsync(data)).unwrap();
+        skipDraftOnCloseRef.current = true;
+        if (activeDraftId) dispatch(removeTransactionDraft(activeDraftId));
+        onTransactionAdded?.(saved.date);
+        toast.success("Transaction added");
+      }
+      closeWithAnimation(onClose);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message
+        : typeof error === "object" && error && "message" in error ? String(error.message)
+        : String(error);
+      toast.error(`Could not save: ${reason}. Your entry is still here; please retry.`);
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
     }
-    closeWithAnimation(onClose);
   };
 
   const handleConfirmDelete = () => {
@@ -568,13 +587,14 @@ export function TransactionModal({
 
   const handleDateChange = React.useCallback((iso: string) => {
     setFormData((prev) => ({ ...prev, date: iso }));
+    if (!isEditMode && !isViewMode && !activeDraft) onAddDateChange?.(iso);
     const parsed = parseIsoDateOnlyParts(iso);
     if (parsed) {
       setCalendarMonth(parsed.month);
       setCalendarYear(parsed.year);
     }
     setErrors((prev) => (prev.date ? { ...prev, date: undefined } : prev));
-  }, []);
+  }, [isEditMode, isViewMode, activeDraft, onAddDateChange]);
   const closeDatePicker = React.useCallback(
     () => setIsDatePickerOpen(false),
     [],
@@ -1393,13 +1413,15 @@ export function TransactionModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Save transaction"
+              accessibilityState={{ disabled: isSaving, busy: isSaving }}
+              disabled={isSaving}
               onPress={handleSubmit}
               style={({ pressed }) => [
                 mainContent.iosSaveButton,
                 { opacity: pressed ? 0.72 : 1 },
               ]}
             >
-              <Text style={mainContent.iosSaveButtonText}>Save</Text>
+              <Text style={mainContent.iosSaveButtonText}>{isSaving ? "Saving…" : "Save"}</Text>
             </Pressable>
           </Animated.View>
         ) : null}

@@ -6,6 +6,8 @@ type Choice = "sage" | "classic";
 type Design = { layout: Choice; style: Choice };
 const Context = React.createContext<{
   design: Design;
+  insightsStyle: Choice | null;
+  setInsightsStyle: (style: Choice) => void;
   setDesign: (value: Partial<Design>) => void;
 } | null>(null);
 const KEY = "tally.mainDesign.v1";
@@ -18,6 +20,16 @@ export function MainDesignProvider({
     layout: "sage",
     style: "sage",
   });
+  const [insightsStyle, updateInsightsStyle] = React.useState<Choice | null>(null);
+  React.useEffect(() => {
+    void AsyncStorage.getItem("tally.insightsStyle.v1").then((saved) => {
+      if (saved === "classic" || saved === "sage") updateInsightsStyle(saved);
+    }).catch(() => {});
+  }, []);
+  const setInsightsStyle = (style: Choice) => {
+    updateInsightsStyle(style);
+    void AsyncStorage.setItem("tally.insightsStyle.v1", style).catch(() => {});
+  };
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
     let mounted = true;
@@ -47,6 +59,8 @@ export function MainDesignProvider({
     <Context.Provider
       value={{
         design,
+        insightsStyle,
+        setInsightsStyle,
         setDesign: (value) =>
           update((previous) =>
             normalizeMainDesign({

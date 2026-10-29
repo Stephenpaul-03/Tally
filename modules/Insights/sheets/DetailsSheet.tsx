@@ -1,18 +1,34 @@
-import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, ScrollView, useWindowDimensions, View } from "react-native";
-import { useTheme } from "react-native-paper";
+import { useMotionEnabled } from "@/components/animations/Motion";
 import { DesignText as Text } from "@/components/DesignText";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useReducedMotion } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimatedPaperModal } from "@/components/modal/modal";
-import { TransactionRow } from "@/modules/Management/Transaction/Components/TransactionRow";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectIsModalOpen } from "@/modules/Core/Slices/TransactionSlice";
+import { TransactionRow } from "@/modules/Management/Transaction/Components/TransactionRow";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { typography } from "@/theme/typography";
 import type { Transaction } from "@/utils/Types";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { FlatList, ScrollView, useWindowDimensions, View } from "react-native";
+import { useTheme } from "react-native-paper";
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { calculateInsights } from "../calculations";
 import { SpendingHistory } from "../charts/Charts";
+import { MotionPressable } from "../components/Motion";
 import {
   BudgetProgress,
   CardDivider,
@@ -21,8 +37,46 @@ import {
   Muted,
   styles,
 } from "../components/Primitives";
-import { MotionPressable } from "../components/Motion";
-import type { calculateInsights } from "../calculations";
+
+/** One shared start time keeps the initial viewport and later batches in sequence. */
+function DetailRowReveal({
+  id,
+  index,
+  seen,
+  scrolling,
+  revealStart,
+  children,
+}: {
+  id: string;
+  index: number;
+  seen: Set<string>;
+  scrolling: React.MutableRefObject<boolean>;
+  revealStart: number | null;
+  children: React.ReactNode;
+}) {
+  const enabled = useMotionEnabled();
+  const [reveal] = useState(
+    () => enabled && !scrolling.current && !seen.has(id),
+  );
+  const opacity = useSharedValue(reveal ? 0 : 1);
+  useEffect(() => {
+    seen.add(id);
+  }, [id, seen]);
+  useEffect(() => {
+    if (!enabled || !reveal) {
+      opacity.value = 1;
+      return;
+    }
+    if (revealStart === null) return;
+    // One uninterrupted stagger; row 5 has the same spacing as every other row.
+    const offset = index * 60;
+    const delay = Math.max(0, revealStart + offset - Date.now());
+    opacity.value = withDelay(delay, withTiming(1, { duration: 180 }));
+    return () => cancelAnimation(opacity);
+  }, [enabled, reveal, revealStart, index, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
 
 export type Detail = {
   title: string;
@@ -114,6 +168,28 @@ function DetailPageSheet({
     (page.detail ? "detail:" : "panel:") +
     current?.title +
     current?.description;
+  const revealPage = useMemo(
+    () => ({ key: pageKey, rows: new Set<string>() }),
+    [pageKey],
+  );
+  const revealedRows = revealPage.rows;
+  const listScrolling = useRef(false);
+  const [readyPage, setReadyPage] = useState<{
+    key: string;
+    startedAt: number;
+  } | null>(null);
+  const visible = detail !== null || panel !== null;
+  useEffect(() => {
+    if (!visible) {
+      setReadyPage(null);
+      revealedRows.clear();
+      listScrolling.current = false;
+    }
+  }, [visible, revealedRows]);
+  const handleShown = useCallback(
+    () => setReadyPage({ key: pageKey, startedAt: Date.now() }),
+    [pageKey],
+  );
   const historyOpen = detail !== null && historyPage === pageKey;
   const category = page.detail?.categoryType;
   const maxHeight = screenHeight * 0.84;
@@ -124,12 +200,20 @@ function DetailPageSheet({
       : contentSize.key === pageKey
         ? Math.min(maxHeight, headerHeight + contentSize.height + bottom + 28)
         : Math.min(maxHeight, 480);
-  const measureContent = (_width: number, height: number) =>
-    setContentSize((previous) =>
-      previous.key === pageKey && previous.height === height
-        ? previous
-        : { key: pageKey, height },
-    );
+  const longTransactionList = (page.detail?.transactions.length ?? 0) > 6;
+  const measureContent = useCallback(
+    (_width: number, height: number) => {
+      // Long lists have a fixed viewport: measuring every virtualized batch only
+      // rerenders the sheet while its opening animation is running.
+      if (longTransactionList) return;
+      setContentSize((previous) =>
+        previous.key === pageKey && previous.height === height
+          ? previous
+          : { key: pageKey, height },
+      );
+    },
+    [longTransactionList, pageKey],
+  );
   const transactions = useMemo(
     () =>
       [...(page.detail?.transactions ?? [])].sort(
@@ -138,6 +222,51 @@ function DetailPageSheet({
           b.createdAt.localeCompare(a.createdAt),
       ),
     [page.detail?.transactions],
+  );
+  // Give virtualization the complete dataset from the first frame. Mount enough
+  // rows to fill this viewport so its card surface never grows in visible chunks.
+  const initialRowCount = Math.max(4, Math.ceil(maxHeight / 64));
+  const renderTransaction = useCallback(
+    ({ item, index }: { item: Transaction; index: number }) => (
+      <View
+        style={{
+          marginHorizontal: 16,
+          paddingHorizontal: 8,
+          paddingTop: 2,
+          paddingBottom: index === transactions.length - 1 ? 8 : 0,
+          borderBottomLeftRadius: index === transactions.length - 1 ? 28 : 0,
+          borderBottomRightRadius: index === transactions.length - 1 ? 28 : 0,
+          backgroundColor: theme.colors.surface,
+        }}
+      >
+        <DetailRowReveal
+          id={item.id}
+          index={index}
+          seen={revealedRows}
+          scrolling={listScrolling}
+          revealStart={readyPage?.key === pageKey ? readyPage.startedAt : null}
+        >
+          <TransactionRow
+            grouped
+            groupPosition={
+              index === transactions.length - 1 ? "last" : "middle"
+            }
+            showDivider={false}
+            transaction={item}
+            disableLongPress
+            onPressTransaction={onTransaction}
+          />
+        </DetailRowReveal>
+      </View>
+    ),
+    [
+      transactions.length,
+      theme.colors.surface,
+      onTransaction,
+      revealedRows,
+      readyPage,
+      pageKey,
+    ],
   );
   const summaryContent = page.detail ? (
     <View style={{ paddingHorizontal: 16, gap: 14 }}>
@@ -284,7 +413,8 @@ function DetailPageSheet({
       <AnimatedPaperModal
         escapeEnabled={!historyOpen && !suspended}
         dismissable={!historyOpen && !suspended}
-        visible={detail !== null || panel !== null}
+        visible={visible}
+        onShown={handleShown}
         onDismiss={onClose}
         presentation="sheet"
         zIndex={nested ? 910 : 900}
@@ -431,9 +561,13 @@ function DetailPageSheet({
               style={{ flex: 1 }}
               onContentSizeChange={measureContent}
               data={transactions}
-              initialNumToRender={6}
-              maxToRenderPerBatch={6}
-              windowSize={5}
+              onScrollBeginDrag={() => {
+                listScrolling.current = true;
+              }}
+              initialNumToRender={initialRowCount}
+              maxToRenderPerBatch={3}
+              updateCellsBatchingPeriod={80}
+              windowSize={3}
               keyExtractor={(row) => row.id}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 32 }}
@@ -452,32 +586,7 @@ function DetailPageSheet({
                   <Muted>No transactions recorded.</Muted>
                 </View>
               }
-              renderItem={({ item, index }) => (
-                <View
-                  style={{
-                    marginHorizontal: 16,
-                    paddingHorizontal: 8,
-                    paddingTop: 2,
-                    paddingBottom: index === transactions.length - 1 ? 8 : 0,
-                    borderBottomLeftRadius:
-                      index === transactions.length - 1 ? 28 : 0,
-                    borderBottomRightRadius:
-                      index === transactions.length - 1 ? 28 : 0,
-                    backgroundColor: theme.colors.surface,
-                  }}
-                >
-                  <TransactionRow
-                    grouped
-                    groupPosition={
-                      index === transactions.length - 1 ? "last" : "middle"
-                    }
-                    showDivider={false}
-                    transaction={item}
-                    disableLongPress
-                    onPressTransaction={onTransaction}
-                  />
-                </View>
-              )}
+              renderItem={renderTransaction}
             />
           ) : (
             <ScrollView

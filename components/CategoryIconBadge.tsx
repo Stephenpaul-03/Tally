@@ -1,5 +1,6 @@
 import { useTheme } from "react-native-paper";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { richerCategoryColor } from "@/theme/expressivePalette";
 import { categoryTone } from "@/theme/sage";
 import React from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -22,11 +23,13 @@ export function CategoryIconBadge({
   color,
   style,
   categoryName,
+  richerBackground = false,
 }: {
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   color: string;
   style?: StyleProp<ViewStyle>;
   categoryName?: string;
+  richerBackground?: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const [backgroundColor, foregroundColor] = categoryTone(
@@ -35,6 +38,7 @@ export function CategoryIconBadge({
     color,
   );
   const { minimalIconsEnabled } = useAddonPrefs();
+  const baseBackground = theme.expressive ? backgroundColor : darkenHex(color);
   return (
     <View
       collapsable={false}
@@ -43,9 +47,7 @@ export function CategoryIconBadge({
         {
           backgroundColor: minimalIconsEnabled
             ? "transparent"
-            : theme.expressive
-              ? backgroundColor
-              : darkenHex(color),
+            : richerBackground ? richerCategoryColor(baseBackground) : baseBackground,
           borderWidth: 0,
         },
         theme.expressive && { width: 44, height: 44, borderRadius: 16 },

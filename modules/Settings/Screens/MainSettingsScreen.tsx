@@ -163,14 +163,6 @@ export function MainSettingsScreen() {
         onPress: openWorkspacesModal,
       },
       {
-        id: "goals",
-        icon: "target",
-        label: "Goals",
-        description: "Savings targets and progress",
-        keywords: ["goals", "saving", "target", "progress"],
-        onPress: () => navigateToScreen("Goals"),
-      },
-      {
         id: "categories",
         icon: "tag-multiple-outline",
         label: "Categories",
@@ -193,6 +185,14 @@ export function MainSettingsScreen() {
         description: "Set monthly budget and category limits",
         keywords: ["management", "spending", "limits", "budget"],
         onPress: () => navigateToScreen("Budget"),
+      },
+      {
+        id: "goals",
+        icon: "target",
+        label: "Goals",
+        description: "Savings targets and progress",
+        keywords: ["goals", "saving", "target", "progress"],
+        onPress: () => navigateToScreen("Goals"),
       },
       {
         id: "data",
@@ -321,9 +321,9 @@ export function MainSettingsScreen() {
       {
         id: "minimal-icons",
         icon: "palette-outline",
-        label: "Minimal Icons",
-        description: "Use the primary color for category icons",
-        keywords: ["appearance", "icons", "minimal", "interface"],
+        label: "Colored icons",
+        description: "Show icons in their own colors without backgrounds",
+        keywords: ["appearance", "icons", "colored", "minimal", "interface"],
         onPress: openInterfaceModal,
       },
       {
@@ -539,13 +539,6 @@ export function MainSettingsScreen() {
               <SectionLabel label="Management" />
               <SheetCard theme={theme}>
                 <ActionRow
-                  icon="target"
-                  label="Goals"
-                  description="Savings targets and progress"
-                  onPress={() => navigation.navigate("Goals")}
-                  theme={theme}
-                />
-                <ActionRow
                   icon="tag-multiple-outline"
                   label="Categories"
                   description="Personalize your transaction categories"
@@ -564,6 +557,13 @@ export function MainSettingsScreen() {
                   label="Budget"
                   description="Set monthly budget and category limits"
                   onPress={() => navigation.navigate("Budget")}
+                  theme={theme}
+                />
+                <ActionRow
+                  icon="target"
+                  label="Goals"
+                  description="Savings targets and progress"
+                  onPress={() => navigation.navigate("Goals")}
                   theme={theme}
                 />
                 <ActionRow

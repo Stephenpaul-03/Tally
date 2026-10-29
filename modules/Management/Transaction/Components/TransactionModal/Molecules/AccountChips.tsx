@@ -59,7 +59,7 @@ export function AccountChips({ value, options, onSelect }: AccountChipsProps) {
                 color={
                   active
                     ? minimalIconsEnabled
-                      ? theme.colors.primary
+                      ? opt.color
                       : opt.color
                     : theme.colors.onSurfaceVariant
                 }

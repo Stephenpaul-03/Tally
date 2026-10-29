@@ -24,6 +24,7 @@ import { PROTECTED_ACCOUNTS } from "../Constants";
 interface AccountListContentProps {
   management: ReturnType<typeof useAccountManagement>;
   selectedAccount?: string;
+  selectedAccounts?: string[];
   onSelectAccount?: (account: string) => void;
   showBack?: boolean;
   hideCloseButton?: boolean;
@@ -60,6 +61,7 @@ const ACCOUNT_SORT_OPTIONS: {
 function AccountListContent({
   management,
   selectedAccount,
+  selectedAccounts,
   onSelectAccount,
   showBack = false,
   hideCloseButton = false,
@@ -294,14 +296,15 @@ function AccountListContent({
                         }
                         showTransactionLabel={accountHasActivity}
                         iconColorOverride={
-                          minimalIconsEnabled ? theme.colors.primary : undefined
+                          minimalIconsEnabled ? management.getAccountColor(name) : undefined
                         }
-                        isSelected={isPickerMode && selectedAccount === name}
+                        isSelected={isPickerMode && (selectedAccounts ? selectedAccounts.includes(name) : selectedAccount === name)}
+                        multiSelect={Boolean(selectedAccounts)}
                         pickerMode={isPickerMode}
                         onPress={() => {
                           if (onSelectAccount) {
                             onSelectAccount(name);
-                            onClose();
+                            if (!selectedAccounts) onClose();
                             return;
                           }
                           management.handleEditAccount(name);

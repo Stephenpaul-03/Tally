@@ -96,7 +96,7 @@ function AccountDeleteContent({
             <MaterialCommunityIcons
               name={(deletingIcon || "wallet-outline") as any}
               size={96}
-              color={minimalIconsEnabled ? c.primary : deletingColor}
+              color={deletingColor}
             />
           </View>
           <Text
@@ -171,7 +171,7 @@ function AccountDeleteContent({
                           color={management.getAccountColor(dest)}
                           iconColorOverride={
                             minimalIconsEnabled
-                              ? theme.colors.primary
+                              ? management.getAccountColor(dest)
                               : undefined
                           }
                           transactionCount={

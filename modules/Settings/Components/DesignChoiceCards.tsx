@@ -1,4 +1,5 @@
 import React from "react";
+import { ManagementEntranceItem, useManagementEntranceProgress } from "@/components/animations/ManagementEntranceItem";
 import { Pressable, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
@@ -17,6 +18,7 @@ export function DesignChoiceCards({
   purpose: "layout" | "style";
 }) {
   const { colors: c } = useTheme();
+  const progress = useManagementEntranceProgress();
   return (
     <View
       style={{
@@ -26,12 +28,12 @@ export function DesignChoiceCards({
         marginBottom: 20,
       }}
     >
-      {(["classic", "sage"] as const).map((choice) => {
+      {(["classic", "sage"] as const).map((choice, index) => {
         const selected = value === choice;
         const disabled = choice === "classic" && classicDisabled;
         return (
+          <ManagementEntranceItem key={choice} progress={progress} index={index} style={{ flex: 1, aspectRatio: 1 }}>
           <Pressable
-            key={choice}
             accessibilityRole="radio"
             accessibilityLabel={`${choice === "sage" ? "Expressive" : "Classic"} ${purpose}${disabled ? ", requires Classic layout" : ""}`}
             accessibilityState={{ checked: selected, disabled }}
@@ -103,6 +105,7 @@ export function DesignChoiceCards({
               </Text>
             </View>
           </Pressable>
+          </ManagementEntranceItem>
         );
       })}
     </View>

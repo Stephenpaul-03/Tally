@@ -17,7 +17,6 @@ import { DesignText as Text } from "@/components/DesignText";
 import { categoryTone } from "@/theme/sage";
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedIcon = Animated.createAnimatedComponent(Icon);
-const SHIFT = 44;
 
 export function ActivityTypeToggle({
   value,
@@ -33,6 +32,10 @@ export function ActivityTypeToggle({
   pagePan?: ReturnType<typeof Gesture.Pan>;
 }) {
   const controlHeight = stylePicker ? 38 : 44;
+  const inactiveWidth = stylePicker ? 38 : 44;
+  const [labelWidths, setLabelWidths] = React.useState({ expense: stylePicker ? 36 : 54, income: 44 });
+  const expenseSelectedWidth = stylePicker ? 42 + labelWidths.expense : 100;
+  const incomeSelectedWidth = stylePicker ? 42 + labelWidths.income : 100;
   const { colors: c, dark } = useTheme();
   const enabled = useMotionEnabled();
   const localProgress = useSharedValue(value === "income" ? 1 : 0);
@@ -49,6 +52,8 @@ export function ActivityTypeToggle({
     dark,
     "#226A2B",
   );
+  const [simpleBackground, simpleForeground] = categoryTone("", dark, "#3A6EA5");
+  const [detailedBackground, detailedForeground] = categoryTone("", dark, "#8B509B");
   React.useEffect(() => {
     progress.value = withTiming(value === "income" ? 1 : 0, {
       duration: enabled ? 160 : 0,
@@ -66,7 +71,7 @@ export function ActivityTypeToggle({
     .onUpdate((event) => {
       progress.value = Math.max(
         0,
-        Math.min(1, start.value + event.translationX / SHIFT),
+        Math.min(1, start.value + event.translationX / inactiveWidth),
       );
     })
     .onEnd(() => {
@@ -84,39 +89,42 @@ export function ActivityTypeToggle({
     });
   if (pagePan) pan.blocksExternalGesture(pagePan);
   const indicator = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * SHIFT }],
+    transform: [{ translateX: progress.value * inactiveWidth }],
+    width: expenseSelectedWidth + (incomeSelectedWidth - expenseSelectedWidth) * progress.value,
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      stylePicker ? [c.secondaryContainer, c.secondaryContainer] : [expenseBackground, incomeBackground],
+      stylePicker ? [simpleBackground, detailedBackground] : [expenseBackground, incomeBackground],
     ),
   }));
   const expenseWidth = useAnimatedStyle(() => ({
-    width: 100 - progress.value * 56,
+    width: expenseSelectedWidth - progress.value * (expenseSelectedWidth - inactiveWidth),
+    gap: 4 * (1 - progress.value),
   }));
   const incomeWidth = useAnimatedStyle(() => ({
-    width: 44 + progress.value * 56,
+    width: inactiveWidth + progress.value * (incomeSelectedWidth - inactiveWidth),
+    gap: 4 * progress.value,
   }));
   const expenseLabel = useAnimatedStyle(() => ({
-    width: 54 * (1 - progress.value),
+    width: labelWidths.expense * (1 - progress.value),
     opacity: 1 - progress.value,
   }));
   const incomeLabel = useAnimatedStyle(() => ({
-    width: (stylePicker ? 56 : 44) * progress.value,
+    width: labelWidths.income * progress.value,
     opacity: progress.value,
   }));
   const expenseTint = useAnimatedStyle(() => ({
     color: interpolateColor(
       progress.value,
       [0, 1],
-      [dark ? "#FFFFFF" : stylePicker ? c.onSecondaryContainer : expenseForeground, dark ? "#FFFFFF" : c.onSurfaceVariant],
+      [dark ? "#FFFFFF" : stylePicker ? simpleForeground : expenseForeground, dark ? "#FFFFFF" : c.onSurfaceVariant],
     ),
   }));
   const incomeTint = useAnimatedStyle(() => ({
     color: interpolateColor(
       progress.value,
       [0, 1],
-      [dark ? "#FFFFFF" : c.onSurfaceVariant, dark ? "#FFFFFF" : stylePicker ? c.onSecondaryContainer : incomeForeground],
+      [dark ? "#FFFFFF" : c.onSurfaceVariant, dark ? "#FFFFFF" : stylePicker ? detailedForeground : incomeForeground],
     ),
   }));
   return (
@@ -131,6 +139,11 @@ export function ActivityTypeToggle({
           flexShrink: 0,
         }}
       >
+        {stylePicker ? <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", opacity: 0, alignItems: "flex-start" }}>
+          {(["expense", "income"] as const).map(type => <Text key={type} style={{ fontSize: 11, fontWeight: "700" }}
+            onLayout={event => { const width = Math.ceil(event.nativeEvent.layout.width); setLabelWidths(old => old[type] === width ? old : { ...old, [type]: width }); }}
+            >{type === "expense" ? "Simple" : "Detailed"}</Text>)}
+        </View> : null}
         <Animated.View
           pointerEvents="none"
           style={[
@@ -181,11 +194,11 @@ export function ActivityTypeToggle({
               <Text
                 numberOfLines={1}
                 style={{
-                  width: type === "expense" ? 54 : stylePicker ? 56 : 44,
+                  width: labelWidths[type],
                   fontSize: 11,
                   fontWeight: "700",
                   color:
-                    stylePicker ? c.onSurface : type === "expense" ? expenseForeground : incomeForeground,
+                    stylePicker ? (type === "expense" ? simpleForeground : detailedForeground) : type === "expense" ? expenseForeground : incomeForeground,
                 }}
               >
                 {stylePicker ? (type === "expense" ? "Simple" : "Detailed") : type === "expense" ? "Expenses" : "Income"}

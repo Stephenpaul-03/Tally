@@ -148,18 +148,16 @@ export function BudgetDetailsSheet({
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor: minimalIconsEnabled
-                    ? theme.colors.background
+                    ? "transparent"
                     : `${color}22`,
-                  borderColor: minimalIconsEnabled
-                    ? theme.colors.elevation.level1
-                    : "transparent",
-                  borderWidth: minimalIconsEnabled ? 1 : 0,
+                  borderColor: "transparent",
+                  borderWidth: 0,
                 }}
               >
                 <MaterialCommunityIcons
                   name={icon as any}
                   size={22}
-                  color={minimalIconsEnabled ? theme.colors.primary : color}
+                  color={color}
                 />
               </View>
             )}

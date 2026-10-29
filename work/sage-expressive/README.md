@@ -418,3 +418,34 @@ Android review confirmed the arrangement, statistic content and one complete bud
 - Daily toggle icons use white in dark mode. Added a 12px expressive header/content gap and a cancellable fade-out/swap/fade-in for calendar mode changes, respecting animation preferences.
 - Added a compact draggable Classic/Expressive Insights style selector in Settings → Interface. The saved preference overrides Insights only, preserving the surrounding app layout and navigation. Until explicitly selected, Insights follows the app layout. Added preference backup support and invalid-value validation.
 - TypeScript, lint and full release checks passed; backup tests cover the new preference. Physical-device visual/motion review remains outstanding.
+
+
+### Configurable Insights PDF sharing
+
+- Removed the Compare header action and comparison sheet. Share now opens PDF controls for Income, Expenses, Accounts, independent budget/past-month comparisons, and Simple/Detailed report geometry. Section toggles retain at least one selection.
+- Added a checkbox picker scoped to included sections. Selected income/expense categories and accounts add escaped, date-sorted transaction detail tables to the report; other groups remain summaries. Type-qualified keys keep identically named categories/accounts distinct.
+- PDF generation honors section inclusion, omits balance when either cash-flow section is excluded, supports reports with no comparison, and includes account summaries. Errors keep selections and expose the reason for retry. The export style defaults to the selected Insights type rather than changing the app preference.
+- Full release checks, 47 analytics/report tests, TypeScript/lint and Android/iOS production exports passed. Rendered both PDF styles using embedded app fonts and reviewed all pages of synthetic multi-page reports. Fixed an orphaned Accounts heading with account-summary page-break rules. On-device share-sheet interaction remains to be reviewed.
+
+
+### Share modal and parent-group report details
+
+- Placed Include and Comparisons in adjacent primary/tertiary tonal cards and moved the compact Simple/Detailed toggle into the share-sheet header. Added an optional retained header accessory to ControlsSheet.
+- Expanded-details controls now show only included sections, each with its own scoped category/account picker. Deselecting a section clears its expansion choices; export also filters inactive choices.
+- Simple PDFs omit donut/chart markup. Expanded expense, income, and account groups now follow their corresponding summary rather than collecting at the report end.
+- Full release checks passed, including 49 analytics/report tests. Rendered and visually checked every page of both updated three-page QA PDFs with embedded fonts. Native modal interaction remains to be reviewed.
+
+
+### Shared multi-select report pickers
+
+- Added a short secondary-text explanation under Expanded details. Report Income/Expense categories and Accounts now use the same management-picker modals as Add Transaction, scoped to included groups with entries in the report period.
+- Added optional multi-selection arrays to the existing picker components. Multi-select tiles use checkbox indicators and stay open after a toggle; absent multi-selection props preserve Add Transaction's existing single-select and auto-close behavior. Retained lazy picker content preserves exit animations.
+- Full release checks passed. Native picker interaction remains to be reviewed.
+
+
+### Settings icon treatment and shared entrances
+
+- Removed decorative Settings-row icon fills while preserving distinct action colors and button touch targets. Renamed Minimal icons to Colored icons throughout visible Settings labels, search, and notices. The existing preference/storage key is retained for backup compatibility.
+- Colored icons now remove both fill and outline and preserve the item's own color across category/account tiles, transaction pickers/rows, budget/default controls, entity previews, workspaces, and goal icons.
+- SettingsPage supplies a single management-style native entrance timeline to card shells and their rows, including fragment rows. Extended matching card entrances to layout choices, workspace lists, and goals. Returning from nested pages does not restart the mounted Settings timeline; animation preferences remain respected.
+- Moved Goals immediately below Budget in the main Settings list and search ordering. Visually verified the main Settings page and row order on Android without changing ledger data. Full release checks, TypeScript and lint passed.

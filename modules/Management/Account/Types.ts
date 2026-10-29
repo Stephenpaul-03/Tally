@@ -7,5 +7,6 @@ export interface AccountManagementModalProps {
   onClose: () => void;
   management: ReturnType<typeof useAccountManagement>;
   selectedAccount?: string;
+  selectedAccounts?: string[];
   onSelectAccount?: (account: string) => void;
 }

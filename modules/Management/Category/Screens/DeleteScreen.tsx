@@ -99,7 +99,7 @@ function CategoryDeleteContent({
             <MaterialCommunityIcons
               name={(deletingIcon || "tag-outline") as any}
               size={96}
-              color={minimalIconsEnabled ? c.primary : deletingColor}
+              color={deletingColor}
             />
           </View>
           <Text
@@ -181,7 +181,7 @@ function CategoryDeleteContent({
                           )}
                           iconColorOverride={
                             minimalIconsEnabled
-                              ? theme.colors.primary
+                              ? management.getCategoryColor(dest, deletingType)
                               : undefined
                           }
                           transactionCount={

@@ -1,4 +1,6 @@
 import React from "react";
+import { SheetCard } from "@/components/SheetCard";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { Pressable, ScrollView, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -23,6 +25,7 @@ import { updateGoals, useGoals } from "./store";
 export function GoalsScreen() {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
+  const { minimalIconsEnabled } = useAddonPrefs();
   const navigation = useNavigation();
   const workspace = useAppSelector(selectActiveWorkspace);
   const workspaceId = workspace?.id ?? "personal";
@@ -187,8 +190,9 @@ export function GoalsScreen() {
         </View>
         {!!error && <Text style={{ color: c.error }}>{error}</Text>}
         {!goals.length && (
-          <View
+          <SheetCard theme={theme}
             style={{
+              marginHorizontal: 0, marginBottom: 0,
               borderRadius: theme.expressive ? 32 : 20,
               padding: 22,
               gap: 14,
@@ -212,15 +216,16 @@ export function GoalsScreen() {
             <Button mode="contained" onPress={() => open("new")}>
               Create a goal
             </Button>
-          </View>
+          </SheetCard>
         )}
         {goals.map((goal) => {
           const state = goalProgress(goal),
             tone = goalTone(goal.color, theme);
           return (
-            <View
+            <SheetCard theme={theme}
               key={goal.id}
               style={{
+                marginHorizontal: 0, marginBottom: 0,
                 padding: 18,
                 gap: 14,
                 borderRadius: theme.expressive ? 28 : 20,
@@ -240,7 +245,7 @@ export function GoalsScreen() {
                     borderRadius: 16,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: tone.iconBackground,
+                    backgroundColor: minimalIconsEnabled ? "transparent" : tone.iconBackground,
                   }}
                 >
                   <Icon
@@ -248,7 +253,7 @@ export function GoalsScreen() {
                       goal.icon as React.ComponentProps<typeof Icon>["name"]
                     }
                     size={25}
-                    color={tone.iconForeground}
+                    color={minimalIconsEnabled ? goal.color : tone.iconForeground}
                   />
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
@@ -386,7 +391,7 @@ export function GoalsScreen() {
                   Add progress
                 </Button>
               </View>
-            </View>
+            </SheetCard>
           );
         })}
         {!!goals.length && (

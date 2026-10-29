@@ -156,9 +156,7 @@ export function EntityEditLayout({
   const { width } = useWindowDimensions();
   const c = theme.colors;
 
-  const previewColor = minimalIconsEnabled
-    ? c.primary
-    : localColor || c.primary;
+  const previewColor = localColor || c.primary;
   const expressive = (theme as ExtendedMD3Theme).expressive;
   const [previewBackground, previewForeground] = categoryTone(
     iconPickerVariant === "category" ? localName : "",
@@ -263,13 +261,13 @@ export function EntityEditLayout({
         style={{
           alignItems: "center",
           backgroundColor: minimalIconsEnabled
-            ? c.background
+            ? "transparent"
             : expressive
               ? previewBackground
               : darkenHex(previewColor),
-          borderColor: minimalIconsEnabled ? c.elevation.level1 : "transparent",
+          borderColor: "transparent",
           borderRadius: expressive ? 16 : 12,
-          borderWidth: minimalIconsEnabled ? 1 : 0,
+          borderWidth: 0,
           height: 54,
           justifyContent: "center",
           marginBottom: 12,
@@ -489,7 +487,7 @@ export function EntityEditLayout({
                 color={c.primary}
               />
               <Text style={{ fontSize: 11, color: c.onSurfaceVariant }}>
-                Minimal Icons is on.
+                Colored icons are on.
               </Text>
             </View>
           ) : null}

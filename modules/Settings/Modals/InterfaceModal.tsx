@@ -88,8 +88,8 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
           />
           <ActionRow
             icon="palette-outline"
-            label="Minimal icons"
-            description="Use the primary color for category icons"
+            label="Colored icons"
+            description="Show icons in their own colors without backgrounds"
             onPress={() => handleMinimalIconsToggle(!minimalIconsEnabled)}
             theme={theme}
             showChevron={false}

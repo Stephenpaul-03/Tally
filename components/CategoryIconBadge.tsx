@@ -1,5 +1,6 @@
 import { useTheme } from "react-native-paper";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
+import { colorTreatment } from "@/theme/colorTreatment";
 import { richerCategoryColor } from "@/theme/expressivePalette";
 import { categoryTone } from "@/theme/sage";
 import React from "react";
@@ -60,7 +61,7 @@ export function CategoryIconBadge({
         color={
           theme.expressive
             ? minimalIconsEnabled
-              ? theme.colors.primary
+              ? colorTreatment(color, theme.dark, false, theme.colors.surface).foregroundColor
               : foregroundColor
             : minimalIconsEnabled
               ? color

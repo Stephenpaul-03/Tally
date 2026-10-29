@@ -49,6 +49,7 @@ type ListScreenProps = {
   pickerMode?: boolean;
   useSettingsHeader?: boolean;
   selectedValue?: string;
+  selectedValues?: string[];
   onSelectCategory?: (name: string) => void;
   renderHeader: (opts: CategoryListHeaderOptions) => React.ReactNode;
 };
@@ -83,6 +84,7 @@ function CategoryListContent({
   pickerMode = false,
   useSettingsHeader = false,
   selectedValue,
+  selectedValues,
   onSelectCategory,
   renderHeader,
 }: ListScreenProps) {
@@ -300,7 +302,7 @@ function CategoryListContent({
       }
     >
       {renderHeader({
-        title: pickerMode ? "Select category" : "Categories",
+        title: pickerMode ? (selectedValues ? "Select categories" : "Select category") : "Categories",
         subtitle: `${count} ${management.selectedType}`,
         iconName: "tag-multiple-outline",
         searchOpen,
@@ -325,6 +327,7 @@ function CategoryListContent({
             listHeight={listHeight}
             normalizedQuery={normalizedQuery}
             selectedValue={selectedValue}
+              selectedValues={selectedValues}
             pickerMode
             onSelectCategory={onSelectCategory}
             management={management}
@@ -366,6 +369,7 @@ function CategoryListContent({
               listHeight={listHeight}
               normalizedQuery={normalizedQuery}
               selectedValue={selectedValue}
+              selectedValues={selectedValues}
               pickerMode={pickerMode}
               onSelectCategory={onSelectCategory}
               management={management}
@@ -385,6 +389,7 @@ function CategoryListContent({
               listHeight={listHeight}
               normalizedQuery={normalizedQuery}
               selectedValue={selectedValue}
+              selectedValues={selectedValues}
               pickerMode={pickerMode}
               onSelectCategory={onSelectCategory}
               management={management}
@@ -597,6 +602,7 @@ function CategoryPage({
   listHeight,
   normalizedQuery,
   selectedValue,
+  selectedValues,
   pickerMode,
   onSelectCategory,
   management,
@@ -613,6 +619,7 @@ function CategoryPage({
   listHeight: number;
   normalizedQuery: string;
   selectedValue?: string;
+  selectedValues?: string[];
   pickerMode: boolean;
   onSelectCategory?: (name: string) => void;
   management: ReturnType<typeof useCategoryManagement>;
@@ -707,9 +714,10 @@ function CategoryPage({
                         }
                         showTransactionLabel={showTransactionLabels}
                         iconColorOverride={
-                          minimalIconsEnabled ? theme.colors.primary : undefined
+                          minimalIconsEnabled ? management.getCategoryColor(name, type) : undefined
                         }
-                        isSelected={pickerMode && selectedValue === name}
+                        isSelected={pickerMode && (selectedValues ? selectedValues.includes(name) : selectedValue === name)}
+                        multiSelect={Boolean(selectedValues)}
                         pickerMode={pickerMode}
                         onPress={() =>
                           pickerMode

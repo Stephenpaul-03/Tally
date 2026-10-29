@@ -14,21 +14,27 @@ export function ControlsSheet({
   onClose,
   children,
   displayTitle = false,
+  headerAccessory,
+  suspended = false,
 }: {
   visible: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   displayTitle?: boolean;
+  headerAccessory?: React.ReactNode;
+  suspended?: boolean;
 }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const retained = useRef({ title, children, displayTitle });
-  if (visible) retained.current = { title, children, displayTitle };
+  const retained = useRef({ title, children, displayTitle, headerAccessory });
+  if (visible) retained.current = { title, children, displayTitle, headerAccessory };
   return (
     <AnimatedPaperModal
       visible={visible}
       onDismiss={onClose}
+      dismissable={!suspended}
+      escapeEnabled={!suspended}
       presentation="sheet"
       animationDuration={280}
       dismissDuration={200}
@@ -54,6 +60,7 @@ export function ControlsSheet({
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: 20,
+          gap: 8,
         }}
       >
         <Text
@@ -68,6 +75,7 @@ export function ControlsSheet({
         >
           {retained.current.title}
         </Text>
+        {retained.current.headerAccessory}
         <MotionPressable
           onPress={onClose}
           accessibilityRole="button"

@@ -17,7 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SettingsPage } from "../Components/SettingsPage";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsSearchHeader } from "../Components/SettingsSearchHeader";
 import { BackupExportModal } from "../Modals/ExportModal";
@@ -155,7 +155,7 @@ export function DataScreen() {
   const dangerRows = visibleRows.filter((row) => row.section === "Danger Zone");
 
   return (
-    <SafeAreaView
+    <SettingsPage
       style={[
         SettingsStyles.safeArea,
         { backgroundColor: theme.colors.background },
@@ -273,7 +273,7 @@ export function DataScreen() {
         visible={backupImportOpen}
         onDismiss={() => setBackupImportOpen(false)}
       />
-    </SafeAreaView>
+    </SettingsPage>
   );
 }
 

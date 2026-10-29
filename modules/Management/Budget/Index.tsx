@@ -465,14 +465,12 @@ function BudgetStatusSection({
             budgetStyles.budgetSectionIcon,
             {
               backgroundColor: minimalIconsEnabled
-                ? theme.colors.background
+                ? "transparent"
                 : theme.expressive
                   ? categoryTone("", theme.dark, color)[0]
                   : darkenHex(color, 0.08),
-              borderColor: minimalIconsEnabled
-                ? theme.colors.elevation.level1
-                : "transparent",
-              borderWidth: minimalIconsEnabled ? 1 : 0,
+              borderColor: "transparent",
+              borderWidth: 0,
             },
           ]}
         >
@@ -481,7 +479,7 @@ function BudgetStatusSection({
             size={15}
             color={
               minimalIconsEnabled
-                ? theme.colors.primary
+                ? color
                 : theme.expressive
                   ? categoryTone("", theme.dark, color)[1]
                   : "#FFFFFF"
@@ -607,19 +605,17 @@ function BudgetCategoryRow({
                 budgetStyles.accountLikeIconBadge,
                 {
                   backgroundColor: minimalIconsEnabled
-                    ? theme.colors.background
+                    ? "transparent"
                     : darkenHex(statusColor),
-                  borderColor: minimalIconsEnabled
-                    ? theme.colors.elevation.level1
-                    : "transparent",
-                  borderWidth: minimalIconsEnabled ? 1 : 0,
+                  borderColor: "transparent",
+                  borderWidth: 0,
                 },
               ]}
             >
               <MaterialCommunityIcons
                 name={category.icon as any}
                 size={20}
-                color={minimalIconsEnabled ? theme.colors.primary : "#FFFFFF"}
+                color={minimalIconsEnabled ? category.color : "#FFFFFF"}
               />
             </View>
           )}

@@ -10,7 +10,8 @@ import { TonalSummaryTile } from "./components/TonalSummaryTile";
 import { categoryTone } from "@/theme/sage";
 import { ExpressiveOverview } from "./components/ExpressiveOverview";
 import { ActivityTypeToggle } from "./components/ActivityTypeToggle";
-import { ComparisonSheet } from "./sheets/ComparisonSheet";
+import { ShareInsightsSheet } from "./sheets/ShareInsightsSheet";
+import { reportComparisonMode, reportDetailKey } from "./reportSelection";
 import { dailyActivityDetail } from "./dailyActivityDetail";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
 import { useAppShell } from "@/components/AppShellContext";
@@ -63,7 +64,7 @@ import { MonthPickerSheet } from "@/modules/Main/MonthPickerSheet";
 import { DetailsSheet, type Detail } from "./sheets/DetailsSheet";
 import { formatInsightAmount } from "./Utils";
 
-type Panel = "months" | "compare" | "comparison-month";
+type Panel = "months" | "share";
 
 type InsightsProps = {
   pagePan?: ReturnType<typeof Gesture.Pan>;
@@ -149,9 +150,9 @@ function WorkspaceInsights({
   useEffect(() => {
     registerControls?.([
       {
-        label: "Compare",
-        icon: "compare-horizontal",
-        onPress: () => setPanel("compare"),
+        label: "Share",
+        icon: "share-variant-outline",
+        onPress: () => setPanel("share"),
       },
     ]);
     return () => registerControls?.([]);
@@ -213,6 +214,7 @@ function WorkspaceInsights({
     a.canCompareBudget ? a.categoryBudgets : undefined,
     undefined,
     a.data.comparisonDescription,
+    { accounts: a.data.accounts.filter(account => account.transactions.length > 0), transactions: a.data.current },
   );
 
   const hasEntries = a.data.current.length > 0;
@@ -579,8 +581,8 @@ function WorkspaceInsights({
               </MotionPressable>
               <MotionPressable
                 accessibilityRole="button"
-                accessibilityLabel="Compare insights"
-                onPress={() => setPanel("compare")}
+                accessibilityLabel="Share insights"
+                onPress={() => setPanel("share")}
                 style={{
                   width: 44,
                   height: 44,
@@ -593,7 +595,7 @@ function WorkspaceInsights({
                 }}
               >
                 <MaterialCommunityIcons
-                  name="compare-horizontal"
+                  name="share-variant-outline"
                   size={22}
                   color={theme.colors.onSurface}
                 />
@@ -782,38 +784,18 @@ function WorkspaceInsights({
         </Animated.View>
       </ScrollView>
       {details}
-      <ComparisonSheet
-        visible={panel === "compare"}
-        onClose={closeSheet}
-        data={a.data}
-        month={a.month}
-        budget={a.overallBudget}
-        canCompareBudget={a.canCompareBudget}
-        money={money}
-        onChooseMonth={() => setPanel("comparison-month")}
-        onShare={() => {
-          void report.shareInsights(a.canCompareBudget ? "both" : "lastMonth");
-        }}
-        sharing={report.isGenerating}
-        onSetBudget={() => {
-          closeSheet();
-          navigation.navigate("Settings", { section: "budget" });
-        }}
+      <ShareInsightsSheet visible={panel === "share"} onClose={closeSheet}
+        canCompareBudget={a.canCompareBudget && a.overallBudget > 0}
+        previousSections={{ includeIncome: a.data.hasPreviousIncome, includeExpenses: a.data.hasPreviousSpending, includeAccounts: a.data.previous.length > 0 }}
+        previousMonth={monthLabel(a.data.comparisonMonth)} sharing={report.isGenerating}
+        onShare={(selection) => { void report.shareInsights(reportComparisonMode(selection), selection); }}
+        groups={[
+          ...a.data.expenseCategories.filter(group => group.count > 0).map(group => ({ key: reportDetailKey("expense", group.name), label: group.name, section: "includeExpenses" as const, count: group.count })),
+          ...a.data.incomeCategories.filter(group => group.count > 0).map(group => ({ key: reportDetailKey("income", group.name), label: group.name, section: "includeIncome" as const, count: group.count })),
+          ...a.data.accounts.filter(account => account.transactions.length > 0).map(account => ({ key: reportDetailKey("account", account.name), label: account.name, section: "includeAccounts" as const, count: account.transactions.length })),
+        ]}
       />
-      <MonthPickerSheet
-        disabledMonth={panel === "comparison-month" ? a.month : undefined}
-        maximumMonth={panel === "comparison-month" ? a.currentMonth : undefined}
-        visible={panel === "months" || panel === "comparison-month"}
-        month={panel === "comparison-month" ? a.data.comparisonMonth : a.month}
-        onChange={(value) => {
-          if (panel === "comparison-month") a.setComparisonMonth(value);
-          else selectMonth(value);
-        }}
-        onDismiss={() => {
-          if (panel === "comparison-month") setPanel("compare");
-          else closeSheet();
-        }}
-      />
+      <MonthPickerSheet visible={panel === "months"} month={a.month} onChange={selectMonth} onDismiss={closeSheet} />
     </View>
   );
 }

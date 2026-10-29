@@ -2,6 +2,8 @@ import type {
   CategoryComparisonRow,
   MonthSummary,
 } from "@/modules/Insights/Types";
+import type { ReportSelection } from "@/modules/Insights/reportSelection";
+import type { ReportOptions } from "@/modules/Insights/reportHtml";
 import { buildInsightsHTML } from "@/modules/Insights/reportHtml";
 import { useMainDesign } from "./use-main-design";
 import { useAppTheme } from "./use-app-theme";
@@ -12,7 +14,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "@/components/toast/ToastProvider";
-export type QuickShareInsightsMode = "lastMonth" | "budget" | "both";
+export type QuickShareInsightsMode = "none" | "lastMonth" | "budget" | "both";
 const fontCache = new Map<
   string,
   Promise<{ bodyFont: string; boldFont: string; headingFont: string }>
@@ -60,6 +62,7 @@ export function useQuickShareInsights(
   categoryBudgets?: Record<string, number>,
   logoBase64?: string,
   periodDescription?: string,
+  details?: Pick<ReportOptions, "accounts" | "transactions">,
 ) {
   const { design } = useMainDesign();
   const { themeId } = useAppTheme();
@@ -69,14 +72,15 @@ export function useQuickShareInsights(
   );
   const running = useRef(false);
   const shareInsights = useCallback(
-    async (mode: QuickShareInsightsMode = "lastMonth") => {
+    async (mode: QuickShareInsightsMode = "lastMonth", selection?: ReportSelection) => {
       if (running.current || !summary || !monthLabel || !previousMonthLabel)
         return;
       running.current = true;
       setIsGenerating(true);
       setActiveMode(mode);
       try {
-        const fonts = await reportFonts(design.layout);
+        const layout = selection?.layout ?? design.layout;
+        const fonts = await reportFonts(layout);
         const colors = buildPaperTheme({ mode: "light", themeId }).colors;
         const html = buildInsightsHTML(
           summary,
@@ -90,7 +94,9 @@ export function useQuickShareInsights(
             currentMonthLabel: monthLabel,
             previousMonthLabel,
             workspaceName,
-            layout: design.layout,
+            layout,
+            ...details,
+            ...(selection ? { includeIncome: selection.includeIncome, includeExpenses: selection.includeExpenses, includeAccounts: selection.includeAccounts, expanded: selection.expanded } : {}),
             accent: colors.primary,
             container: colors.primaryContainer,
             onContainer: colors.onPrimaryContainer,
@@ -121,7 +127,7 @@ export function useQuickShareInsights(
         return dest;
       } catch (error) {
         console.error("PDF share failed:", error);
-        toast.error("Could not create the Insights PDF. Please try again.");
+        toast.error(`Could not create the Insights PDF: ${error instanceof Error ? error.message : String(error)}. Your selections are kept; please retry.`);
       } finally {
         running.current = false;
         setIsGenerating(false);
@@ -141,6 +147,7 @@ export function useQuickShareInsights(
       categoryBudgets,
       logoBase64,
       periodDescription,
+      details,
       design.layout,
       themeId,
     ],

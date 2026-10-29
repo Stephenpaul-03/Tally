@@ -343,7 +343,7 @@ export function useSettings() {
   const handleMinimalIconsToggle = (enabled: boolean) => {
     setMinimalIconsEnabled(enabled);
     toast.success(
-      enabled ? "Minimal Icons turned on" : "Minimal Icons turned off",
+      enabled ? "Colored icons turned on" : "Colored icons turned off",
     );
   };
 

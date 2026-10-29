@@ -36,9 +36,7 @@ export function AccountPicker({
     ? (getAccountIconName(value, accountIcons) as any)
     : undefined;
   const selectedColor = value
-    ? minimalIconsEnabled
-      ? theme.colors.primary
-      : getAccountColor(value, accountColors)
+    ? getAccountColor(value, accountColors)
     : undefined;
 
   return (
@@ -63,7 +61,7 @@ export function AccountPicker({
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: selectedColor
+              backgroundColor: minimalIconsEnabled ? "transparent" : selectedColor
                 ? `${selectedColor}22`
                 : theme.colors.elevation.level3,
               alignItems: "center",
@@ -76,7 +74,7 @@ export function AccountPicker({
                 size={16}
                 color={
                   minimalIconsEnabled
-                    ? theme.colors.primary
+                    ? selectedColor ?? theme.colors.primary
                     : (selectedColor ?? theme.colors.onSurfaceVariant)
                 }
               />

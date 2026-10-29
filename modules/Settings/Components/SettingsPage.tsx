@@ -1,3 +1,4 @@
+import { SettingsCardEntranceProvider } from "@/components/animations/SettingsCardEntrance";
 import React from "react";
 import { View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export function SettingsPage({ style, ...props }: ViewProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View
+    <SettingsCardEntranceProvider><View
       {...props}
       style={[
         { flex: 1 },
@@ -18,6 +19,6 @@ export function SettingsPage({ style, ...props }: ViewProps) {
           paddingRight: insets.right,
         },
       ]}
-    />
+    /></SettingsCardEntranceProvider>
   );
 }

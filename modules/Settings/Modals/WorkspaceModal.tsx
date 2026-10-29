@@ -1,3 +1,4 @@
+import { ManagementEntranceItem, useManagementEntranceProgress } from "@/components/animations/ManagementEntranceItem";
 import { settingsShape } from "@/theme/settingsShape";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
@@ -266,7 +267,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   const theme = useTheme<ExtendedMD3Theme>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
-  const { interactionHintsEnabled } = useAddonPrefs();
+  const { interactionHintsEnabled, minimalIconsEnabled } = useAddonPrefs();
   const workspaces = useAppSelector(selectWorkspaces);
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const workspacesLoading = useAppSelector(
@@ -549,7 +550,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                   </Text>
                 </View>
               ) : (
-                <View style={styles.workspaceList}>
+                <WorkspaceListEntrance>
                   {visibleWorkspaces.map((workspace, workspaceIndex) => {
                     const active = activeWorkspaceId === workspace.id;
                     return (
@@ -605,13 +606,13 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                                   <View
                                     style={[
                                       styles.workspaceIcon,
-                                      { backgroundColor: workspace.color },
+                                      { backgroundColor: minimalIconsEnabled ? "transparent" : workspace.color },
                                     ]}
                                   >
                                     <MaterialCommunityIcons
                                       name={workspace.icon as any}
                                       size={22}
-                                      color="#fff"
+                                      color={minimalIconsEnabled ? workspace.color : "#fff"}
                                     />
                                   </View>
 
@@ -647,7 +648,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
                       </View>
                     );
                   })}
-                </View>
+                </WorkspaceListEntrance>
               )}
               {!workspacesLoading && workspaces.length === 0 ? (
                 <View
@@ -871,3 +872,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
+function WorkspaceListEntrance({ children }: { children: React.ReactNode }) {
+  const progress = useManagementEntranceProgress();
+  return <View style={styles.workspaceList}>{React.Children.toArray(children).map((child, index) => (
+    <ManagementEntranceItem key={(child as React.ReactElement).key ?? index} progress={progress} index={index}>
+      {child}
+    </ManagementEntranceItem>
+  ))}</View>;
+}

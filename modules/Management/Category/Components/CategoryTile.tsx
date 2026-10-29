@@ -2,6 +2,7 @@ import { settingsShape } from "@/theme/settingsShape";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import React from "react";
 import { Pressable, View } from "react-native";
 import type { MD3Theme } from "react-native-paper";
@@ -33,6 +34,7 @@ export function CategoryTile({
   showTransactionLabel = transactionCount > 0,
   isSelected = false,
   pickerMode = false,
+  multiSelect = false,
   onPress,
   theme,
   entityKind = "category",
@@ -46,22 +48,28 @@ export function CategoryTile({
   showTransactionLabel?: boolean;
   isSelected?: boolean;
   pickerMode?: boolean;
+  multiSelect?: boolean;
   onPress: () => void;
   theme: MD3Theme;
 }) {
   const c = theme.colors;
-  const displayColor = iconColorOverride ?? color;
-  const useMinimalBadge = Boolean(iconColorOverride);
+  const { minimalIconsEnabled } = useAddonPrefs();
+  const displayColor = minimalIconsEnabled ? color : iconColorOverride ?? color;
+  const useMinimalBadge = minimalIconsEnabled || Boolean(iconColorOverride);
   const transactionLabel = formatActivityLabel(transactionCount);
 
   return (
     <Pressable
+      accessibilityRole={multiSelect ? "checkbox" : "button"}
+      accessibilityState={multiSelect ? { checked: isSelected } : undefined}
       onPress={onPress}
       style={({ pressed }) => ({
         borderRadius: settingsShape(theme)?.borderRadius ?? 16,
         paddingHorizontal: 14,
         paddingVertical: 10,
         backgroundColor: c.surface,
+        borderWidth: multiSelect ? 2 : 0,
+        borderColor: multiSelect && isSelected ? color : "transparent",
         gap: 6,
         minHeight: 58,
         justifyContent: "center",
@@ -103,7 +111,7 @@ export function CategoryTile({
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: useMinimalBadge
-                  ? c.background
+                  ? "transparent"
                   : darkenHex(color),
               }}
             >
@@ -145,7 +153,7 @@ export function CategoryTile({
             ) : null}
           </View>
         </View>
-        {pickerMode ? (
+        {multiSelect ? null : pickerMode ? (
           isSelected ? (
             <MaterialCommunityIcons
               name="check-circle"

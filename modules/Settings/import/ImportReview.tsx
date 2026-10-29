@@ -106,7 +106,7 @@ export function ImportReviewModal({ visible, onDismiss, rows, catalog, onChange 
           <Switch value={matching} onValueChange={setMatching} accessibilityLabel="Apply this choice to matching transactions" />
         </View>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {selected ? options.map(option => <View key={option} style={{ width: "48%" }}><CategoryTile name={option} icon={iconFor(option, isCategory, selected)} color={colorFor(option, isCategory, selected)} iconColorOverride={minimalIconsEnabled ? theme.colors.primary : undefined} showTransactionLabel={false} pickerMode isSelected={selected.transaction[selection!.field] === option} theme={theme} onPress={() => apply(option)} /></View>) : null}
+          {selected ? options.map(option => <View key={option} style={{ width: "48%" }}><CategoryTile name={option} icon={iconFor(option, isCategory, selected)} color={colorFor(option, isCategory, selected)} iconColorOverride={minimalIconsEnabled ? colorFor(option, isCategory, selected) : undefined} showTransactionLabel={false} pickerMode isSelected={selected.transaction[selection!.field] === option} theme={theme} onPress={() => apply(option)} /></View>) : null}
         </View>
         <Text style={{ ...typography.editorial.sectionLabel, fontSize: 18, marginTop: 8 }}>Or create a new one</Text>
         <TextInput mode="outlined" label={isCategory ? "Category name" : "Payment account name"} value={name} onChangeText={setName} maxLength={50} left={<TextInput.Icon icon={isCategory ? "tag-plus-outline" : "wallet-plus-outline"} />} />

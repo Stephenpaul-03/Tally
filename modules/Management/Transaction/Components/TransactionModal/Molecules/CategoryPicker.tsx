@@ -44,9 +44,7 @@ export function CategoryPicker({
     ? (getCategoryIconName(value, transactionType, categoryIcons) as any)
     : undefined;
   const selectedColor = value
-    ? minimalIconsEnabled
-      ? theme.colors.primary
-      : getCategoryColor(value, transactionType, categoryColors)
+    ? getCategoryColor(value, transactionType, categoryColors)
     : undefined;
 
   return (
@@ -71,7 +69,7 @@ export function CategoryPicker({
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: selectedColor
+              backgroundColor: minimalIconsEnabled ? "transparent" : selectedColor
                 ? `${selectedColor}22`
                 : theme.colors.elevation.level3,
               alignItems: "center",
@@ -84,7 +82,7 @@ export function CategoryPicker({
                 size={16}
                 color={
                   minimalIconsEnabled
-                    ? theme.colors.primary
+                    ? selectedColor ?? theme.colors.primary
                     : (selectedColor ?? theme.colors.onSurfaceVariant)
                 }
               />

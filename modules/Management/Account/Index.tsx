@@ -15,6 +15,7 @@ export function AccountManagementModal({
   onClose,
   management,
   selectedAccount,
+  selectedAccounts,
   onSelectAccount,
 }: AccountManagementModalProps) {
   const theme = useTheme();
@@ -95,6 +96,7 @@ export function AccountManagementModal({
         <AccountListModal
           management={management}
           selectedAccount={selectedAccount}
+          selectedAccounts={selectedAccounts}
           onSelectAccount={onSelectAccount}
           listHeight={listHeight}
           onBack={onSelectAccount ? handleClose : handleBack}

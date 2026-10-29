@@ -1,6 +1,4 @@
-import { categoryTone } from "@/theme/sage";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { actionAccent, colorTreatment } from "@/theme/colorTreatment";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -37,7 +35,6 @@ export function ActionRow({
   destructive,
   rightElement,
   showChevron = true,
-  iconBackgroundColor,
   iconColor,
   labelColor,
   descriptionColor,
@@ -48,7 +45,6 @@ export function ActionRow({
   disabled = false,
 }: ActionRowProps) {
   const expressive = (theme as ExtendedMD3Theme).expressive;
-  const { minimalIconsEnabled } = useAddonPrefs();
   const color =
     iconColor ??
     (destructive
@@ -62,14 +58,6 @@ export function ActionRow({
     theme.colors.elevation.level1,
   );
 
-  const [actionBackground] = categoryTone("", theme.dark, tint.foregroundColor);
-
-  const actionForeground = colorTreatment(
-    color,
-    theme.dark,
-    false,
-    actionBackground,
-  ).foregroundColor;
 
   return (
     <Pressable
@@ -102,23 +90,13 @@ export function ActionRow({
           overflow: "hidden",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor:
-            iconBackgroundColor ??
-            (expressive && !minimalIconsEnabled
-              ? actionBackground
-              : "transparent"),
+          backgroundColor: "transparent",
         }}
       >
         <MaterialCommunityIcons
           name={icon as any}
           size={iconSize}
-          color={
-            minimalIconsEnabled
-              ? theme.colors.primary
-              : expressive
-                ? actionForeground
-                : tint.foregroundColor
-          }
+          color={tint.foregroundColor}
         />
       </View>
       <View style={{ flex: 1, gap: 1 }}>

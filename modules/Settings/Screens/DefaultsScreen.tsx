@@ -1033,14 +1033,12 @@ function DefaultOptionTile({
             styles.tileIconWrap,
             {
               backgroundColor: minimalIconsEnabled
-                ? theme.colors.background
+                ? "transparent"
                 : theme.expressive
                   ? tonalBackground
                   : resolvedIconColor,
-              borderColor: minimalIconsEnabled
-                ? theme.colors.elevation.level1
-                : "transparent",
-              borderWidth: minimalIconsEnabled ? 1 : 0,
+              borderColor: "transparent",
+              borderWidth: 0,
             },
           ]}
         >
@@ -1050,7 +1048,7 @@ function DefaultOptionTile({
                 styles.tileIconText,
                 {
                   color: minimalIconsEnabled
-                    ? theme.colors.primary
+                    ? iconColor ?? theme.colors.primary
                     : theme.expressive
                       ? tonalForeground
                       : "#FFFFFF",
@@ -1065,7 +1063,7 @@ function DefaultOptionTile({
               size={22}
               color={
                 minimalIconsEnabled
-                  ? theme.colors.primary
+                  ? iconColor ?? theme.colors.primary
                   : theme.expressive
                     ? tonalForeground
                     : "#FFFFFF"
@@ -1147,7 +1145,7 @@ function DefaultOptionRow({
     iconColor ?? theme.colors.primary,
   );
   const resolvedIconColor = minimalIconsEnabled
-    ? theme.colors.primary
+    ? iconColor ?? theme.colors.primary
     : theme.expressive
       ? thresholdForeground
       : (iconColor ?? theme.colors.primary);
@@ -1160,14 +1158,12 @@ function DefaultOptionRow({
             styles.thresholdIconWrap,
             {
               backgroundColor: minimalIconsEnabled
-                ? theme.colors.background
+                ? "transparent"
                 : theme.expressive
                   ? thresholdBackground
                   : theme.colors.elevation.level1,
-              borderColor: minimalIconsEnabled
-                ? theme.colors.elevation.level1
-                : "transparent",
-              borderWidth: minimalIconsEnabled ? 1 : 0,
+              borderColor: "transparent",
+              borderWidth: 0,
             },
           ]}
         >

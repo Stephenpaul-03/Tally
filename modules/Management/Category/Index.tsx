@@ -24,6 +24,7 @@ interface Props {
   management: ReturnType<typeof useCategoryManagement>;
   pickerMode?: boolean;
   selectedValue?: string;
+  selectedValues?: string[];
   onSelectCategory?: (name: string) => void;
 }
 
@@ -33,6 +34,7 @@ export function CategoryManagementModal({
   management,
   pickerMode = false,
   selectedValue,
+  selectedValues,
   onSelectCategory,
 }: Props) {
   const theme = useTheme();
@@ -113,7 +115,7 @@ export function CategoryManagementModal({
 
   const handleSelectCategory = (name: string) => {
     onSelectCategory?.(name);
-    onClose();
+    if (!selectedValues) onClose();
   };
 
   const canSubmitEdit =
@@ -251,6 +253,7 @@ export function CategoryManagementModal({
             theme={theme}
             pickerMode={pickerMode}
             selectedValue={selectedValue}
+            selectedValues={selectedValues}
             onSelectCategory={handleSelectCategory}
             onBack={handleClose}
             onClose={handleClose}

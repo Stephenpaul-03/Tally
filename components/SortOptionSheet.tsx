@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MotionItem, useMotionEnabled } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { categoryTone } from "@/theme/sage";
@@ -179,7 +180,7 @@ export function SlidingPillToggle<T extends string>({
             slidingStyles.track,
             {
               backgroundColor: theme.expressive
-                ? theme.colors.surfaceVariant
+                ? tonalButtonSurface(theme)
                 : theme.colors.surface,
               borderColor: theme.colors.outlineVariant,
               padding: trackPadding,

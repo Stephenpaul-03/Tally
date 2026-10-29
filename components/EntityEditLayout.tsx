@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { categoryTone } from "@/theme/sage";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { matchesIconSearch } from "@/utils/icon-search";
@@ -381,7 +382,7 @@ export function EntityEditLayout({
                 borderRadius: expressive ? 22 : 18,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: c.surfaceVariant,
+                backgroundColor: tonalButtonSurface(theme),
                 opacity: pressed ? 0.7 : 1,
               })}
             >

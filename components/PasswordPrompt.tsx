@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 // Hooks/UsePasswordPrompt.ts
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -135,7 +136,7 @@ export function usePasswordPrompt() {
               justifyContent: "center",
               backgroundColor: isWrongPassword
                 ? theme.colors.errorContainer
-                : theme.colors.surfaceVariant,
+                : tonalButtonSurface(theme),
             }}
           >
             <MaterialCommunityIcons
@@ -182,7 +183,7 @@ export function usePasswordPrompt() {
               borderRadius: 16,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
               opacity: pressed ? 0.7 : 1,
             })}
           >

@@ -174,6 +174,7 @@ export const categoryPicker = StyleSheet.create({
 export const createMainContentStyles = (
   colors: MD3Theme["colors"],
   expressive = false,
+  dark = false,
 ) =>
   StyleSheet.create({
     keyboardView: {
@@ -386,7 +387,7 @@ export const createMainContentStyles = (
     },
     iosUtilityButton: {
       alignItems: "center",
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: expressive && !dark ? colors.surface : colors.surfaceVariant,
       borderColor: colors.outlineVariant,
       borderRadius: 26,
       borderWidth: 1,

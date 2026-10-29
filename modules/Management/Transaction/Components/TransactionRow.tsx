@@ -1,3 +1,4 @@
+import { transactionRowSurface } from "@/theme/surfaceTreatment";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { toast } from "@/components/toast/ToastProvider";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
@@ -145,9 +146,7 @@ function TransactionRowComponent({
             ...(groupPosition === "last" || groupPosition === "single"
               ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }
               : {}),
-            backgroundColor: theme.dark
-              ? theme.colors.surfaceVariant
-              : theme.colors.background,
+            backgroundColor: transactionRowSurface(theme),
           },
         ]}
       >

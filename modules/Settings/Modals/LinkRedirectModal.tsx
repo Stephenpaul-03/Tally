@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -77,7 +78,7 @@ export function LinkRedirectModal({
           style={[
             styles.urlCard,
             {
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
               borderColor: theme.colors.outlineVariant,
             },
           ]}

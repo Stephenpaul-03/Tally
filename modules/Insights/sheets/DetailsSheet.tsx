@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { DesignText as Text } from "@/components/DesignText";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -455,7 +456,7 @@ function DetailPageSheet({
                   borderRadius: 22,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: theme.colors.surfaceVariant,
+                  backgroundColor: tonalButtonSurface(theme),
                 }}
               >
                 <MaterialCommunityIcons
@@ -481,7 +482,7 @@ function DetailPageSheet({
                 borderRadius: 22,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: theme.colors.surfaceVariant,
+                backgroundColor: tonalButtonSurface(theme),
               }}
             >
               <MaterialCommunityIcons
@@ -671,7 +672,7 @@ function PastMonthsSheet({
               borderRadius: 22,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
             }}
           >
             <MaterialCommunityIcons

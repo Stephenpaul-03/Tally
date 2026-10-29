@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -21,7 +22,8 @@ export function MonthPickerSheet({
   onChange: (month: string) => void;
   onDismiss: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme();
+  const { colors: c } = theme;
   const reduceMotion = useReducedMotion();
   const [year, setYear] = React.useState(Number(month.slice(0, 4)));
   React.useEffect(() => {
@@ -47,7 +49,7 @@ export function MonthPickerSheet({
         minWidth: 44,
         minHeight: 44,
         borderRadius: 22,
-        backgroundColor: c.surfaceVariant,
+        backgroundColor: tonalButtonSurface(theme),
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -140,7 +142,7 @@ export function MonthPickerSheet({
                   borderRadius: 18,
                   backgroundColor: selected
                     ? c.primaryContainer
-                    : c.surfaceVariant,
+                    : tonalButtonSurface(theme),
                 }}
               >
                 <Text

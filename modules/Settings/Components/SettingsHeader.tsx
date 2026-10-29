@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { BackButton } from "@/components/backbutton/BackButton";
 import { UniversalSearchBar } from "@/components/UniversalSearchBar";
@@ -58,7 +59,7 @@ export function SettingsHeader({
     {
       ...(theme.expressive ? { width: 44, height: 44, borderWidth: 0 } : {}),
       backgroundColor: theme.expressive
-        ? theme.colors.surfaceVariant
+        ? tonalButtonSurface(theme)
         : theme.colors.surface,
       borderColor: theme.colors.outlineVariant,
     },
@@ -163,7 +164,7 @@ export function SettingsHeader({
             size={theme.expressive ? 44 : 34}
             backgroundColor={
               theme.expressive
-                ? theme.colors.surfaceVariant
+                ? tonalButtonSurface(theme)
                 : theme.colors.surface
             }
           />

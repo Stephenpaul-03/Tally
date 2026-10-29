@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -23,7 +24,8 @@ export function HomeDraftPicker({
   onClose: () => void;
   onChoose: (id: string) => void;
 }) {
-  const { colors: c, dark } = useTheme();
+  const theme = useTheme();
+  const { colors: c, dark } = theme;
   const [background, foreground] = homeCardTone("drafts", dark);
   return (
     <AnimatedPaperModal
@@ -67,7 +69,7 @@ export function HomeDraftPicker({
               width: 44,
               height: 44,
               borderRadius: 22,
-              backgroundColor: c.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
               alignItems: "center",
               justifyContent: "center",
             }}

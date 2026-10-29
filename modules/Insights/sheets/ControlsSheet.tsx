@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React, { useRef, useState } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -86,7 +87,7 @@ export function ControlsSheet({
             borderRadius: 22,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: theme.colors.surfaceVariant,
+            backgroundColor: tonalButtonSurface(theme),
           }}
         >
           <MaterialCommunityIcons

@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 // @/components/buttons/BackButton.tsx
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -29,7 +30,7 @@ export function BackButton({
           width: size,
           height: size,
           borderRadius: size,
-          backgroundColor: backgroundColor ?? theme.colors.background,
+          backgroundColor: backgroundColor ?? ((theme as ExtendedMD3Theme).expressive && !theme.dark ? tonalButtonSurface(theme) : theme.colors.background),
           borderColor: theme.colors.outlineVariant,
           ...((theme as ExtendedMD3Theme).expressive
             ? { borderWidth: 0, minWidth: 44, minHeight: 44 }

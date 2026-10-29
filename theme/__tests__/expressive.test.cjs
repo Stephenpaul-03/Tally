@@ -11,7 +11,7 @@ test('every accent tints Expressive surfaces while retaining readable text and t
     for (const dark of [false,true]) {
       const palette = expressiveSurfaces(seed,dark);
       const levels = ['background','surface','surfaceVariant'].map(key=>luminance(palette[key]));
-      assert.ok(dark ? levels[0]<levels[1]&&levels[1]<levels[2] : levels[0]>levels[1]&&levels[1]>levels[2]);
+      assert.ok(dark ? levels[0]<levels[1]&&levels[1]<levels[2] : levels[1]>levels[0]&&levels[0]>levels[2]);
       for(const key of ['background','surface','surfaceVariant']) assert.ok(contrast(palette[key],palette.onSurface)>=4.5);
     }
   }

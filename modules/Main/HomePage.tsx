@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MainEntrance } from "@/components/animations/MainEntrance";
 import { HomeDraftAction } from "./HomeDraftAction";
 import { ClassicHomeOverview } from "./ClassicHomeOverview";
@@ -62,7 +63,8 @@ function HomePageContent({
 }) {
   const classic = useClassicHome();
   const homeCardShape = useHomeCardShape();
-  const { colors: c } = useTheme<ExtendedMD3Theme>();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const { colors: c } = theme;
   const { bottom } = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const model = React.useMemo(
@@ -99,7 +101,7 @@ function HomePageContent({
       style={({ pressed }) => [
         s.iconButton,
         {
-          backgroundColor: classic ? "transparent" : c.surfaceVariant,
+          backgroundColor: classic ? "transparent" : tonalButtonSurface(theme),
           opacity: pressed ? 0.65 : 1,
         },
       ]}

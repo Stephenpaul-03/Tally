@@ -39,8 +39,8 @@ export function expressiveSurfaces(
         onSurfaceVariant: "#BEC9C3",
       }
     : {
-        background: mixHex("#FAFDFA", primary, 0.025),
-        surface: mixHex("#F0F4F0", primary, 0.055),
+        background: mixHex("#F0F4F0", primary, 0.055),
+        surface: mixHex("#FAFDFA", primary, 0.025),
         surfaceVariant: mixHex("#E9EEE9", primary, 0.065),
         onSurface: "#161D1A",
         onSurfaceVariant: "#3F4945",

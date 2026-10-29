@@ -449,3 +449,10 @@ Android review confirmed the arrangement, statistic content and one complete bud
 - Colored icons now remove both fill and outline and preserve the item's own color across category/account tiles, transaction pickers/rows, budget/default controls, entity previews, workspaces, and goal icons.
 - SettingsPage supplies a single management-style native entrance timeline to card shells and their rows, including fragment rows. Extended matching card entrances to layout choices, workspace lists, and goals. Returning from nested pages does not restart the mounted Settings timeline; animation preferences remain respected.
 - Moved Goals immediately below Budget in the main Settings list and search ordering. Visually verified the main Settings page and row order on Android without changing ledger data. Full release checks, TypeScript and lint passed.
+
+
+### Button surfaces and transaction inset rows
+
+- Added a shared light-Expressive tonal-button surface that matches the brighter card color. Applied it to the transaction toolbar/search, Home/header controls, month navigation/options, shared modal close/back controls, sort track, alerts, and transaction utility buttons. Navigation surfaces and semantic selected/accent fills retain their roles.
+- Transaction rows now use a subtle inset surface blended from 65% card and 35% page in Expressive light mode, rather than reusing the page background. Shared rows in Home and detail sheets inherit the same treatment. Classic and dark treatments are unchanged.
+- Full release checks passed, with clean TypeScript/lint and whitespace verification.

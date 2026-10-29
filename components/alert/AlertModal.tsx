@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
 import { DesignText } from "@/components/DesignText";
@@ -415,7 +416,7 @@ function AlertModalContent({
               width: 44,
               height: 44,
               borderRadius: 22,
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
             },
           ]}
         >
@@ -473,7 +474,7 @@ function AlertModalContent({
                     expressive && {
                       borderRadius: 28,
                       borderWidth: 0,
-                      backgroundColor: theme.colors.surfaceVariant,
+                      backgroundColor: tonalButtonSurface(theme),
                     },
                   ]}
                   contentStyle={[

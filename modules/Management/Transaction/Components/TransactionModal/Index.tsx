@@ -111,8 +111,8 @@ export function TransactionModal({
   const theme = useTheme<ExtendedMD3Theme>();
   const motionEnabled = useMotionEnabled();
   const mainContent = useMemo(
-    () => createMainContentStyles(theme.colors, Boolean(theme.expressive)),
-    [theme.colors, theme.expressive],
+    () => createMainContentStyles(theme.colors, Boolean(theme.expressive), theme.dark),
+    [theme.colors, theme.expressive, theme.dark],
   );
   const { width, isMobileLayout } = useBreakpoint();
   const { bottom } = useSafeAreaInsets();

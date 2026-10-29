@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { FlowDisclosure } from "@/components/animations/FlowDisclosure";
 import { TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "@/modules/Management/Transaction/Components/TransactionMutation";
 import { MainEntrance } from "@/components/animations/MainEntrance";
@@ -105,7 +106,7 @@ function LedgerPage(p: Props & { active: boolean }) {
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
-        { backgroundColor: c.surfaceVariant, opacity: pressed ? 0.65 : 1 },
+        { backgroundColor: tonalButtonSurface(theme), opacity: pressed ? 0.65 : 1 },
       ]}
     >
       <Icon name={icon} size={21} color={c.onSurface} />
@@ -127,7 +128,7 @@ function LedgerPage(p: Props & { active: boolean }) {
             minWidth: 0,
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: c.surfaceVariant,
+            backgroundColor: tonalButtonSurface(theme),
             borderRadius: 20,
             paddingHorizontal: 10,
           }}
@@ -313,7 +314,7 @@ function LedgerPage(p: Props & { active: boolean }) {
                 </View>
 
                 {
-                  <View style={[s.collapse, { backgroundColor: c.background }]}>
+                  <View style={[s.collapse, { backgroundColor: tonalButtonSurface(theme) }]}>
                     <Icon
                       name={
                         p.collapsed[item.key] ? "chevron-down" : "chevron-up"

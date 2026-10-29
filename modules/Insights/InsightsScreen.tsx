@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { InsightsLayoutContext } from "./components/InsightsLayoutContext";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
@@ -448,7 +449,7 @@ function WorkspaceInsights({
         <MotionPressable accessibilityRole="button" accessibilityLabel={`View ${accounts.length - accountPreviewLimit} more accounts`}
           onPress={() => setBrowse("accounts")}
           style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48,
-            paddingHorizontal: 12, borderRadius: 16, backgroundColor: theme.colors.surfaceVariant }}>
+            paddingHorizontal: 12, borderRadius: 16, backgroundColor: tonalButtonSurface(theme) }}>
           <MaterialCommunityIcons name="dots-horizontal" size={22} color={theme.colors.onSurfaceVariant} />
           <Text style={{ ...typography.bodyMedium, flex: 1, color: theme.colors.onSurface }}>
             {accounts.length - accountPreviewLimit} more
@@ -552,7 +553,7 @@ function WorkspaceInsights({
                   paddingHorizontal: 12,
                   borderRadius: 24,
                   backgroundColor: theme.expressive
-                    ? theme.colors.surfaceVariant
+                    ? tonalButtonSurface(theme)
                     : theme.colors.surface,
                   borderWidth: theme.expressive ? 0 : StyleSheet.hairlineWidth,
                   borderColor: theme.colors.outlineVariant,
@@ -588,7 +589,7 @@ function WorkspaceInsights({
                   height: 44,
                   borderRadius: 22,
                   backgroundColor: theme.expressive
-                    ? theme.colors.surfaceVariant
+                    ? tonalButtonSurface(theme)
                     : "transparent",
                   alignItems: "center",
                   justifyContent: "center",
@@ -609,7 +610,7 @@ function WorkspaceInsights({
                   height: 44,
                   borderRadius: 22,
                   backgroundColor: theme.expressive
-                    ? theme.colors.surfaceVariant
+                    ? tonalButtonSurface(theme)
                     : "transparent",
                   alignItems: "center",
                   justifyContent: "center",

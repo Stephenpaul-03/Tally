@@ -1,3 +1,4 @@
+import { MonthEmptyState } from "@/components/MonthEmptyState";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { FlowDisclosure } from "@/components/animations/FlowDisclosure";
 import { TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "@/modules/Management/Transaction/Components/TransactionMutation";
@@ -207,13 +208,7 @@ function LedgerPage(p: Props & { active: boolean }) {
       </Pressable>
     </View>
   );
-  const emptyState = (
-    <View style={{ padding: 24 }}>
-      <Text style={{ color: c.onSurfaceVariant }}>
-        {p.raw.length ? "No matching transactions" : "No transactions yet"}
-      </Text>
-    </View>
-  );
+  const emptyState = <MonthEmptyState filtered={Boolean(p.query.trim() || p.filterCount)} onAdd={p.onAdd} onChooseMonth={() => setMonthPicker(true)} />;
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -226,13 +221,15 @@ function LedgerPage(p: Props & { active: boolean }) {
         }
         ListHeaderComponent={header}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingBottom: 92 + 56 + 8 + bottom, // Nav/FAB top plus one small row clearance.
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ListEmptyComponent={emptyState}
-        ListFooterComponent={!presence.records.length ? emptyState : null}
+        ListFooterComponent={!presence.records.length ? <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 24 }}>{emptyState}</View> : null}
+        ListFooterComponentStyle={!presence.records.length ? { flexGrow: 1 } : undefined}
         renderItem={({ item: record }) => {
           if (record === "tools") return transactionTools;
           const item = record.item;

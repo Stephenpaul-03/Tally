@@ -6,7 +6,7 @@ import { useMainDesign } from "@/hooks/use-main-design";
 import { SageMainScreen } from "@/modules/Main/SageMainScreen";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { useAppShell } from "@/components/AppShellContext";
-import { EmptyState } from "@/components/EmptyStates";
+import { MonthEmptyState } from "@/components/MonthEmptyState";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { InlineCalendar } from "@/components/pageheader/Inlinecalendar";
 import {
@@ -1904,16 +1904,10 @@ export default function Transactions({
   const transactionEmptyState = useMemo(
     () => (
       <View style={local.emptyStateWrap}>
-        <EmptyState
-          icon="inbox-outline"
-          title="No transactions yet"
-          subtitle={
-            "Looks empty in here.\nAdd your first transaction to get started."
-          }
-        />
+        <MonthEmptyState filtered={Boolean(transactionSearchQuery.trim() || activeFilterCount)} onAdd={handleAddTransaction} />
       </View>
     ),
-    [],
+    [transactionSearchQuery, activeFilterCount, handleAddTransaction],
   );
 
   const transactionListFooter = useMemo(
@@ -1930,8 +1924,8 @@ export default function Transactions({
           renderItem={renderMonthSection}
           keyExtractor={(item) => item.key}
           ListEmptyComponent={transactionEmptyState}
-          ListFooterComponent={transactionListFooter}
-          contentContainerStyle={local.transactionListContent}
+          ListFooterComponent={sectionPresence.records.length ? transactionListFooter : null}
+          contentContainerStyle={[local.transactionListContent, !sectionPresence.records.length && { paddingBottom: transactionListBottomPadding }]}
           initialNumToRender={5}
           maxToRenderPerBatch={4}
           removeClippedSubviews={false}
@@ -1949,6 +1943,7 @@ export default function Transactions({
       shellActiveTab,
       transactionEmptyState,
       transactionListFooter,
+      transactionListBottomPadding,
     ],
   );
   return (

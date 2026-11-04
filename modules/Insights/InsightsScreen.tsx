@@ -505,6 +505,7 @@ function WorkspaceInsights({
         scrollEnabled={expanded}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingHorizontal: expressive ? 16 : 20,
           paddingTop: expressive ? 16 : 6,
           paddingBottom:
@@ -653,7 +654,7 @@ function WorkspaceInsights({
           id="overview"
           enabled={(!expressive && !standalone) || activeTab === "insights"}
         >
-          {overview}
+          {hasEntries ? overview : null}
         </SpotlightTarget>
         {!hasEntries ? (
           <InsightsEmptyState
@@ -765,7 +766,7 @@ function WorkspaceInsights({
               />
             </InsightCard>
           ) : null}
-          {hasYearEntries ? (
+          {hasEntries && hasYearEntries ? (
             <InsightCard
               index={4}
               active={expressive || standalone || activeTab === "insights"}

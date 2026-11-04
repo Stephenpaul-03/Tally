@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
   combineImportPreviews,
@@ -153,7 +154,7 @@ function EmptyState({
           {
             backgroundColor: isLoading
               ? theme.colors.primaryContainer
-              : theme.colors.elevation.level2,
+              : tonalButtonSurface(theme, theme.colors.elevation.level2),
             opacity: pulseAnim,
           },
         ]}
@@ -293,7 +294,7 @@ function FilePreviewCard({
           style={({ pressed }) => [
             styles.swapBtn,
             {
-              backgroundColor: theme.colors.elevation.level3,
+              backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level3),
               opacity: pressed || isLoading ? 0.6 : 1,
             },
           ]}
@@ -332,7 +333,7 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
       <View
         style={[
           styles.summaryRows,
-          { backgroundColor: theme.colors.surfaceVariant },
+          { backgroundColor: tonalButtonSurface(theme) },
         ]}
       >
         <SummaryRow
@@ -397,7 +398,7 @@ function SummaryCard({ preview }: { preview: ImportPreview }) {
                 style={[
                   styles.monthChip,
                   {
-                    backgroundColor: theme.colors.surfaceVariant,
+                    backgroundColor: tonalButtonSurface(theme),
                     borderColor: theme.colors.outlineVariant,
                   },
                 ]}

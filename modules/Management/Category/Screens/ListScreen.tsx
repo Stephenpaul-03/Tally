@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryBulkDeleteModal } from "../Components/BulkDeleteModal";
@@ -220,7 +221,7 @@ function CategoryListContent({
         borderless
         style={{
           backgroundColor: (theme as ExtendedMD3Theme).expressive
-            ? c.surfaceVariant
+            ? tonalButtonSurface(theme)
             : undefined,
           width: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
           height: (theme as ExtendedMD3Theme).expressive ? 44 : 32,
@@ -245,7 +246,7 @@ function CategoryListContent({
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: (theme as ExtendedMD3Theme).expressive
-            ? c.surfaceVariant
+            ? tonalButtonSurface(theme)
             : c.surface,
           borderWidth: (theme as ExtendedMD3Theme).expressive ? 0 : 1,
           borderColor: c.outlineVariant,

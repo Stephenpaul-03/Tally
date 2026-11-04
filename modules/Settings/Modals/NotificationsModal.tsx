@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { settingsShape } from "@/theme/settingsShape";
 import { ActionRow } from "@/components/ActionRow";
 import { PermissionRequestModal } from "@/components/alert/PermissionRequestModal";
@@ -579,7 +580,7 @@ function TimeRow({
             SettingsStyles.badge,
             {
               color: theme.colors.onSurface,
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
               borderColor: theme.colors.primary,
             },
           ]}

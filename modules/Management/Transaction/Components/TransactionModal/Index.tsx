@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useTransactionPresentation } from "./useTransactionPresentation";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
 import { AmountKeypad } from "./Molecules/AmountKeypad";
@@ -1284,7 +1285,7 @@ export function TransactionModal({
                 noteWidthStyle,
                 {
                   backgroundColor: theme.expressive
-                    ? theme.colors.surfaceVariant
+                    ? tonalButtonSurface(theme)
                     : "transparent",
                   alignSelf: "center",
                 },

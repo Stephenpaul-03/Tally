@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 
@@ -142,7 +143,7 @@ function AccountListContent({
         borderRadius: 99,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: (theme as ExtendedMD3Theme).expressive ? c.surfaceVariant : c.surface,
+        backgroundColor: (theme as ExtendedMD3Theme).expressive ? tonalButtonSurface(theme) : c.surface,
         borderWidth: (theme as ExtendedMD3Theme).expressive ? 0 : 1,
         borderColor: c.outlineVariant,
       }}

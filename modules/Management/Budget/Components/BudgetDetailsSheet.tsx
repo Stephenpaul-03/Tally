@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { DesignText as Text } from "@/components/DesignText";
@@ -197,7 +198,7 @@ export function BudgetDetailsSheet({
                           borderWidth: 0,
                         }
                       : {}),
-                    backgroundColor: theme.colors.elevation.level1,
+                    backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level1),
                     borderColor: border,
                     opacity: pressed || isRemoving ? 0.65 : 1,
                   },
@@ -227,7 +228,7 @@ export function BudgetDetailsSheet({
                         borderWidth: 0,
                       }
                     : {}),
-                  backgroundColor: theme.colors.elevation.level1,
+                  backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level1),
                   borderColor: border,
                   opacity: pressed ? 0.65 : 1,
                 },

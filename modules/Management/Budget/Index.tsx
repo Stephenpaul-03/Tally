@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { settingsShape } from "@/theme/settingsShape";
 import { typography } from "@/theme/typography";
 import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
@@ -296,7 +297,7 @@ export function BudgetScreen() {
           borderRadius: 99,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: theme.expressive ? c.surfaceVariant : c.surface,
+          backgroundColor: theme.expressive ? tonalButtonSurface(theme) : c.surface,
           borderWidth: theme.expressive ? 0 : 1,
           borderColor: c.outlineVariant,
         },

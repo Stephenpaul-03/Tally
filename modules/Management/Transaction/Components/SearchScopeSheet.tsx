@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import React from "react";
@@ -121,7 +122,7 @@ export function SearchScopeSheet({
                     : theme.colors.outlineVariant,
                   backgroundColor: selected
                     ? theme.colors.primaryContainer
-                    : theme.colors.elevation.level1,
+                    : tonalButtonSurface(theme, theme.colors.elevation.level1),
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
@@ -133,7 +134,7 @@ export function SearchScopeSheet({
                     borderRadius: 10,
                     backgroundColor: selected
                       ? theme.colors.primary
-                      : theme.colors.surfaceVariant,
+                      : tonalButtonSurface(theme),
                     alignItems: "center",
                     justifyContent: "center",
                   }}

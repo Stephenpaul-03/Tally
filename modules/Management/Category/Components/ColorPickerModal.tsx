@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React, { useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { Text, type MD3Theme } from "react-native-paper";
@@ -89,7 +90,7 @@ export function CustomColorPickerModal({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                backgroundColor: c.elevation.level1,
+                backgroundColor: tonalButtonSurface(theme, c.elevation.level1),
                 borderRadius: 12,
                 borderWidth: 0.5,
                 borderColor: c.outlineVariant,
@@ -118,7 +119,7 @@ export function CustomColorPickerModal({
                 paddingVertical: 12,
                 borderRadius: 12,
                 alignItems: "center",
-                backgroundColor: c.elevation.level2,
+                backgroundColor: tonalButtonSurface(theme, c.elevation.level2),
                 borderWidth: 0.5,
                 borderColor: c.outlineVariant,
                 opacity: pressed ? 0.7 : 1,

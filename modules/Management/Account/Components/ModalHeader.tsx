@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { BackButton } from "@/components/backbutton/BackButton";
 import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
@@ -50,7 +51,7 @@ export function AccountModalHeader({
             style={[
               CategoryManagementStyles.headerBtn,
               CategoryManagementStyles.headerBtnRound,
-              { backgroundColor: expressive ? c.surfaceVariant : c.elevation.level1, borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
+              { backgroundColor: expressive ? tonalButtonSurface(theme) : tonalButtonSurface(theme, c.elevation.level1), borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
             ]}
             accessibilityLabel="Close"
           >
@@ -68,7 +69,7 @@ export function AccountModalHeader({
           style={[
             CategoryManagementStyles.headerIconBadge,
             {
-              backgroundColor: c.elevation.level1,
+              backgroundColor: tonalButtonSurface(theme, c.elevation.level1),
             },
           ]}
         >
@@ -115,7 +116,7 @@ export function AccountModalHeader({
           style={[
             CategoryManagementStyles.headerBtn,
             CategoryManagementStyles.headerBtnRound,
-            { backgroundColor: expressive ? c.surfaceVariant : c.elevation.level1, borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
+            { backgroundColor: expressive ? tonalButtonSurface(theme) : tonalButtonSurface(theme, c.elevation.level1), borderColor: divider, ...(expressive ? { width: 44, height: 44, borderWidth: 0 } : {}) },
           ]}
         >
           <MaterialCommunityIcons

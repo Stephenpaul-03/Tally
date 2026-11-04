@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { HomeIcon as Icon } from "./HomeIcon";
@@ -22,7 +23,8 @@ export function HomeDraftAction({
   currency: string;
   symbol: string;
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme();
+  const { colors: c } = theme;
   const classic = useClassicHome();
   const dispatch = useAppDispatch();
   const drafts = useAppSelector(selectTransactionDrafts);
@@ -43,7 +45,7 @@ export function HomeDraftAction({
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: classic ? "transparent" : c.surfaceVariant,
+          backgroundColor: classic ? "transparent" : tonalButtonSurface(theme),
           alignItems: "center",
           justifyContent: "center",
           opacity: pressed ? 0.65 : 1,

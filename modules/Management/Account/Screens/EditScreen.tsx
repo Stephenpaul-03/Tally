@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { EntityEditLayout, type IconGrid } from "@/components/EntityEditLayout";
 import { useAccountManagement } from "@/hooks/use-account-manangement";
@@ -118,7 +119,7 @@ function AccountEditContent({
           borderRadius: expressive ? 22 : 18,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: c.surfaceVariant,
+          backgroundColor: tonalButtonSurface(theme),
         }}
       >
         <MaterialCommunityIcons

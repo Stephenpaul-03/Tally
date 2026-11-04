@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
 import { Surface, Text, useTheme, type MD3Theme } from "react-native-paper";
@@ -32,7 +33,7 @@ export function SelectionCard({
           flexBasis: 0,
           minWidth: 0,
           borderColor: error ? theme.colors.error : theme.colors.outlineVariant,
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: tonalButtonSurface(theme),
         },
         style,
       ]}

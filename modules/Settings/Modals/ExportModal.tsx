@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
   BACKUP_SECTIONS,
@@ -127,7 +128,7 @@ function Card({ children }: { children: React.ReactNode }) {
         styles.card,
         settingsShape(theme),
         {
-          backgroundColor: theme.colors.elevation.level1,
+          backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level1),
           borderColor: theme.colors.outlineVariant,
         },
       ]}
@@ -166,7 +167,7 @@ function ScopeCard({
         {
           backgroundColor: active
             ? theme.colors.primaryContainer
-            : theme.colors.elevation.level2,
+            : tonalButtonSurface(theme, theme.colors.elevation.level2),
           borderColor: active
             ? theme.colors.primary
             : theme.colors.outlineVariant,
@@ -194,7 +195,7 @@ function ScopeCard({
             {
               backgroundColor: active
                 ? theme.colors.primary
-                : theme.colors.elevation.level3,
+                : tonalButtonSurface(theme, theme.colors.elevation.level3),
             },
           ]}
         >
@@ -365,7 +366,7 @@ function MonthGridPicker({
                     {
                       backgroundColor: active
                         ? theme.colors.primary
-                        : theme.colors.elevation.level3,
+                        : tonalButtonSurface(theme, theme.colors.elevation.level3),
                       borderColor: active
                         ? theme.colors.primary
                         : theme.colors.outlineVariant,
@@ -451,7 +452,7 @@ function DateRangePicker({
             style={({ pressed }) => [
               styles.dateButton,
               {
-                backgroundColor: theme.colors.elevation.level3,
+                backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level3),
                 borderColor: startDate
                   ? theme.colors.primary
                   : theme.colors.outlineVariant,
@@ -523,7 +524,7 @@ function DateRangePicker({
             style={({ pressed }) => [
               styles.dateButton,
               {
-                backgroundColor: theme.colors.elevation.level3,
+                backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level3),
                 borderColor: endDate
                   ? theme.colors.primary
                   : theme.colors.outlineVariant,
@@ -744,7 +745,7 @@ function ExportConfirmModal({
           styles.confirmSummaryCard,
           settingsShape(theme),
           {
-            backgroundColor: theme.colors.elevation.level2,
+            backgroundColor: tonalButtonSurface(theme, theme.colors.elevation.level2),
             borderColor: theme.colors.outlineVariant,
           },
         ]}
@@ -1123,7 +1124,7 @@ export function BackupExportModal({
                 {
                   backgroundColor: encryptBackup
                     ? theme.colors.primaryContainer
-                    : theme.colors.elevation.level2,
+                    : tonalButtonSurface(theme, theme.colors.elevation.level2),
                 },
               ]}
             >

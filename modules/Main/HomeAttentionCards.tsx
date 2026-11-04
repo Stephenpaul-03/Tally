@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { typography } from "@/theme/typography";
 import { TransactionRow } from "@/modules/Management/Transaction/Components/TransactionRow";
 import { homeQuickFacts } from "./homeQuickFacts";
@@ -19,7 +20,8 @@ export function HomeAttention({
   currency: string;
   onTransaction: (id: string) => void;
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme();
+  const { colors: c } = theme;
   const classic = useClassicHome();
   const homeCardShape = useHomeCardShape();
   const now = new Date();
@@ -42,7 +44,7 @@ export function HomeAttention({
               : homeCardShape("greeting")),
             padding: 8,
             gap: 2,
-            backgroundColor: classic ? c.surface : c.surfaceVariant,
+            backgroundColor: classic ? c.surface : tonalButtonSurface(theme),
           }}
         >
           <Text

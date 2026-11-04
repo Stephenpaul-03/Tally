@@ -214,7 +214,7 @@ export const createMainContentStyles = (
     },
     iosSegmentedControl: {
       alignItems: "center",
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: (expressive && !dark ? colors.surface : colors.surfaceVariant),
       borderColor: colors.outlineVariant,
       borderRadius: 26,
       borderWidth: 12,
@@ -344,7 +344,7 @@ export const createMainContentStyles = (
       minHeight: expressive ? 32 : undefined,
       alignItems: "center",
       alignSelf: "center",
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: (expressive && !dark ? colors.surface : colors.surfaceVariant),
       flexDirection: "row",
       gap: 6,
       overflow: "hidden",
@@ -369,7 +369,7 @@ export const createMainContentStyles = (
       alignItems: "center",
       backgroundColor: expressive
         ? colors.secondaryContainer
-        : colors.surfaceVariant,
+        : (expressive && !dark ? colors.surface : colors.surfaceVariant),
       borderColor: colors.outlineVariant,
       borderRadius: 26,
       borderWidth: 0,
@@ -400,7 +400,7 @@ export const createMainContentStyles = (
     },
     iosTitleInput: {
       backgroundColor: expressive
-        ? colors.surfaceVariant
+        ? (expressive && !dark ? colors.surface : colors.surfaceVariant)
         : colors.elevation.level1,
       borderRadius: expressive ? 20 : 14,
       color: colors.onSurface,
@@ -414,7 +414,7 @@ export const createMainContentStyles = (
       borderWidth: 0,
     },
     iosNotesInput: {
-      backgroundColor: colors.surfaceVariant,
+      backgroundColor: (expressive && !dark ? colors.surface : colors.surfaceVariant),
       borderRadius: 26,
       color: colors.onSurface,
       fontSize: 14,
@@ -433,7 +433,7 @@ export const createMainContentStyles = (
     iosKey: {
       alignItems: "center",
       backgroundColor: expressive
-        ? colors.surfaceVariant
+        ? (expressive && !dark ? colors.surface : colors.surfaceVariant)
         : colors.elevation.level1,
       borderRadius: expressive ? 20 : 14,
       flex: 1,

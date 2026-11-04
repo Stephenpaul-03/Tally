@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useTheme } from "react-native-paper";
@@ -35,7 +36,8 @@ export function CalculationControls({
   onClear: () => void;
   onEquals: () => void;
 }) {
-  const { colors: c, dark } = useTheme();
+  const theme = useTheme();
+  const { colors: c, dark } = theme;
   const motion = useMotionEnabled();
   const expansion = useSharedValue(open ? 1 : 0);
   React.useEffect(() => {
@@ -132,7 +134,7 @@ export function CalculationControls({
                 flexDirection: "row",
                 padding: 3,
                 borderRadius: 25,
-                backgroundColor: c.surfaceVariant,
+                backgroundColor: tonalButtonSurface(theme),
               }}
             >
               <Animated.View

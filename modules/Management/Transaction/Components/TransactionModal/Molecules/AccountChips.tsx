@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -47,7 +48,7 @@ export function AccountChips({ value, options, onSelect }: AccountChipsProps) {
               accountChips.chip,
               {
                 borderColor: theme.colors.outlineVariant,
-                backgroundColor: theme.colors.elevation.level5,
+                backgroundColor: tonalButtonSurface(theme),
                 opacity: pressed ? 0.75 : 1,
               },
             ]}

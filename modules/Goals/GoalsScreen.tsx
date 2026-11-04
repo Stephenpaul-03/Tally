@@ -1,3 +1,4 @@
+import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
 import { SheetCard } from "@/components/SheetCard";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
@@ -165,7 +166,7 @@ export function GoalsScreen() {
       setCalendar(false);
     }
   };
-  const fieldStyle = { backgroundColor: c.surfaceVariant };
+  const fieldStyle = { backgroundColor: tonalButtonSurface(theme) };
   return (
     <SettingsPage style={{ backgroundColor: c.background }}>
       <SettingsHeader

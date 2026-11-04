@@ -441,7 +441,7 @@ export function EntityEditLayout({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              backgroundColor: c.surfaceVariant,
+              backgroundColor: tonalButtonSurface(theme),
               borderRadius: expressive ? 24 : 14,
               paddingHorizontal: 14,
               paddingVertical: 12,
@@ -520,7 +520,7 @@ export function EntityEditLayout({
                 placeholder="Search icons"
                 placeholderTextColor={c.onSurfaceVariant}
                 style={{
-                  backgroundColor: c.surfaceVariant,
+                  backgroundColor: tonalButtonSurface(theme),
                   borderRadius: expressive ? 16 : 12,
                   color: c.onSurface,
                   flex: 1,
@@ -549,7 +549,7 @@ export function EntityEditLayout({
               style={({ pressed }) => ({
                 alignItems: "center",
                 borderRadius: expressive ? 22 : 16,
-                backgroundColor: expressive ? c.surfaceVariant : "transparent",
+                backgroundColor: expressive ? tonalButtonSurface(theme) : "transparent",
                 height: expressive ? 44 : 32,
                 justifyContent: "center",
                 opacity: pressed ? 0.6 : 1,
@@ -774,7 +774,7 @@ export function EntityEditLayout({
 
             <View
               style={{
-                backgroundColor: c.surfaceVariant,
+                backgroundColor: tonalButtonSurface(theme),
                 borderRadius: expressive ? 24 : 14,
                 overflow: "hidden",
               }}

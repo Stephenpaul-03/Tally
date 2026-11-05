@@ -1,3 +1,4 @@
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { settingsShape } from "@/theme/settingsShape";
 import { typography } from "@/theme/typography";
@@ -563,6 +564,7 @@ function BudgetCategoryRow({
   onPress: () => void;
   expanded: boolean;
 }) {
+  const { tonalSettingsCardsEnabled } = useAddonPrefs();
   const hasBudget = category.budget > 0;
   const rawPercent = hasBudget
     ? Math.round((category.spent / category.budget) * 100)
@@ -575,6 +577,7 @@ function BudgetCategoryRow({
   const statusColor = isOverBudget ? theme.colors.error : category.color;
   const subtitle = `${formatInr(category.spent)} / ${formatInr(category.budget)}`;
 
+  const [cardBackground, cardForeground] = categoryTone(category.name, theme.dark, category.color);
   return (
     <Pressable
       accessibilityLabel={`${category.name} budget ${formatInr(
@@ -587,7 +590,7 @@ function BudgetCategoryRow({
         settingsShape(theme),
         !expanded && budgetStyles.accountLikeTileCompact,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.expressive && tonalSettingsCardsEnabled ? cardBackground : theme.colors.surface,
           opacity: pressed ? 0.75 : 1,
         },
       ]}
@@ -626,7 +629,7 @@ function BudgetCategoryRow({
                 budgetStyles.accountLikeTitle,
                 typography.bodyBold,
                 {
-                  color: theme.colors.onSurface,
+                  color: theme.expressive && tonalSettingsCardsEnabled ? cardForeground : theme.colors.onSurface,
                   fontSize: theme.expressive ? 14 : 12,
                 },
               ]}

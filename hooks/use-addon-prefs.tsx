@@ -13,6 +13,8 @@ type AddonPrefsContextValue = {
   guidedChatEnabled: boolean;
   betterAnalyticsEnabled: boolean;
   minimalIconsEnabled: boolean;
+  tonalSettingsCardsEnabled: boolean;
+  setTonalSettingsCardsEnabled: (next: boolean) => void;
   interactionHintsEnabled: boolean;
   animationsEnabled: boolean;
   labsNoticeDismissed: boolean;
@@ -78,6 +80,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
   const [guidedChatEnabled, setGuidedChatEnabledState] = useState(false);
   const [betterAnalyticsEnabled, setBetterAnalyticsEnabledState] =
     useState(false);
+  const [tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled] = useState(true);
   const [minimalIconsEnabled, setMinimalIconsEnabledState] = useState(false);
   const [interactionHintsEnabled, setInteractionHintsEnabledState] =
     useState(true);
@@ -96,6 +99,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           storedGuidedChat,
           storedBetterAnalytics,
           storedMinimalIcons,
+          storedTonalSettingsCards,
           storedInteractionHints,
           storedLabsNoticeDismissed,
           storedInsightsCardOrder,
@@ -103,6 +107,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(GUIDED_CHAT_STORAGE_KEY),
           AsyncStorage.getItem(BETTER_ANALYTICS_STORAGE_KEY),
           AsyncStorage.getItem(MINIMAL_ICONS_STORAGE_KEY),
+          AsyncStorage.getItem("addonsTonalSettingsCardsEnabled"),
           AsyncStorage.getItem(INTERACTION_HINTS_STORAGE_KEY),
           AsyncStorage.getItem(LABS_NOTICE_DISMISSED_STORAGE_KEY),
           AsyncStorage.getItem(INSIGHTS_CARD_ORDER_STORAGE_KEY),
@@ -133,6 +138,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           setGuidedChatEnabledState(parsedGuidedChat);
         if (parsedBetterAnalytics != null)
           setBetterAnalyticsEnabledState(parsedBetterAnalytics);
+        setTonalSettingsCardsEnabled(parseStoredBoolean(storedTonalSettingsCards) ?? true);
         if (parsedMinimalIcons != null)
           setMinimalIconsEnabledState(parsedMinimalIcons);
         if (parsedInteractionHints != null)
@@ -150,6 +156,11 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    void AsyncStorage.setItem("addonsTonalSettingsCardsEnabled", String(tonalSettingsCardsEnabled));
+  }, [tonalSettingsCardsEnabled, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -275,6 +286,8 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       guidedChatEnabled,
       betterAnalyticsEnabled,
       minimalIconsEnabled,
+      tonalSettingsCardsEnabled,
+      setTonalSettingsCardsEnabled,
       interactionHintsEnabled,
       animationsEnabled,
       labsNoticeDismissed,
@@ -296,6 +309,8 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       guidedChatEnabled,
       betterAnalyticsEnabled,
       minimalIconsEnabled,
+      tonalSettingsCardsEnabled,
+      setTonalSettingsCardsEnabled,
       interactionHintsEnabled,
       animationsEnabled,
       labsNoticeDismissed,

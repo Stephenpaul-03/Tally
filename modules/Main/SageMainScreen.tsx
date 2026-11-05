@@ -208,7 +208,7 @@ function LedgerPage(p: Props & { active: boolean }) {
       </Pressable>
     </View>
   );
-  const emptyState = <MonthEmptyState filtered={Boolean(p.query.trim() || p.filterCount)} onAdd={p.onAdd} onChooseMonth={() => setMonthPicker(true)} />;
+  const emptyState = <MonthEmptyState active={p.active} filtered={Boolean(p.query.trim() || p.filterCount)} onAdd={p.onAdd} onChooseMonth={() => setMonthPicker(true)} />;
   return (
     <View style={{ flex: 1 }}>
       <FlatList

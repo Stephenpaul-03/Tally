@@ -707,6 +707,7 @@ function CategoryPage({
                       style={{ flex: 1, maxWidth: "50%" }}
                     >
                       <CategoryTile
+                        categoryColorPreview={!pickerMode}
                         name={name}
                         icon={management.getCategoryIcon(name, type)}
                         color={management.getCategoryColor(name, type)}

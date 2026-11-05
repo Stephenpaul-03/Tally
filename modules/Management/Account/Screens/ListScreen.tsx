@@ -288,7 +288,7 @@ function AccountListContent({
                         getAnimStyle(animatedIndex),
                       ]}
                     >
-                      <CategoryTile entityKind="account"
+                      <CategoryTile categoryColorPreview={!isPickerMode} entityKind="account"
                         name={name}
                         icon={management.getAccountIcon(name)}
                         color={management.getAccountColor(name)}

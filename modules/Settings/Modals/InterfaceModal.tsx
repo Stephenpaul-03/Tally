@@ -1,3 +1,4 @@
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { ActivityTypeToggle } from "@/modules/Insights/components/ActivityTypeToggle";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { DesignChoiceCards } from "../Components/DesignChoiceCards";
@@ -55,6 +56,7 @@ function SheetShell({
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const { design, setDesign, insightsStyle, setInsightsStyle } = useMainDesign();
+  const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled } = useAddonPrefs();
   const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
     useTabBarModePreference();
   const {
@@ -86,6 +88,16 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
             rightElement={<ActivityTypeToggle stylePicker value={(insightsStyle ?? design.layout) === "sage" ? "expense" : "income"}
               onChange={(type) => setInsightsStyle(type === "expense" ? "sage" : "classic")} />}
           />
+          {design.layout === "sage" ? <ActionRow
+            icon="palette-swatch-outline"
+            label="Tonal cards"
+            description="Use item colors in Categories, Accounts, Budgets, Goals and Defaults"
+            theme={theme} showChevron={false}
+            onPress={() => setTonalSettingsCardsEnabled(!tonalSettingsCardsEnabled)}
+            rightElement={<Switch accessibilityLabel="Tonal cards" value={tonalSettingsCardsEnabled} onValueChange={setTonalSettingsCardsEnabled}
+              trackColor={{ false: theme.colors.outlineVariant, true: theme.colors.primary }}
+              thumbColor={tonalSettingsCardsEnabled ? theme.colors.onPrimary : theme.colors.surface} />}
+          /> : null}
           <ActionRow
             icon="palette-outline"
             label="Colored icons"

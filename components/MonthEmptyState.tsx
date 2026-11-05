@@ -1,15 +1,17 @@
+import { useIsFocused } from "@react-navigation/native";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { Button, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { DesignText as Text } from "@/components/DesignText";
 import { fontFamilies } from "@/theme/typography";
 
-/** A finite entrance; the visual language follows the app theme, not Insights density. */
-export function MonthEmptyState({ insights = false, filtered = false, onAdd, onChooseMonth }: {
+/** Cycle only the decorative icon while this page is visible. */
+export function MonthEmptyState({ insights = false, filtered = false, active = true, onAdd, onChooseMonth }: {
   insights?: boolean;
+  active?: boolean;
   filtered?: boolean;
   onAdd?: () => void;
   onChooseMonth?: () => void;
@@ -17,14 +19,29 @@ export function MonthEmptyState({ insights = false, filtered = false, onAdd, onC
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const expressive = Boolean(theme.expressive);
-  const icon = filtered ? "magnify" : insights ? "chart-bar" : "receipt-text-outline";
+  const focused = useIsFocused();
+  const reducedMotion = useReducedMotion();
+  const [foreground, setForeground] = React.useState(AppState.currentState === "active");
+  const [iconIndex, setIconIndex] = React.useState(0);
+  React.useEffect(() => {
+    const listener = AppState.addEventListener("change", state => setForeground(state === "active"));
+    return () => listener.remove();
+  }, []);
+  React.useEffect(() => {
+    if (!active || !focused || !foreground || reducedMotion) return;
+    const timer = setInterval(() => setIconIndex(index => (index + 1) % 3), 2800);
+    return () => clearInterval(timer);
+  }, [active, focused, foreground, reducedMotion]);
+  const icons = filtered ? ["magnify", "filter-outline", "text-search"] as const
+    : insights ? ["chart-bar", "chart-donut", "chart-timeline-variant"] as const
+    : ["receipt-text-outline", "wallet-outline", "cash-multiple"] as const;
+  const icon = icons[iconIndex];
   return <View style={[s.container, expressive ? s.expressive : s.classic]}>
-    <Animated.View entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-      style={s.illustration} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Animated.View style={s.illustration} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {expressive ? <>
         <View style={[s.backdrop, { backgroundColor: c.secondaryContainer }]} />
         <View style={[s.expressiveSheet, { backgroundColor: c.primaryContainer }]}>
-          <MaterialCommunityIcons name={icon} size={42} color={c.onPrimaryContainer} />
+          <View style={{ width: 42, height: 42 }}><Animated.View key={icon} style={StyleSheet.absoluteFill} entering={FadeIn.duration(240).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(180).reduceMotion(ReduceMotion.System)}><MaterialCommunityIcons name={icon} size={42} color={c.onPrimaryContainer} /></Animated.View></View>
           <View style={[s.rule, { backgroundColor: c.onPrimaryContainer, opacity: 0.2 }]} />
           <View style={[s.shortRule, { backgroundColor: c.onPrimaryContainer, opacity: 0.12 }]} />
         </View>
@@ -32,12 +49,12 @@ export function MonthEmptyState({ insights = false, filtered = false, onAdd, onC
           <MaterialCommunityIcons name={filtered ? "magnify" : "plus"} size={22} color={c.onPrimary} />
         </View>
       </> : <View style={[s.classicSheet, { borderColor: c.outlineVariant, backgroundColor: c.surface }]}>
-        <MaterialCommunityIcons name={icon} size={30} color={c.primary} />
+        <View style={{ width: 30, height: 30 }}><Animated.View key={icon} style={StyleSheet.absoluteFill} entering={FadeIn.duration(240).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(180).reduceMotion(ReduceMotion.System)}><MaterialCommunityIcons name={icon} size={30} color={c.primary} /></Animated.View></View>
         <View style={[s.rule, { backgroundColor: c.outlineVariant }]} />
         <View style={[s.shortRule, { backgroundColor: c.outlineVariant }]} />
       </View>}
     </Animated.View>
-    <Animated.View entering={FadeInDown.delay(80).duration(280).reduceMotion(ReduceMotion.System)} style={s.copy}>
+    <Animated.View style={s.copy}>
       <Text accessibilityRole="header" style={[
         expressive ? s.expressiveTitle : s.classicTitle, { color: c.onSurface },
       ]}>
@@ -49,7 +66,7 @@ export function MonthEmptyState({ insights = false, filtered = false, onAdd, onC
           : "Your first income or expense starts this month’s story."}
       </Text>
     </Animated.View>
-    {!filtered && (onAdd || onChooseMonth) ? <Animated.View entering={FadeInDown.delay(150).duration(280).reduceMotion(ReduceMotion.System)} style={s.actions}>
+    {!filtered && (onAdd || onChooseMonth) ? <Animated.View style={s.actions}>
       {onAdd ? <Button mode={expressive ? "contained" : "outlined"} icon="plus" onPress={onAdd}
         style={{ borderRadius: expressive ? 24 : 12, borderColor: c.outlineVariant }}
         labelStyle={expressive ? s.expressiveAction : s.classicAction}

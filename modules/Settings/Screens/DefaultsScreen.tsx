@@ -1008,6 +1008,7 @@ function DefaultOptionTile({
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const resolvedIconColor = iconColor ?? theme.colors.primary;
+  const { tonalSettingsCardsEnabled } = useAddonPrefs();
   const [tonalBackground, tonalForeground] = categoryTone(
     label === "Income" || label === "Expense" ? value : "",
     theme.dark,
@@ -1022,7 +1023,7 @@ function DefaultOptionTile({
           styles.optionTile,
           settingsShape(theme),
           {
-            backgroundColor: theme.colors.surface,
+            backgroundColor: theme.expressive && tonalSettingsCardsEnabled ? tonalBackground : theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
             opacity: pressed ? 0.72 : 1,
           },
@@ -1077,7 +1078,7 @@ function DefaultOptionTile({
               styles.tileLabel,
               typography.bodyBold,
               {
-                color: theme.colors.onSurface,
+                color: theme.expressive && tonalSettingsCardsEnabled ? tonalForeground : theme.colors.onSurface,
                 fontSize: theme.expressive ? 14 : 12,
                 lineHeight: theme.expressive ? 18 : 16,
               },
@@ -1139,6 +1140,7 @@ function DefaultOptionRow({
   minimalIconsEnabled: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const { tonalSettingsCardsEnabled } = useAddonPrefs();
   const [thresholdBackground, thresholdForeground] = categoryTone(
     "",
     theme.dark,
@@ -1152,7 +1154,7 @@ function DefaultOptionRow({
 
   if (onChangeText) {
     return (
-      <View style={[styles.thresholdRow, styles.defaultsRow]}>
+      <View style={[styles.thresholdRow, styles.defaultsRow, theme.expressive && tonalSettingsCardsEnabled && { backgroundColor: thresholdBackground, borderRadius: 24, paddingHorizontal: 12 }]}>
         <View
           style={[
             styles.thresholdIconWrap,
@@ -1232,7 +1234,9 @@ function DefaultOptionRow({
         </Text>
       }
       theme={theme}
-      style={styles.defaultsRow}
+      style={[styles.defaultsRow, theme.expressive && tonalSettingsCardsEnabled && { backgroundColor: thresholdBackground, borderRadius: 24 }]}
+      labelColor={theme.expressive && tonalSettingsCardsEnabled ? thresholdForeground : undefined}
+      descriptionColor={theme.expressive && tonalSettingsCardsEnabled ? thresholdForeground : undefined}
       showChevron={Boolean(onPress)}
     />
   );

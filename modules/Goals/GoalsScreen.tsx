@@ -26,7 +26,7 @@ import { updateGoals, useGoals } from "./store";
 export function GoalsScreen() {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
-  const { minimalIconsEnabled } = useAddonPrefs();
+  const { minimalIconsEnabled, tonalSettingsCardsEnabled } = useAddonPrefs();
   const navigation = useNavigation();
   const workspace = useAppSelector(selectActiveWorkspace);
   const workspaceId = workspace?.id ?? "personal";
@@ -221,7 +221,7 @@ export function GoalsScreen() {
         )}
         {goals.map((goal) => {
           const state = goalProgress(goal),
-            tone = goalTone(goal.color, theme);
+            tone = goalTone(goal.color, theme, tonalSettingsCardsEnabled);
           return (
             <SheetCard theme={theme}
               key={goal.id}

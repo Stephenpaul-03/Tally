@@ -1904,10 +1904,10 @@ export default function Transactions({
   const transactionEmptyState = useMemo(
     () => (
       <View style={local.emptyStateWrap}>
-        <MonthEmptyState filtered={Boolean(transactionSearchQuery.trim() || activeFilterCount)} onAdd={handleAddTransaction} />
+        <MonthEmptyState active={isFocused && shellActiveTab === "calendar"} filtered={Boolean(transactionSearchQuery.trim() || activeFilterCount)} onAdd={handleAddTransaction} />
       </View>
     ),
-    [transactionSearchQuery, activeFilterCount, handleAddTransaction],
+    [transactionSearchQuery, activeFilterCount, handleAddTransaction, isFocused, shellActiveTab],
   );
 
   const transactionListFooter = useMemo(

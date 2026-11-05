@@ -36,6 +36,7 @@ export const PREFERENCE_KEYS = [
   "addonsGuidedChatEnabled",
   "addonsBetterAnalyticsEnabled",
   "addonsMinimalIconsEnabled",
+  "addonsTonalSettingsCardsEnabled",
   "addonsInteractionHintsEnabled",
   "addonsAnimationsEnabled",
   "addonsInsightsCardOrder",

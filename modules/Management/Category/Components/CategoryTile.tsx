@@ -1,3 +1,4 @@
+import { categoryTone } from "@/theme/sage";
 import { settingsShape } from "@/theme/settingsShape";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -35,6 +36,7 @@ export function CategoryTile({
   isSelected = false,
   pickerMode = false,
   multiSelect = false,
+  categoryColorPreview = false,
   onPress,
   theme,
   entityKind = "category",
@@ -49,13 +51,16 @@ export function CategoryTile({
   isSelected?: boolean;
   pickerMode?: boolean;
   multiSelect?: boolean;
+  categoryColorPreview?: boolean;
   onPress: () => void;
   theme: MD3Theme;
 }) {
   const c = theme.colors;
-  const { minimalIconsEnabled } = useAddonPrefs();
+  const { minimalIconsEnabled, tonalSettingsCardsEnabled } = useAddonPrefs();
   const displayColor = minimalIconsEnabled ? color : iconColorOverride ?? color;
   const useMinimalBadge = minimalIconsEnabled || Boolean(iconColorOverride);
+  const useTonalCard = categoryColorPreview && tonalSettingsCardsEnabled && Boolean((theme as ExtendedMD3Theme).expressive);
+  const [cardBackground, cardForeground] = categoryTone(name, theme.dark, color);
   const transactionLabel = formatActivityLabel(transactionCount);
 
   return (
@@ -67,7 +72,7 @@ export function CategoryTile({
         borderRadius: settingsShape(theme)?.borderRadius ?? 16,
         paddingHorizontal: 14,
         paddingVertical: 10,
-        backgroundColor: c.surface,
+        backgroundColor: useTonalCard ? cardBackground : c.surface,
         borderWidth: multiSelect ? 2 : 0,
         borderColor: multiSelect && isSelected ? color : "transparent",
         gap: 6,
@@ -133,7 +138,7 @@ export function CategoryTile({
               style={{
                 ...typography.bodyBold,
                 fontSize: (theme as ExtendedMD3Theme).expressive ? 14 : 12,
-                color: c.onSurface,
+                color: useTonalCard ? cardForeground : c.onSurface,
               }}
               numberOfLines={1}
             >
@@ -143,7 +148,7 @@ export function CategoryTile({
               <Text
                 style={{
                   fontSize: 10,
-                  color: c.onSurfaceVariant,
+                  color: useTonalCard ? cardForeground : c.onSurfaceVariant,
                   opacity: 0.78,
                 }}
                 numberOfLines={1}

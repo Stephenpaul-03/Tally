@@ -1,7 +1,7 @@
+import { ledgerMoney } from "@/modules/Main/presentation";
+import { GoalCard, GoalsEmptyCard } from "./GoalCard";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import React from "react";
-import { SheetCard } from "@/components/SheetCard";
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { Pressable, ScrollView, View } from "react-native";
 import { Button, TextInput, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
@@ -14,11 +14,9 @@ import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
-import { ledgerMoney } from "@/modules/Main/presentation";
 import { EntityEditLayout } from "@/components/EntityEditLayout";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import options from "@/data/management-options.json";
-import { goalTone } from "./appearance";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { toast } from "@/components/toast/ToastProvider";
 import { goalProgress, type Goal } from "./model";
@@ -26,7 +24,6 @@ import { updateGoals, useGoals } from "./store";
 export function GoalsScreen() {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
-  const { minimalIconsEnabled, tonalSettingsCardsEnabled } = useAddonPrefs();
   const navigation = useNavigation();
   const workspace = useAppSelector(selectActiveWorkspace);
   const workspaceId = workspace?.id ?? "personal";
@@ -59,8 +56,6 @@ export function GoalsScreen() {
     setDate(goal === "new" ? "" : goal.deadline || "");
     setFormError("");
   };
-  const money = (goal: Goal, value: number) =>
-    ledgerMoney(value, goal.currencyCode, goal.currencySymbol);
   const save = async () => {
     const target = Number(amount);
     if (
@@ -190,211 +185,10 @@ export function GoalsScreen() {
           </Text>
         </View>
         {!!error && <Text style={{ color: c.error }}>{error}</Text>}
-        {!goals.length && (
-          <SheetCard theme={theme}
-            style={{
-              marginHorizontal: 0, marginBottom: 0,
-              borderRadius: theme.expressive ? 32 : 20,
-              padding: 22,
-              gap: 14,
-              backgroundColor: c.primaryContainer,
-            }}
-          >
-            <Icon name="target" size={40} color={c.onPrimaryContainer} />
-            <Text
-              style={{
-                color: c.onPrimaryContainer,
-                fontSize: 22,
-                fontWeight: "800",
-              }}
-            >
-              Your next big thing
-            </Text>
-            <Text style={{ color: c.onPrimaryContainer }}>
-              A trip, an emergency fund, or something just for you. Record
-              progress here without moving money.
-            </Text>
-            <Button mode="contained" onPress={() => open("new")}>
-              Create a goal
-            </Button>
-          </SheetCard>
-        )}
-        {goals.map((goal) => {
-          const state = goalProgress(goal),
-            tone = goalTone(goal.color, theme, tonalSettingsCardsEnabled);
-          return (
-            <SheetCard theme={theme}
-              key={goal.id}
-              style={{
-                marginHorizontal: 0, marginBottom: 0,
-                padding: 18,
-                gap: 14,
-                borderRadius: theme.expressive ? 28 : 20,
-                ...(theme.expressive ? { borderBottomRightRadius: 12 } : {}),
-                backgroundColor: tone.background,
-                borderWidth: theme.expressive ? 0 : 0.5,
-                borderColor: tone.border,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 16,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: minimalIconsEnabled ? "transparent" : tone.iconBackground,
-                  }}
-                >
-                  <Icon
-                    name={
-                      goal.icon as React.ComponentProps<typeof Icon>["name"]
-                    }
-                    size={25}
-                    color={minimalIconsEnabled ? goal.color : tone.iconForeground}
-                  />
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Text
-                    style={{
-                      fontSize: 19,
-                      fontWeight: "800",
-                      color: tone.foreground,
-                    }}
-                  >
-                    {goal.name}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: tone.foreground,
-                      opacity: 0.7,
-                    }}
-                  >
-                    {state.complete
-                      ? "Goal reached"
-                      : goal.deadline
-                        ? `Target ${new Date(`${goal.deadline}T12:00:00`).toLocaleDateString()}`
-                        : "At your own pace"}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${goal.name}`}
-                  onPress={() => open(goal)}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: 22,
-                  }}
-                >
-                  <Icon
-                    name="pencil-outline"
-                    size={21}
-                    color={tone.foreground}
-                  />
-                </Pressable>
-              </View>
-              {!!goal.reason && (
-                <Text
-                  numberOfLines={2}
-                  style={{ color: tone.foreground, opacity: 0.8, fontSize: 13 }}
-                >
-                  {goal.reason}
-                </Text>
-              )}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "baseline",
-                  gap: 10,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    style={{
-                      fontSize: 30,
-                      fontWeight: "800",
-                      color: tone.foreground,
-                    }}
-                  >
-                    {money(goal, goal.saved)}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: tone.foreground,
-                      opacity: 0.7,
-                    }}
-                  >
-                    of {money(goal, goal.target)}
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "800",
-                    color: tone.foreground,
-                  }}
-                >
-                  {Math.round(state.fraction * 100)}%
-                </Text>
-              </View>
-              <View
-                accessibilityRole="progressbar"
-                accessibilityValue={{
-                  min: 0,
-                  max: 100,
-                  now: Math.round(state.fraction * 100),
-                }}
-                style={{
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: tone.iconBackground,
-                  overflow: "hidden",
-                }}
-              >
-                <View
-                  style={{
-                    width: `${state.fraction * 100}%`,
-                    height: "100%",
-                    backgroundColor: tone.iconForeground,
-                    borderRadius: 4,
-                  }}
-                />
-              </View>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-              >
-                <Text style={{ flex: 1, color: tone.foreground, fontSize: 12 }}>
-                  {state.complete
-                    ? "You made it"
-                    : `${money(goal, state.remaining)} to go`}
-                </Text>
-                <Button
-                  mode="contained-tonal"
-                  buttonColor={tone.iconBackground}
-                  textColor={tone.iconForeground}
-                  icon="plus"
-                  onPress={() => {
-                    setProgress(goal);
-                    setAddition("");
-                    setFormError("");
-                  }}
-                >
-                  Add progress
-                </Button>
-              </View>
-            </SheetCard>
-          );
-        })}
+        {!goals.length && <GoalsEmptyCard onCreate={() => open("new")} />}
+        {goals.map(goal => <GoalCard key={goal.id} goal={goal} onEdit={() => open(goal)} onProgress={() => {
+          setProgress(goal); setAddition(""); setFormError("");
+        }} />)}
         {!!goals.length && (
           <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>
             Progress is recorded manually. It does not move money or add
@@ -456,7 +250,8 @@ export function GoalsScreen() {
           ) : undefined
         }
         additionalFields={
-          <>
+          <View style={{ gap: 16, backgroundColor: c.surface, borderRadius: theme.expressive ? 24 : 16, padding: 16 }}>
+            <Text style={{ color: c.onSurface, fontSize: 18, fontWeight: "800" }}>The plan</Text>
             <TextInput
               label="Why this goal matters (optional)"
               accessibilityLabel="Goal reason"
@@ -514,7 +309,7 @@ export function GoalsScreen() {
                 {formError}
               </Text>
             )}
-          </>
+          </View>
         }
       />
       <AnimatedPaperModal
@@ -540,16 +335,8 @@ export function GoalsScreen() {
             modal
             onBack={() => !busy && setProgress(null)}
           />
-          <View style={{ gap: 6 }}>
-            <Text
-              style={{ color: c.onSurface, fontWeight: "800", fontSize: 22 }}
-            >
-              {progress?.name}
-            </Text>
-            <Text style={{ color: c.onSurfaceVariant, fontSize: 13 }}>
-              How much have you set aside?
-            </Text>
-          </View>
+          {progress ? <GoalCard goal={progress} compact /> : null}
+          <Text style={{ color: c.onSurfaceVariant, fontSize: 13 }}>Record money you’ve set aside. This won’t create a transaction or move money between accounts.</Text>
           <TextInput
             label={`Amount saved (${progress?.currencySymbol || ""})`}
             accessibilityLabel="Goal progress amount"
@@ -559,6 +346,10 @@ export function GoalsScreen() {
             mode="outlined"
             style={fieldStyle}
           />
+          {progress && Number.isFinite(Number(addition)) && Number(addition) > 0 ? <View style={{ padding: 16, borderRadius: 16, backgroundColor: c.surface, gap: 4 }}>
+            <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>Saved after this update</Text>
+            <Text style={{ color: c.onSurface, fontWeight: "800", fontSize: 24 }}>{ledgerMoney(progress.saved + Number(addition), progress.currencyCode, progress.currencySymbol)}</Text>
+          </View> : null}
           {!!formError && (
             <Text accessibilityRole="alert" style={{ color: c.error }}>
               {formError}
@@ -568,7 +359,7 @@ export function GoalsScreen() {
             mode="contained"
             contentStyle={{ minHeight: 48 }}
             loading={busy}
-            disabled={busy}
+            disabled={busy || !Number.isFinite(Number(addition)) || Number(addition) <= 0}
             onPress={addProgress}
           >
             Save progress

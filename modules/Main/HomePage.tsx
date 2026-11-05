@@ -1,3 +1,4 @@
+import { HomeGoals } from "./HomeGoals";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MainEntrance } from "@/components/animations/MainEntrance";
 import { HomeDraftAction } from "./HomeDraftAction";
@@ -316,6 +317,7 @@ function HomePageContent({
             )}
           </SpotlightTarget>
         </MainEntrance>
+        <MainEntrance delay={155} duration={240} distance={8}><HomeGoals /></MainEntrance>
         <MainEntrance delay={170} duration={240} distance={8}>
           <HomeAttention
             onTransaction={onEdit}

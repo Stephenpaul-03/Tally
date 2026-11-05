@@ -1,3 +1,4 @@
+import { DatabaseSummaryScreen } from "@/modules/Summary/DatabaseSummaryScreen";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { useMainDesign } from "@/hooks/use-main-design";
@@ -190,6 +191,7 @@ function RootStackNavigator() {
         component={TransactionsStackScreen}
         options={{ freezeOnBlur: false }}
       />
+      <Stack.Screen name="DatabaseSummary" component={DatabaseSummaryScreen} />
       <Stack.Screen name="Settings" component={SettingsStackScreen} />
     </Stack.Navigator>
   );

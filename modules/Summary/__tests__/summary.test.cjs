@@ -1,0 +1,25 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { repository } = require('../../../scripts/test-support/finance-db.cjs');
+const { loader } = require('../../../scripts/test-support/load-ts.cjs');
+const { databaseSummary } = loader()('modules/Summary/model.ts');
+test('whole database view reads every workspace once, preserves origin and falls back to workspace currency', async () => {
+  const { repo, workspaceRepo, sqlite } = repository();
+  await repo.addCategory('Salary', 'income');
+  await repo.addTransaction({ title: 'Salary', amount: 500, date: '2026-11-01', type: 'income', category: 'Salary', account: 'Cash', currencyCode: 'INR', currencySymbol: '₹' });
+  sqlite.exec(`INSERT INTO workspaces (id,name,icon,color,currency_code,currency_symbol) VALUES ('other','Other','wallet','#123456','USD','$');
+    INSERT INTO categories (workspace_id,name,type) VALUES ('other','Food','expense');
+    INSERT INTO transactions (id,workspace_id,title,amount,date,category_id,type,account) VALUES ('other-entry','other','Lunch',10,'2026-10-31',(SELECT id FROM categories WHERE workspace_id='other' AND name='Food'),'expense','Cash');
+    INSERT INTO transactions (id,workspace_id,title,amount,date,category_id,type,account,is_deleted) VALUES ('deleted-entry','other','Deleted',20,'2026-10-31',(SELECT id FROM categories WHERE workspace_id='other' AND name='Food'),'expense','Cash',1);`);
+  const before = sqlite.prepare('SELECT COUNT(*) AS count FROM transactions').get().count;
+  const rows = await workspaceRepo.getAllTransactions();
+  assert.equal(rows.length, 2);
+  assert.equal(new Set(rows.map(row => row.id)).size, 2);
+  assert.equal(rows.find(row => row.id === 'other-entry').currencyCode, 'USD');
+  assert.equal(rows.find(row => row.id === 'other-entry').workspaceName, 'Other');
+  assert.equal(databaseSummary(rows, 'INR', null).income, 500);
+  assert.equal(databaseSummary(rows, 'INR', null).spent, 0);
+  assert.equal(databaseSummary(rows, 'USD', null).spent, 10);
+  assert.equal(databaseSummary(rows, 'USD', '2026-11').entries.length, 0);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM transactions').get().count, before);
+});

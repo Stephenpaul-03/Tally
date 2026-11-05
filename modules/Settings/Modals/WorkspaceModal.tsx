@@ -1,3 +1,5 @@
+import { navigationRef } from "@/navigation/RootNavigation";
+import { ActionRow } from "@/components/ActionRow";
 import { ManagementEntranceItem, useManagementEntranceProgress } from "@/components/animations/ManagementEntranceItem";
 import { settingsShape } from "@/theme/settingsShape";
 import { AlertModal } from "@/components/alert/AlertModal";
@@ -25,6 +27,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import {
+  Switch,
   ActivityIndicator,
   TouchableRipple,
   useTheme,
@@ -267,7 +270,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   const theme = useTheme<ExtendedMD3Theme>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
-  const { interactionHintsEnabled, minimalIconsEnabled } = useAddonPrefs();
+  const { interactionHintsEnabled, minimalIconsEnabled, summaryWorkspaceEnabled, setSummaryWorkspaceEnabled } = useAddonPrefs();
   const workspaces = useAppSelector(selectWorkspaces);
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const workspacesLoading = useAppSelector(
@@ -525,6 +528,13 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
               showsVerticalScrollIndicator={false}
               style={styles.workspaceScroll}
             >
+              <View style={{ marginHorizontal: 16, marginBottom: 14, borderRadius: 24, backgroundColor: theme.colors.surface }}>
+                <ActionRow icon="database-outline" label="Database summary" description="Show a read-only summary of all workspaces" theme={theme}
+                  onPress={() => setSummaryWorkspaceEnabled(!summaryWorkspaceEnabled)} showChevron={false}
+                  rightElement={<Switch accessibilityLabel="Database summary" value={summaryWorkspaceEnabled} onValueChange={setSummaryWorkspaceEnabled} />} />
+                {summaryWorkspaceEnabled ? <ActionRow icon="layers-triple-outline" label="All workspaces" description="Income, spending and every recorded entry" theme={theme}
+                  onPress={() => { onDismiss(); navigationRef.navigate("DatabaseSummary"); }} /> : null}
+              </View>
               {workspacesLoading && workspaces.length === 0 ? (
                 <View
                   style={[

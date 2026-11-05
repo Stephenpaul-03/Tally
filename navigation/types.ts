@@ -1,6 +1,7 @@
 import type { ShellTab } from "@/components/AppShellContext";
 
 export type RootParamList = {
+  DatabaseSummary: undefined;
   OnboardingGate: undefined;
   Onboarding: { preview?: boolean } | undefined;
   Transactions:

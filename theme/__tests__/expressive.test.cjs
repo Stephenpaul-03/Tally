@@ -47,3 +47,14 @@ test('the twelve accents include complete, readable Terracotta and Citrus themes
     assert.notEqual(colors.primary,buildPaperTheme({mode,themeId:'sage'}).colors.primary);
   }
 });
+
+ test('Mono surfaces are neutral gray in light, dark and AMOLED', () => {
+  for (const [primary, dark, amoled] of [['#0A0A0B',false,false],['#FAFAFA',true,false],['#FAFAFA',true,true]]) {
+    const colors = expressiveSurfaces(primary, dark, amoled);
+    for (const value of Object.values(colors)) {
+      const channels = [1,3,5].map(index => parseInt(value.slice(index,index+2),16));
+      assert.equal(channels[0],channels[1]);
+      assert.equal(channels[1],channels[2]);
+    }
+  }
+});

@@ -24,15 +24,16 @@ test("randomized Home corners remain stable during updates and vary between card
     ),
   );
 });
-test("greeting, date and draft cards have distinct tones in both color modes", () => {
-  for (const dark of [false, true]) {
-    assert.equal(
-      new Set(
-        ["greeting", "date", "drafts"].map(
-          (role) => homeCardTone(role, dark)[0],
-        ),
-      ).size,
-      3,
-    );
+test("Home tones follow every accent and keep readable text in light, dark and AMOLED", () => {
+  const { expressiveSurfaces } = loader()("theme/expressivePalette.ts");
+  const Color = require("color").default;
+  for (const primary of ["#006B5B", "#7950B5", "#BA1A1A", "#1565C0", "#FFDD00", "#000000", "#FFFFFF"]) {
+    for (const [dark, amoled] of [[false, false], [true, false], [true, true]]) {
+      const colors = { ...expressiveSurfaces(primary, dark, amoled), primary, onPrimaryContainer: dark ? "#FFFFFF" : "#000000" };
+      const tones = ["greeting", "date", "drafts"].map(role => homeCardTone(role, { dark, colors }));
+      assert.equal(new Set(tones.map(tone => tone[0])).size, 3);
+      for (const [background, foreground] of tones) assert.ok(Color(foreground).contrast(Color(background)) >= 4.5);
+      assert.notEqual(tones[0][0], homeCardTone("greeting", { dark, colors: { ...colors, primary: primary === "#006B5B" ? "#7950B5" : "#006B5B" } })[0]);
+    }
   }
 });

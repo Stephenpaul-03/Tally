@@ -13,11 +13,12 @@ export function HomeGreetingCards({
   active: boolean;
   onChooseMonth: () => void;
 }) {
-  const { dark, colors: c } = useTheme();
+  const theme = useTheme();
+  const { colors: c } = theme;
   const classic = useClassicHome();
   const homeCardShape = useHomeCardShape();
-  const [greetingBackground] = homeCardTone("greeting", dark);
-  const [dateBackground, dateForeground] = homeCardTone("date", dark);
+  const [greetingBackground] = homeCardTone("greeting", theme);
+  const [dateBackground, dateForeground] = homeCardTone("date", theme);
   const { width } = useWindowDimensions();
   const [rowWidth, setRowWidth] = React.useState(width - 32);
   const [now, setNow] = React.useState(() => new Date());

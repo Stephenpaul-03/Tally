@@ -25,8 +25,8 @@ export function HomeDraftPicker({
   onChoose: (id: string) => void;
 }) {
   const theme = useTheme();
-  const { colors: c, dark } = theme;
-  const [background, foreground] = homeCardTone("drafts", dark);
+  const { colors: c } = theme;
+  const [background, foreground] = homeCardTone("drafts", theme);
   return (
     <AnimatedPaperModal
       visible={visible}

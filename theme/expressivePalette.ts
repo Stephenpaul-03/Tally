@@ -30,6 +30,22 @@ export function expressiveSurfaces(
   dark: boolean,
   trueBlack = false,
 ) {
+  // Mono uses near-equal RGB channels; avoid inheriting the sage base neutrals.
+  const channels = Color(primary).rgb().array();
+  const mono = Math.max(...channels) - Math.min(...channels) <= 2;
+  if (mono) return dark ? {
+    background: trueBlack ? "#000000" : "#111111",
+    surface: "#1A1A1A",
+    surfaceVariant: "#292929",
+    onSurface: "#E3E3E3",
+    onSurfaceVariant: "#C4C4C4",
+  } : {
+    background: "#EFEFEF",
+    surface: "#FCFCFC",
+    surfaceVariant: "#E7E7E7",
+    onSurface: "#1B1B1B",
+    onSurfaceVariant: "#474747",
+  };
   return dark
     ? {
         background: trueBlack ? "#000000" : mixHex("#0E1210", primary, 0.035),

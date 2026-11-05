@@ -1,3 +1,5 @@
+import { homeCardTone } from "./homeCardAppearance";
+import Color from "color";
 import { useClassicHome } from "./HomeCardContext";
 import { typography } from "@/theme/typography";
 import { homeGreeting } from "./homeGreeting";
@@ -18,8 +20,11 @@ export function HomeWelcome({
   active: boolean;
   hour: number;
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme();
+  const { colors: c } = theme;
   const classic = useClassicHome();
+  const [background, foreground] = homeCardTone("greeting", theme);
+  const nameColor = classic ? c.onSurface : Color(c.onPrimaryContainer).contrast(Color(background)) >= 4.5 ? c.onPrimaryContainer : foreground;
   const [name, setName] = React.useState("");
   const [draft, setDraft] = React.useState("");
   const [editing, setEditing] = React.useState(false);
@@ -82,7 +87,7 @@ export function HomeWelcome({
                 ? typography.bodyStrong.fontFamily
                 : "Figtree-800",
               fontSize: 22,
-              color: classic ? c.onSurface : c.onPrimaryContainer,
+              color: nameColor,
             }}
           />
           <DesignText style={{ fontSize: 11, color: c.onSurface }}>
@@ -99,12 +104,12 @@ export function HomeWelcome({
               width: 44,
               height: 44,
               borderRadius: 22,
-              backgroundColor: c.secondaryContainer,
+              backgroundColor: classic ? c.secondaryContainer : c.primaryContainer,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Icon name="check" size={22} color={c.onSecondaryContainer} />
+            <Icon name="check" size={22} color={classic ? c.onSecondaryContainer : c.onPrimaryContainer} />
           </Pressable>
         </View>
       ) : (
@@ -137,7 +142,7 @@ export function HomeWelcome({
               fontSize: classic ? 23 : 28,
               fontWeight: classic ? "700" : "800",
               ...(classic ? typography.bodyStrong : {}),
-              color: classic ? c.onSurface : c.onPrimaryContainer,
+              color: nameColor,
               flexShrink: 1,
             }}
           >

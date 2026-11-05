@@ -84,6 +84,7 @@ export interface FinanceRepository {
 
   // Budget methods
   getBudget(): Promise<BudgetSettings>;
+  clearBudgets(): Promise<BudgetSettings>;
   upsertOverallBudget(amount: number): Promise<BudgetSettings>;
   upsertCategoryBudget(
     categoryName: string,

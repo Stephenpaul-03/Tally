@@ -1444,6 +1444,14 @@ export class SQLiteFinanceRepository implements FinanceRepository {
     }
   }
 
+  async clearBudgets(): Promise<BudgetSettings> {
+    await db.withExclusiveTransactionAsync(async transaction => {
+      await transaction.runAsync("DELETE FROM category_budgets WHERE workspace_id = ?", [this.workspaceId]);
+      await transaction.runAsync("DELETE FROM budgets WHERE workspace_id = ?", [this.workspaceId]);
+    });
+    return this.getBudget();
+  }
+
   async getBudget(): Promise<BudgetSettings> {
     const budgetRow = await db.getFirstAsync<{ monthly_amount: number }>(
       "SELECT monthly_amount FROM budgets WHERE workspace_id = ?",

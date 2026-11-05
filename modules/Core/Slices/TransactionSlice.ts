@@ -829,6 +829,10 @@ const transactionSlice = createSlice({
         state.accounts = names;
         state.deletedAccounts = [];
       })
+      .addCase(clearBudgetsAsync.fulfilled, (state) => {
+        state.overallBudget = 0;
+        state.categoryBudgets = {};
+      })
       .addCase(fetchBudget.fulfilled, (state, action) => {
         state.overallBudget = action.payload.overallBudget;
         state.categoryBudgets = Object.fromEntries(
@@ -1292,6 +1296,8 @@ export const fetchAccounts = createAsyncThunk(
     return await financeRepository.getAccounts();
   },
 );
+
+export const clearBudgetsAsync = createAsyncThunk("transactions/clearBudgets", async () => financeRepository.clearBudgets());
 
 export const fetchBudget = createAsyncThunk(
   "transactions/fetchBudget",

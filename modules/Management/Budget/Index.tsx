@@ -1,3 +1,6 @@
+import { AlertModal } from "@/components/alert/AlertModal";
+import { toast } from "@/components/toast/ToastProvider";
+import { clearBudgetsAsync, selectCategoryBudgets, selectOverallBudget } from "@/modules/Core/Slices/TransactionSlice";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { settingsShape } from "@/theme/settingsShape";
@@ -11,7 +14,7 @@ import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 
 import { SortOptionSheet } from "@/components/SortOptionSheet";
 import { SectionLabel } from "@/components/SectionLabel";
-import { useAppSelector } from "@/hooks/Redux";
+import { useAppDispatch, useAppSelector } from "@/hooks/Redux";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { SettingsSearchHeader } from "@/modules/Settings/Components/SettingsSearchHeader";
@@ -127,6 +130,12 @@ function darkenHex(hex: string, amount = 0.18) {
 }
 
 export function BudgetScreen() {
+  const dispatch = useAppDispatch();
+  const budgets = useAppSelector(selectCategoryBudgets);
+  const overall = useAppSelector(selectOverallBudget);
+  const hasBudgets = overall > 0 || Object.values(budgets).some(value => value > 0);
+  const [clearOpen, setClearOpen] = React.useState(false);
+  const [clearing, setClearing] = React.useState(false);
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const navigation =
@@ -328,7 +337,11 @@ export function BudgetScreen() {
         onQueryChange={setQuery}
         searchOpen={searchOpen}
         onSearchOpenChange={setSearchOpen}
-        rightAccessoryBeforeSearch={sortAccessory}
+        rightAccessoryBeforeSearch={<View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear all budgets" disabled={!hasBudgets || clearing}
+            onPress={() => setClearOpen(true)} style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: tonalButtonSurface(theme), opacity: hasBudgets ? 1 : 0.35 }}>
+            <MaterialCommunityIcons name="broom" size={21} color={c.error} />
+          </Pressable>{sortAccessory}</View>}
       />
       <ScrollView
         style={{ flex: 1 }}
@@ -381,6 +394,14 @@ export function BudgetScreen() {
         )}
       </ScrollView>
 
+      <AlertModal isOpen={clearOpen} title="Clear all budgets?" message="Remove every budget in this workspace. Categories and transactions will stay as they are."
+        confirmLabel={clearing ? "Clearing…" : "Clear budgets"} destructive confirmDisabled={clearing}
+        onCancel={() => { if (!clearing) setClearOpen(false); }} onConfirm={async () => {
+          setClearing(true);
+          try { await dispatch(clearBudgetsAsync()).unwrap(); setClearOpen(false); toast.success("All budgets cleared"); }
+          catch (error) { toast.error(`Could not clear budgets: ${error instanceof Error ? error.message : String(error)}`); return false; }
+          finally { setClearing(false); }
+        }} />
       {currentCategory ? (
         <BudgetDetailsSheet
           visible={detailsOpen}

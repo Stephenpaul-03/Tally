@@ -56,7 +56,7 @@ function SheetShell({
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const { design, setDesign, insightsStyle, setInsightsStyle } = useMainDesign();
-  const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled } = useAddonPrefs();
+  const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled, summaryWorkspaceEnabled, setSummaryWorkspaceEnabled } = useAddonPrefs();
   const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
     useTabBarModePreference();
   const {
@@ -82,6 +82,9 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
         />
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
+          <ActionRow icon="database-outline" label="Summary" description="Show an all-time summary for the selected workspace" theme={theme} showChevron={false}
+            onPress={() => setSummaryWorkspaceEnabled(!summaryWorkspaceEnabled)}
+            rightElement={<Switch accessibilityLabel="Summary" value={summaryWorkspaceEnabled} onValueChange={setSummaryWorkspaceEnabled} trackColor={{ false: theme.colors.outlineVariant, true: theme.colors.primary }} thumbColor={summaryWorkspaceEnabled ? theme.colors.onPrimary : theme.colors.surface} />} />
           <ActionRow icon="chart-box-outline" label="Insights type"
             description="Choose how Insights looks" theme={theme} showChevron={false}
             onPress={() => setInsightsStyle((insightsStyle ?? design.layout) === "classic" ? "sage" : "classic")}

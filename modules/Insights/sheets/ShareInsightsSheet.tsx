@@ -12,8 +12,9 @@ import { MotionPressable } from "../components/Motion";
 import { ControlsSheet } from "./ControlsSheet";
 import { availableReportSelection, hasReportSections, REPORT_SECTIONS, toggleReportSection, type ReportSelection, type ReportSectionKey } from "../reportSelection";
 
-export type ExpandableReportGroup = { key: string; label: string; section: ReportSectionKey; count: number };
-export function ShareInsightsSheet({ visible, onClose, onShare, sharing, canCompareBudget, previousSections, previousMonth, groups }: {
+export type ExpandableReportGroup = { key: string; label: string; section: ReportSectionKey; count: number; icon?: string; color?: string };
+export function ShareInsightsSheet({ visible, onClose, onShare, sharing, canCompareBudget, previousSections, previousMonth, groups, externalCatalog = false }: {
+  externalCatalog?: boolean;
   visible: boolean; onClose: () => void; onShare: (selection: ReportSelection) => void;
   previousSections: Record<ReportSectionKey, boolean>;
   sharing: boolean; canCompareBudget: boolean; previousMonth: string; groups: ExpandableReportGroup[];
@@ -87,7 +88,7 @@ export function ShareInsightsSheet({ visible, onClose, onShare, sharing, canComp
         <Text style={{ color: c.onPrimary, fontWeight: "800" }}>{sharing ? "Creating PDF…" : "Create and share PDF"}</Text>
       </MotionPressable>
     </ControlsSheet>
-    <LazyModalContent visible={visible && picker !== null}><ReportDetailPicker visible={visible} section={picker} groups={available} selected={selection.expanded}
+    <LazyModalContent visible={visible && picker !== null}><ReportDetailPicker externalCatalog={externalCatalog} visible={visible} section={picker} groups={available} selected={selection.expanded}
       onClose={() => setPicker(null)} onToggle={key => setSelection(old => ({ ...old,
         expanded: old.expanded.includes(key) ? old.expanded.filter(id => id !== key) : [...old.expanded, key] }))} /></LazyModalContent>
   </>;

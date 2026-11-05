@@ -470,21 +470,22 @@ const migrateWorkspaceUniqueConstraints = () => {
   }
 };
 
-export type DatabaseTransaction = Transaction & { workspaceId: string; workspaceName: string };
+export type DatabaseTransaction = Transaction & { workspaceId: string; workspaceName: string; categoryIcon?: string; categoryColor?: string };
 
 export class SQLiteWorkspaceRepository {
-  async getAllTransactions(): Promise<DatabaseTransaction[]> {
-    const rows = await db.getAllAsync<TransactionRow & { workspace_id: string; workspace_name: string }>(`
-      SELECT t.*, c.name AS category, w.name AS workspace_name,
+  async getSummaryTransactions(workspaceId: string): Promise<DatabaseTransaction[]> {
+    if (!workspaceId) throw new Error("Choose a workspace to view its summary.");
+    const rows = await db.getAllAsync<TransactionRow & { workspace_id: string; workspace_name: string; category_icon: string | null; category_color: string | null }>(`
+      SELECT t.*, c.name AS category, c.icon AS category_icon, c.color AS category_color, w.name AS workspace_name,
         COALESCE(t.currency_code, w.currency_code) AS currency_code,
         COALESCE(t.currency_symbol, w.currency_symbol) AS currency_symbol,
         COALESCE(t.currency_name, w.currency_name) AS currency_name
       FROM transactions t
       JOIN workspaces w ON w.id = t.workspace_id
       JOIN categories c ON c.id = t.category_id AND c.workspace_id = t.workspace_id
-      WHERE t.is_deleted = 0
-      ORDER BY t.date DESC, t.created_at DESC, t.id ASC`);
-    return rows.map(row => ({ ...mapTransactionRow(row), workspaceId: row.workspace_id, workspaceName: row.workspace_name }));
+      WHERE t.is_deleted = 0 AND t.workspace_id = ?
+      ORDER BY t.date DESC, t.created_at DESC, t.id ASC`, [workspaceId]);
+    return rows.map(row => ({ ...mapTransactionRow(row), workspaceId: row.workspace_id, workspaceName: row.workspace_name, categoryIcon: row.category_icon ?? undefined, categoryColor: row.category_color ?? undefined }));
   }
 
   async isOnboardingComplete() {

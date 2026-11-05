@@ -62,7 +62,7 @@ export function useQuickShareInsights(
   categoryBudgets?: Record<string, number>,
   logoBase64?: string,
   periodDescription?: string,
-  details?: Pick<ReportOptions, "accounts" | "transactions">,
+  details?: Pick<ReportOptions, "accounts" | "transactions" | "recordedPeriodDescription" | "reportTitle">,
 ) {
   const { design } = useMainDesign();
   const { themeId } = useAppTheme();

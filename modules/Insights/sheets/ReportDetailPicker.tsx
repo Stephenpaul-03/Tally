@@ -7,7 +7,8 @@ import type { ReportSectionKey } from "../reportSelection";
 import type { ExpandableReportGroup } from "./ShareInsightsSheet";
 
 /** The same catalog pickers as Add Transaction, scoped to this report's entries. */
-export function ReportDetailPicker({ section: requestedSection, visible, groups, selected, onToggle, onClose }: {
+export function ReportDetailPicker({ section: requestedSection, visible, groups, selected, onToggle, onClose, externalCatalog = false }: {
+  externalCatalog?: boolean;
   section: ReportSectionKey | null; visible: boolean; groups: ExpandableReportGroup[]; selected: string[];
   onToggle: (key: string) => void; onClose: () => void;
 }) {
@@ -29,12 +30,14 @@ export function ReportDetailPicker({ section: requestedSection, visible, groups,
   };
   if (section === "includeAccounts") return <AccountManagementModal
     isOpen={visible && requestedSection !== null} onClose={onClose} onSelectAccount={toggle} selectedAccounts={selectedNames}
-    management={{ ...accounts, activeAccounts: accounts.activeAccounts.filter(name => names.has(name)),
+    management={{ ...accounts, activeAccounts: externalCatalog ? [...names] : accounts.activeAccounts.filter(name => names.has(name)),
       counts: { ...accounts.counts, accounts: rows.length } }} />;
-  const incomeCategories = categories.incomeCategories.filter(name => section === "includeIncome" && names.has(name));
-  const expenseCategories = categories.expenseCategories.filter(name => section === "includeExpenses" && names.has(name));
+  const incomeCategories = section === "includeIncome" ? externalCatalog ? [...names] : categories.incomeCategories.filter(name => names.has(name)) : [];
+  const expenseCategories = section === "includeExpenses" ? externalCatalog ? [...names] : categories.expenseCategories.filter(name => names.has(name)) : [];
   return <CategoryManagementModal isOpen={visible && requestedSection !== null} onClose={onClose} pickerMode
     selectedValues={selectedNames} onSelectCategory={toggle}
     management={{ ...categories, incomeCategories, expenseCategories,
+      getCategoryIcon: (name, categoryType) => externalCatalog ? rows.find(row => row.label === name)?.icon || categories.getCategoryIcon(name, categoryType) : categories.getCategoryIcon(name, categoryType),
+      getCategoryColor: (name, categoryType) => externalCatalog ? rows.find(row => row.label === name)?.color || categories.getCategoryColor(name, categoryType) : categories.getCategoryColor(name, categoryType),
       counts: { ...categories.counts, income: incomeCategories.length, expense: expenseCategories.length } }} />;
 }

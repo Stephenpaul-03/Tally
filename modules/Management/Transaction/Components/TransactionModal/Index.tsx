@@ -1,3 +1,4 @@
+import type { Transaction } from "@/utils/Types";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useTransactionPresentation } from "./useTransactionPresentation";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
@@ -87,6 +88,8 @@ interface TransactionModalProps {
   onAddDateChange?: (date: string) => void;
   onTransactionAdded?: (date: string) => void;
   nested?: boolean;
+  readOnlyTransaction?: (Transaction & { categoryIcon?: string; categoryColor?: string }) | null;
+  readOnlySourceLabel?: string;
 }
 
 const MemoDatePicker = React.memo(InlineDatePicker);
@@ -107,6 +110,8 @@ export function TransactionModal({
   onAddDateChange,
   onTransactionAdded,
   nested = false,
+  readOnlyTransaction = null,
+  readOnlySourceLabel,
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const theme = useTheme<ExtendedMD3Theme>();
@@ -118,16 +123,20 @@ export function TransactionModal({
   const { width, isMobileLayout } = useBreakpoint();
   const { bottom } = useSafeAreaInsets();
 
-  const modalMode = useAppSelector(selectModalMode);
-  const editingTransactionId = useAppSelector(selectEditingTransactionId);
+  const storedModalMode = useAppSelector(selectModalMode);
+  const modalMode = readOnlyTransaction ? "view" : storedModalMode;
+  const storedTransactionId = useAppSelector(selectEditingTransactionId);
+  const editingTransactionId = readOnlyTransaction?.id ?? storedTransactionId;
   const activeDraftId = useAppSelector(selectActiveTransactionDraftId);
-  const activeDraft = useAppSelector(selectActiveTransactionDraft);
+  const storedDraft = useAppSelector(selectActiveTransactionDraft);
+  const activeDraft = readOnlyTransaction ? null : storedDraft;
   const transactions = useAppSelector(selectTransactions);
-  const editingTransaction = useAppSelector(
+  const storedTransaction = useAppSelector(
     editingTransactionId
       ? selectTransactionById(editingTransactionId)
       : () => null,
   );
+  const editingTransaction = readOnlyTransaction ?? storedTransaction;
   const categoryIcons = useAppSelector(selectCategoryIcons);
   const categoryColors = useAppSelector(selectCategoryColors);
   const activeIncomeCategories = useAppSelector(selectActiveIncomeCategories);
@@ -410,7 +419,7 @@ export function TransactionModal({
   ]);
 
   React.useEffect(() => {
-    if (!activeAccounts.length) return;
+    if (isViewMode || !activeAccounts.length) return;
     if (activeAccounts.includes(formData.account)) return;
     setFormData((prev) => {
       const next = { ...prev, account: activeAccounts[0] };
@@ -422,7 +431,7 @@ export function TransactionModal({
       }
       return next;
     });
-  }, [activeAccounts, formData.account, isEditMode]);
+  }, [activeAccounts, formData.account, isEditMode, isViewMode]);
 
   const hasMeaningfulDraft = React.useCallback(() => {
     const baseline = addBaselineRef.current;
@@ -508,9 +517,10 @@ export function TransactionModal({
 
   const { requestEdit } = presentation;
   const handleSwitchToEdit = React.useCallback(() => {
+    if (readOnlyTransaction) return;
     Keyboard.dismiss();
     requestEdit();
-  }, [requestEdit]);
+  }, [requestEdit, readOnlyTransaction]);
 
   const handleTypeChange = (type: TransactionType) =>
     setFormData((prev) => ({
@@ -535,6 +545,7 @@ export function TransactionModal({
   };
 
   const handleSubmit = async () => {
+    if (readOnlyTransaction) return;
     if (savingRef.current || !validateForm()) return;
     const amount = Math.abs(parseFloat(amountString) || 0);
     const data: TransactionFormData = {
@@ -572,6 +583,7 @@ export function TransactionModal({
   };
 
   const handleConfirmDelete = () => {
+    if (readOnlyTransaction) return;
     if (!isEditMode && activeDraft) {
       dispatch(removeTransactionDraft(activeDraft.id));
       toast.success("Draft deleted");
@@ -650,12 +662,12 @@ export function TransactionModal({
     selectedAccountValue,
     accountColors,
   );
-  const selectedCategoryIcon = getCategoryIconName(
+  const selectedCategoryIcon = readOnlyTransaction?.categoryIcon as React.ComponentProps<typeof MaterialCommunityIcons>["name"] || getCategoryIconName(
     selectedCategory,
     formData.type,
     categoryIcons,
   ) as React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  const selectedCategoryColor = getCategoryColor(
+  const selectedCategoryColor = readOnlyTransaction?.categoryColor || getCategoryColor(
     selectedCategory,
     formData.type,
     categoryColors,
@@ -898,6 +910,7 @@ export function TransactionModal({
           />
         </View>
       ) : null}
+      {readOnlySourceLabel ? <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: "center", marginBottom: 12 }}>{readOnlySourceLabel}</Text> : null}
       <Animated.View
         style={[
           mainContent.iosTopBar,
@@ -1012,7 +1025,7 @@ export function TransactionModal({
           </Animated.View>
         </View>
 
-        {isViewMode ? (
+        {isViewMode && !readOnlyTransaction ? (
           <Animated.View
             style={{
               marginLeft: "auto",
@@ -1047,7 +1060,7 @@ export function TransactionModal({
           <View style={mainContent.iosTopSpacer} />
         )}
 
-        {isEditMode || isViewMode || Boolean(activeDraft) ? (
+        {!readOnlyTransaction && (isEditMode || isViewMode || Boolean(activeDraft)) ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={

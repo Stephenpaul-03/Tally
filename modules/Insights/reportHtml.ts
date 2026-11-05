@@ -25,6 +25,8 @@ export type ReportOptions = {
   container?: string;
   onContainer?: string;
   periodDescription?: string;
+  recordedPeriodDescription?: string;
+  reportTitle?: string;
   bodyFont?: string;
   boldFont?: string;
   headingFont?: string;
@@ -139,7 +141,7 @@ export function buildInsightsHTML(
     ${expressive ? `h1{font:700 38px/1.1 ReportBody,Arial;letter-spacing:-1.4px}h2{font:700 23px/1.2 ReportBody,Arial}.intro{margin-top:22px}.hero{background:${container};border-radius:30px 30px 30px 10px;padding:10px}.metric{border:0;border-radius:20px;background:#FFFFFFC9;padding:14px}.metric.balance{background:transparent}.section{background:#F3F7F3;border:0;border-radius:28px 28px 12px 28px;padding:20px}.income-section{border-radius:28px 12px 28px 28px}.budget{border-radius:24px}.wordmark{letter-spacing:-1px}` : `.wordmark{text-transform:uppercase;font-family:ReportHeading,ReportBody,Arial;font-size:30px}.metric{border-radius:14px}.section{border-radius:18px}`}
   </style></head><body>
     <header class="header"><div><div class="wordmark">tally</div><div class="workspace">${esc(options.workspaceName || "Personal")}</div></div><div class="workspace">${esc(options.currencyCode)} · ${expressive ? "Simple" : "Detailed"} report</div>${logoHtml}</header>
-    <div class="intro"><div class="eyebrow">YOUR MONEY, AT A GLANCE</div><h1>${esc(month)} Insights</h1><p class="period">${esc((compare ? options.periodDescription || `Compared with ${options.previousMonthLabel}` : budget ? "Spending against your category limits" : "Recorded activity for this month"))}</p></div>
+    <div class="intro"><div class="eyebrow">YOUR MONEY, AT A GLANCE</div><h1>${esc(options.reportTitle || `${month} Insights`)}</h1><p class="period">${esc((compare ? options.periodDescription || `Compared with ${options.previousMonthLabel}` : budget ? "Spending against your category limits" : options.recordedPeriodDescription || "Recorded activity for this month"))}</p></div>
     ${includeIncome || includeExpenses ? `<div class="hero">${includeIncome && includeExpenses ? `<div class="metric balance"><div class="label">Balance</div><div class="value">${money(summary.balanceInHand)}</div></div>` : ""}${includeIncome ? `<div class="metric income"><div class="label">Income</div><div class="value">${money(summary.incomeTotal)}</div></div>` : ""}${includeExpenses ? `<div class="metric expense"><div class="label">Spent</div><div class="value">${money(summary.expenseTotal)}</div></div>` : ""}</div>` : ""}
     ${budget ? `<div class="budget"><div class="budget-top"><span>Budget</span><span>${totalBudget ? money(totalBudget) : "Not set"}</span></div>${totalBudget ? `<div class="track"><div class="fill" style="width:${Math.min(100, (summary.expenseTotal / totalBudget) * 100)}%"></div></div><div class="period">${money(Math.abs(totalBudget - summary.expenseTotal))} ${summary.expenseTotal > totalBudget ? "over budget" : "remaining"} · sum of category limits</div>` : '<p class="period">No category limits configured for this period.</p>'}</div>` : ""}
     ${includeExpenses ? section("Spending", summary.fullExpenseBreakdown, expenses, false) + expandedSections("expense") : ""}${includeIncome ? section("Income", summary.fullIncomeBreakdown, income, true) + expandedSections("income") : ""}${accountSection}${expandedSections("account")}

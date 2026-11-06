@@ -40,3 +40,15 @@ test("manual progress is bounded for display while preserving overachievement", 
     complete: true,
   });
 });
+
+test("progress adjustments add or remove savings without going negative or drifting decimal amounts", () => {
+  const { adjustGoalProgress } = loader()("modules/Goals/model.ts");
+  assert.equal(adjustGoalProgress(200, 50, "add"), 250);
+  assert.equal(adjustGoalProgress(200, 50, "remove"), 150);
+  assert.equal(adjustGoalProgress(200, 200, "remove"), 0);
+  assert.equal(adjustGoalProgress(0.3, 0.1, "remove"), 0.2);
+  assert.equal(adjustGoalProgress(0.1, 0.2, "add"), 0.3);
+  assert.throws(() => adjustGoalProgress(200, 201, "remove"), /more than the saved/);
+  for (const amount of [0, -1, NaN, Infinity]) assert.throws(() => adjustGoalProgress(200, amount, "add"), /greater than zero/);
+  assert.throws(() => adjustGoalProgress(9e14, 9e14, "add"), /supported range/);
+});

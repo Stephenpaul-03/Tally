@@ -49,3 +49,12 @@ export function validGoal(value: unknown): value is Goal {
           g.deadline))
   );
 }
+
+/** Apply manual progress to the latest saved amount without permitting negative savings. */
+export function adjustGoalProgress(saved: number, amount: number, direction: "add" | "remove") {
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter an amount greater than zero.");
+  if (direction === "remove" && amount > saved) throw new Error("You can’t remove more than the saved amount.");
+  const next = direction === "add" ? saved + amount : saved - amount;
+  if (!Number.isFinite(next) || next >= 1e15 || next < 0) throw new Error("The saved amount is outside the supported range.");
+  return Number(next.toFixed(10));
+}

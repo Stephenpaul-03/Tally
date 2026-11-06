@@ -54,6 +54,7 @@ export type EntityEditLayoutProps = {
   usedColors?: string[];
   usedIcons?: string[];
   iconGrid: IconGrid;
+  pickerLayout?: "stacked" | "columns";
 
   // Labels / copy
   namePlaceholder?: string;
@@ -83,6 +84,7 @@ export type EntityEditLayoutProps = {
   deleteAccessory?: React.ReactNode;
 
   additionalFields?: React.ReactNode;
+  afterNameFields?: React.ReactNode;
 
   // Slot for a custom footer (replaces default save button)
   footer?: React.ReactNode;
@@ -126,6 +128,7 @@ export function EntityEditLayout({
   usedColors = [],
   usedIcons = [],
   iconGrid,
+  pickerLayout = "stacked",
   namePlaceholder = "Enter a name",
   nameLabel = "Name",
   emptyPreviewLabel = "Name",
@@ -147,6 +150,7 @@ export function EntityEditLayout({
   deleteAccessory,
   footer,
   additionalFields,
+  afterNameFields,
   theme,
   background,
   nameLimit = MANAGEMENT_NAME_LIMIT,
@@ -191,10 +195,12 @@ export function EntityEditLayout({
   const [pickerWidth, setPickerWidth] = React.useState(0);
   const [iconSearchOpen, setIconSearchOpen] = React.useState(false);
   const [iconQuery, setIconQuery] = React.useState("");
-  const availablePickerWidth = pickerWidth || Math.max(0, width - 40);
+  const sideBySidePickers = pickerLayout === "columns";
+  const fullPickerWidth = pickerWidth || Math.max(0, width - 40);
+  const availablePickerWidth = sideBySidePickers ? Math.max(44, (fullPickerWidth - 16) / 2) : fullPickerWidth;
   const iconColumns = Math.max(
     1,
-    iconGrid.columns >= 8
+    !sideBySidePickers && iconGrid.columns >= 8
       ? iconGrid.columns
       : Math.floor((availablePickerWidth + iconGap) / (44 + iconGap)),
   );
@@ -333,16 +339,16 @@ export function EntityEditLayout({
           borderRadius: expressive ? 16 : 12,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: c.background,
+          backgroundColor: selected && expressive ? previewBackground : c.background,
           borderWidth: selected ? 2 : 1,
-          borderColor: selected ? previewColor : c.outlineVariant,
+          borderColor: selected ? expressive ? previewForeground : previewColor : c.outlineVariant,
           opacity: disabled ? 0.3 : pressed ? 0.7 : 1,
         })}
       >
         <MaterialCommunityIcons
           name={icon as any}
           size={iconSize}
-          color={selected ? previewColor : c.onSurfaceVariant}
+          color={selected ? expressive ? previewForeground : previewColor : c.onSurfaceVariant}
         />
       </Pressable>
     );
@@ -494,12 +500,16 @@ export function EntityEditLayout({
           ) : null}
         </View>
 
-        <View style={{ marginVertical: 20 }}>
+        {afterNameFields ? <View style={{ marginTop: 16 }}>{afterNameFields}</View> : null}
+
+        <View style={sideBySidePickers ? { flexDirection: "row", gap: 16, marginTop: 20, alignItems: "flex-start" } : undefined}>
+        <View style={sideBySidePickers ? { flex: 1, minWidth: 0 } : { marginVertical: 20 }}>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 10,
+              minHeight: sideBySidePickers ? 44 : undefined,
             }}
           >
             <Text
@@ -508,12 +518,12 @@ export function EntityEditLayout({
                 fontSize: 14,
                 letterSpacing: 0.6,
                 color: c.onSurface,
-                minWidth: iconSearchOpen ? 48 : undefined,
+                minWidth: iconSearchOpen && !sideBySidePickers ? 48 : undefined,
               }}
             >
               Icons
             </Text>
-            {iconSearchOpen ? (
+            {iconSearchOpen && !sideBySidePickers ? (
               <RNTextInput
                 autoFocus
                 onChangeText={setIconQuery}
@@ -563,6 +573,8 @@ export function EntityEditLayout({
               />
             </Pressable>
           </View>
+          {sideBySidePickers && iconSearchOpen ? <RNTextInput autoFocus value={iconQuery} onChangeText={setIconQuery} placeholder="Search icons" accessibilityLabel="Search icons" placeholderTextColor={c.onSurfaceVariant}
+            style={{ height: 44, paddingHorizontal: 10, marginBottom: 10, borderRadius: 12, color: c.onSurface, backgroundColor: tonalButtonSurface(theme) }} /> : null}
           <ScrollView
             ref={iconScrollRef}
             nestedScrollEnabled
@@ -633,7 +645,7 @@ export function EntityEditLayout({
               </View>
             ) : null}
           </ScrollView>
-          {iconHasMore ? (
+          {iconHasMore && !sideBySidePickers ? (
             <Pressable
               accessibilityLabel="Show more icons"
               accessibilityRole="button"
@@ -657,12 +669,13 @@ export function EntityEditLayout({
           ) : null}
         </View>
 
-        <View style={{ marginBottom: 4 }}>
+        <View style={sideBySidePickers ? { flex: 1, minWidth: 0 } : { marginBottom: 4 }}>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 10,
+              minHeight: sideBySidePickers ? 44 : undefined,
             }}
           >
             <Text
@@ -684,7 +697,7 @@ export function EntityEditLayout({
               colorScrollYRef.current = event.nativeEvent.contentOffset.y;
             }}
             scrollEventThrottle={16}
-            style={{ maxHeight: 82 }}
+            style={{ maxHeight: sideBySidePickers ? iconItemSize * 2 + iconGap : 82 }}
             contentContainerStyle={{
               flexDirection: "row",
               flexWrap: "wrap",
@@ -728,7 +741,7 @@ export function EntityEditLayout({
               );
             })}
           </ScrollView>
-          {colorHasMore ? (
+          {colorHasMore && !sideBySidePickers ? (
             <Pressable
               accessibilityLabel="Show more colors"
               accessibilityRole="button"
@@ -750,6 +763,8 @@ export function EntityEditLayout({
               />
             </Pressable>
           ) : null}
+        </View>
+
         </View>
 
         {additionalFields ? (

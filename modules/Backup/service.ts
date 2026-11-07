@@ -1,3 +1,4 @@
+import { notifyRecurring } from "@/modules/Recurring/events";
 import { notificationStorage } from "@/src/services/notifications/notification.storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -39,6 +40,7 @@ export async function collectAppBackup(): Promise<AppBackup> {
       "catalogs",
       "budgets",
       "goals",
+      "recurring",
       "workspaces",
       "preferences",
       "drafts",
@@ -99,6 +101,7 @@ export async function restoreAppBackup(raw: unknown) {
   }
   // The data is committed. Refresh errors must not be reported as a failed import.
   try {
+    notifyRecurring();
     await refreshGoals();
     await store.dispatch(fetchWorkspaces()).unwrap();
     if (backup.activeWorkspaceId)

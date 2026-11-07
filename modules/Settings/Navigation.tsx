@@ -1,3 +1,4 @@
+import { RecurringScreen } from "@/modules/Recurring/RecurringScreen";
 import { GoalsScreen } from "@/modules/Goals/GoalsScreen";
 import {
   MotionEntranceScope,
@@ -21,6 +22,7 @@ export type SettingsStackParamList = {
   Accounts: undefined;
   Budget: undefined;
   Goals: undefined;
+  Recurring: undefined;
   Data: undefined;
   Defaults: undefined;
   Labs: undefined;
@@ -64,6 +66,7 @@ export function SettingsNavigator({
         />
         <Stack.Screen name="Categories" component={CategoriesScreen} />
         <Stack.Screen name="Accounts" component={AccountsScreen} />
+        <Stack.Screen name="Recurring" component={RecurringScreen} />
         <Stack.Screen name="Goals" component={GoalsScreen} />
         <Stack.Screen name="Budget" component={BudgetScreen} />
         <Stack.Screen name="Data" component={DataScreen} />

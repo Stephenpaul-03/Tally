@@ -1,3 +1,5 @@
+import type { RawTemplate, RawOccurrence } from "@/modules/Recurring/repository";
+import { recurringSchema } from "@/modules/Recurring/schema";
 import { sortCategories } from "@/utils/category-order";
 import { validateImport, needsReview, type ImportRow } from "@/modules/Core/import/validation";
 import { initializeOnboarding, isOnboardingComplete, resetOnboarding, saveOnboarding, getTourProgress, saveTourProgress, type OnboardingSetup } from "../../Onboarding/storage";
@@ -48,6 +50,8 @@ export type DatabaseBackup = {
   budgets: any[];
   categoryBudgets: any[];
   transactions: any[];
+  recurringTemplates?: RawTemplate[];
+  recurringOccurrences?: RawOccurrence[];
 };
 
 export type WorkspaceSetupInput = {
@@ -89,7 +93,7 @@ const DEFAULT_ACCOUNT_DETAILS = [
 
 // --- Types ---
 // Row shape returned by SELECT queries that JOIN categories
-interface TransactionRow {
+export interface TransactionRow {
   id: string;
   title: string;
   amount: number;
@@ -167,7 +171,7 @@ const parseTags = (tags: string | null): string[] | undefined => {
   }
 };
 
-const mapTransactionRow = (row: TransactionRow): Transaction => ({
+export const mapTransactionRow = (row: TransactionRow): Transaction => ({
   id: row.id,
   title: row.title,
   amount: row.amount,
@@ -266,6 +270,7 @@ const shouldAutoSeedWorkspace = (workspaceId: string) =>
 
 // --- Database Connection ---
 // expo-sqlite v2: openDatabaseSync replaces the deprecated openDatabase
+export type FinanceExecutor = Pick<SQLite.SQLiteDatabase, "getFirstAsync" | "getAllAsync" | "runAsync">;
 const db = SQLite.openDatabaseSync("finance.db");
 
 // Export db for debugging purposes
@@ -656,6 +661,8 @@ export class SQLiteWorkspaceRepository {
       throw new Error("Tally needs at least one workspace.");
     }
 
+    await db.runAsync("DELETE FROM recurring_occurrences WHERE template_id IN (SELECT id FROM recurring_transactions WHERE workspace_id=?)", [id]);
+    await db.runAsync("DELETE FROM recurring_transactions WHERE workspace_id=?", [id]);
     await db.runAsync("DELETE FROM transactions WHERE workspace_id = ?", [id]);
     await db.runAsync("DELETE FROM category_budgets WHERE workspace_id = ?", [
       id,
@@ -689,6 +696,8 @@ export class SQLiteWorkspaceRepository {
       await db.runAsync("DELETE FROM budgets WHERE workspace_id = ?", [
         toWorkspaceId,
       ]);
+      await db.runAsync("DELETE FROM recurring_occurrences WHERE template_id IN (SELECT id FROM recurring_transactions WHERE workspace_id=?)", [toWorkspaceId]);
+      await db.runAsync("DELETE FROM recurring_transactions WHERE workspace_id=?", [toWorkspaceId]);
       await db.runAsync("DELETE FROM categories WHERE workspace_id = ?", [
         toWorkspaceId,
       ]);
@@ -763,6 +772,18 @@ export class SQLiteWorkspaceRepository {
       }
       for (const a of backup.accounts || []) await transaction.runAsync(`INSERT INTO accounts (workspace_id,name,icon,color,sort_order,is_deleted) VALUES (?,?,?,?,?,?) ON CONFLICT(workspace_id,name) DO UPDATE SET icon=excluded.icon,color=excluded.color,sort_order=excluded.sort_order,is_deleted=excluded.is_deleted ${overwrite.catalogs ? "" : "WHERE 0"}`,[a.workspace_id,a.name,a.icon ?? null,a.color ?? null,a.sort_order ?? 0,a.is_deleted]);
       for (const t of backup.transactions || []) await transaction.runAsync(`INSERT INTO transactions (id,workspace_id,title,amount,date,category_id,type,account,currency_code,currency_symbol,currency_name,notes,tags,created_by,is_deleted,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET workspace_id=excluded.workspace_id,title=excluded.title,amount=excluded.amount,date=excluded.date,category_id=excluded.category_id,type=excluded.type,account=excluded.account,currency_code=excluded.currency_code,currency_symbol=excluded.currency_symbol,currency_name=excluded.currency_name,notes=excluded.notes,tags=excluded.tags,created_by=excluded.created_by,is_deleted=excluded.is_deleted,updated_at=excluded.updated_at`,[t.id,t.workspace_id,t.title,t.amount,t.date,categoryIds.get(`${t.workspace_id}:${t.category_id}`)!,t.type,t.account ?? null,t.currency_code ?? null,t.currency_symbol ?? null,t.currency_name ?? null,t.notes ?? null,t.tags ?? null,t.created_by ?? "Me",t.is_deleted,t.created_at ?? new Date().toISOString(),t.updated_at ?? new Date().toISOString()]);
+      for (const recurring of backup.recurringTemplates || []) {
+        const accountName=backup.accounts?.find(account=>account.id===recurring.account_id && account.workspace_id===recurring.workspace_id)?.name;
+        const account=accountName ? await transaction.getFirstAsync<{id:number}>("SELECT id FROM accounts WHERE workspace_id=? AND name=?",[recurring.workspace_id,accountName]) : null;
+        const existing=await transaction.getFirstAsync<{workspace_id:string}>("SELECT workspace_id FROM recurring_transactions WHERE id=?",[recurring.id]);
+        if(existing && existing.workspace_id!==recurring.workspace_id) throw Error("A recurring schedule ID belongs to a different workspace.");
+        await transaction.runAsync(`INSERT INTO recurring_transactions (id,workspace_id,source_transaction_id,category_id,account_id,data_json,frequency,start_date,next_date,paused,deleted,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET category_id=excluded.category_id,account_id=excluded.account_id,data_json=excluded.data_json,frequency=excluded.frequency,start_date=excluded.start_date,next_date=excluded.next_date,paused=excluded.paused,deleted=excluded.deleted,updated_at=excluded.updated_at`,[recurring.id,recurring.workspace_id,recurring.source_transaction_id,categoryIds.get(`${recurring.workspace_id}:${recurring.category_id}`)!,account?.id??null,recurring.data_json,recurring.frequency,recurring.start_date,recurring.next_date,recurring.paused,recurring.deleted,recurring.created_at,recurring.updated_at]);
+      }
+      for (const occurrence of backup.recurringOccurrences || []) {
+        const current=await transaction.getFirstAsync<RawOccurrence>("SELECT * FROM recurring_occurrences WHERE template_id=? AND due_date=?",[occurrence.template_id,occurrence.due_date]);
+        if(current?.status==="confirmed" && occurrence.status==="confirmed" && current.transaction_id!==occurrence.transaction_id) throw Error("A recurring occurrence was already confirmed with another transaction.");
+        await transaction.runAsync(`INSERT INTO recurring_occurrences(template_id,due_date,status,transaction_id,resolved_at) VALUES (?,?,?,?,?) ON CONFLICT(template_id,due_date) DO UPDATE SET status=excluded.status,transaction_id=excluded.transaction_id,resolved_at=excluded.resolved_at WHERE recurring_occurrences.status NOT IN ('confirmed','skipped')`,[occurrence.template_id,occurrence.due_date,occurrence.status,occurrence.transaction_id,occurrence.resolved_at]);
+      }
       for (const b of backup.budgets || []) await transaction.runAsync(`INSERT INTO budgets (workspace_id,monthly_amount) VALUES (?,?) ON CONFLICT(workspace_id) DO UPDATE SET monthly_amount=excluded.monthly_amount`,[b.workspace_id,b.monthly_amount]);
       for (const b of backup.categoryBudgets || []) await transaction.runAsync(`INSERT INTO category_budgets (workspace_id,category_id,amount) VALUES (?,?,?) ON CONFLICT(workspace_id,category_id) DO UPDATE SET amount=excluded.amount`,[b.workspace_id,categoryIds.get(`${b.workspace_id}:${b.category_id}`)!,b.amount]);
     });
@@ -775,7 +796,7 @@ export class SQLiteWorkspaceRepository {
       accounts,
       budgets,
       categoryBudgets,
-      transactions,
+      transactions, recurringTemplates, recurringOccurrences,
     ] = await Promise.all([
       this.getWorkspaces(),
       db.getAllAsync(
@@ -791,6 +812,8 @@ export class SQLiteWorkspaceRepository {
       db.getAllAsync(
         "SELECT * FROM transactions ORDER BY workspace_id, date DESC",
       ),
+      db.getAllAsync<RawTemplate>("SELECT * FROM recurring_transactions ORDER BY workspace_id,id"),
+      db.getAllAsync<RawOccurrence>("SELECT * FROM recurring_occurrences ORDER BY template_id,due_date"),
     ]);
 
     return {
@@ -800,7 +823,7 @@ export class SQLiteWorkspaceRepository {
       accounts,
       budgets,
       categoryBudgets,
-      transactions,
+      transactions, recurringTemplates, recurringOccurrences,
     };
   }
 }
@@ -856,6 +879,7 @@ migrateWorkspaceUniqueConstraints();
 
 try {
   db.execSync(schema);
+  db.execSync(recurringSchema);
 } catch (error) {
   console.error("Failed to finalize database schema:", error);
 }
@@ -999,14 +1023,16 @@ export class SQLiteFinanceRepository implements FinanceRepository {
   }
 
   // --- Insert a new transaction ---
-  async addTransaction(txData: TransactionFormData): Promise<Transaction> {
-    const categoryId = await this.getCategoryId(txData.category, txData.type);
+  async addTransaction(txData: TransactionFormData, executor: FinanceExecutor = db): Promise<Transaction> {
+    const category = await executor.getFirstAsync<{ id: number }>("SELECT id FROM categories WHERE workspace_id=? AND name=? AND type=? AND is_deleted=0", [this.workspaceId, txData.category, txData.type]);
+    if (!category) throw Error("This category is no longer available. Choose another category.");
+    const categoryId = category.id;
     const newTransaction = createTransaction({
       ...txData,
       category_id: categoryId,
     });
 
-    await db.runAsync(
+    await executor.runAsync(
       `INSERT INTO transactions
         (id, workspace_id, title, amount, date, category_id, type, account, currency_code, currency_symbol, currency_name, notes, tags, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1077,11 +1103,14 @@ export class SQLiteFinanceRepository implements FinanceRepository {
   async updateTransaction(
     id: string,
     data: Partial<TransactionFormData>,
+    executor: FinanceExecutor = db,
   ): Promise<Transaction> {
     // Resolve category_id first, outside the transaction
     let categoryId: number | undefined;
     if (data.category && data.type) {
-      categoryId = await this.getCategoryId(data.category, data.type);
+      const category = await executor.getFirstAsync<{ id: number }>("SELECT id FROM categories WHERE workspace_id=? AND name=? AND type=? AND is_deleted=0", [this.workspaceId, data.category, data.type]);
+      if (!category) throw Error("This category is no longer available. Choose another category.");
+      categoryId = category.id;
     }
 
     // Build an explicit DB-column -> value map to avoid any camelCase/snake_case mismatch.
@@ -1110,17 +1139,17 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       // All values are string | number | null here — safe for SQLiteBindParams
       const params: (string | number | null)[] = [
         ...Object.values(columnMap),
-        id,
+        id, this.workspaceId,
       ];
 
-      await db.runAsync(
-        `UPDATE transactions SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      await executor.runAsync(
+        `UPDATE transactions SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ?`,
         params,
       );
     }
 
     // Return the full updated row with category name joined
-    const updated = await db.getFirstAsync<TransactionRow>(
+    const updated = await executor.getFirstAsync<TransactionRow>(
       `SELECT
         t.id, t.title, t.amount, t.date, c.name AS category, t.type,
         t.account, t.currency_code, t.currency_symbol, t.currency_name,
@@ -1128,8 +1157,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
         t.created_at, t.updated_at
        FROM transactions t
        JOIN categories c ON t.category_id = c.id AND c.workspace_id = t.workspace_id
-       WHERE t.id = ?`,
-      [id],
+       WHERE t.id = ? AND t.workspace_id = ?`,
+      [id, this.workspaceId],
     );
 
     if (!updated) {
@@ -1557,6 +1586,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
       await db.runAsync("DELETE FROM budgets WHERE workspace_id = ?", [
         this.workspaceId,
       ]);
+      await db.runAsync("DELETE FROM recurring_occurrences WHERE template_id IN (SELECT id FROM recurring_transactions WHERE workspace_id=?)", [this.workspaceId]);
+      await db.runAsync("DELETE FROM recurring_transactions WHERE workspace_id=?", [this.workspaceId]);
       await db.runAsync("DELETE FROM categories WHERE workspace_id = ?", [
         this.workspaceId,
       ]);
@@ -1630,6 +1661,8 @@ export class SQLiteFinanceRepository implements FinanceRepository {
 
   async resetWorkspaceData(): Promise<void> {
     await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM recurring_occurrences");
+      await db.runAsync("DELETE FROM recurring_transactions");
       await db.runAsync("DELETE FROM transactions");
       await db.runAsync("DELETE FROM category_budgets");
       await db.runAsync("DELETE FROM budgets");

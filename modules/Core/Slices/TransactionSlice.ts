@@ -1,3 +1,5 @@
+import { saveRecurringTransaction, confirmRecurring } from "@/modules/Recurring/repository";
+import type { RecurringConfig } from "@/modules/Recurring/model";
 import { categoryBudgetTotal } from "@/utils/budget-total";
 import { sortCategories } from "@/utils/category-order";
 /**
@@ -32,7 +34,7 @@ import {
   TransactionState,
   TransactionType,
 } from "../../../utils/Types";
-import { financeRepository, switchWorkspace } from "../Repository/Index";
+import { financeRepository, switchWorkspace, getActiveWorkspaceId } from "../Repository/Index";
 import type { RootState } from "../Store";
 import { SQLiteFinanceRepository } from "../Repository/SQLiteRepo";
 
@@ -84,7 +86,7 @@ type OpenAddModalPayload = {
 
 type UpsertTransactionDraftPayload = {
   id?: string | null;
-  data: TransactionFormData;
+  data: TransactionFormData & { recurring?: RecurringConfig };
   amountInput: string;
 };
 
@@ -860,6 +862,9 @@ const transactionSlice = createSlice({
           ]),
         );
       })
+      .addCase(confirmRecurringAsync.fulfilled, (state, action) => {
+        if (!state.transactions.some(transaction => transaction.id === action.payload.id)) state.transactions.push(action.payload);
+      })
       .addCase(addTransactionAsync.fulfilled, (state, action) => {
         state.transactions.push(action.payload);
       })
@@ -1331,9 +1336,12 @@ export const updateCategoryBudgetAsync = createAsyncThunk(
   },
 );
 
+export const confirmRecurringAsync = createAsyncThunk("transactions/confirmRecurring", async (args: { templateId:string; dueDate:string; form:TransactionFormData; updateFutureAmount:boolean; existingTransactionId?:string }) => confirmRecurring(getActiveWorkspaceId(),args.templateId,args.dueDate,args.form,args.updateFutureAmount,args.existingTransactionId));
+
 export const addTransactionAsync = createAsyncThunk(
   "transactions/addTransaction",
-  async (txData: TransactionFormData) => {
+  async (txData: TransactionFormData & { recurring?: RecurringConfig }) => {
+    if (txData.recurring) { const { recurring, ...form } = txData; return saveRecurringTransaction(getActiveWorkspaceId(),form,recurring); }
     if (!financeRepository) throw new Error("Repository not available");
     return await financeRepository.addTransaction(txData);
   },
@@ -1341,7 +1349,8 @@ export const addTransactionAsync = createAsyncThunk(
 
 export const updateTransactionAsync = createAsyncThunk(
   "transactions/updateTransaction",
-  async ({ id, data }: { id: string; data: Partial<TransactionFormData> }) => {
+  async ({ id, data, recurring }: { id: string; data: Partial<TransactionFormData>; recurring?: RecurringConfig }) => {
+    if (recurring) return saveRecurringTransaction(getActiveWorkspaceId(),data as TransactionFormData,recurring,id);
     if (!financeRepository) throw new Error("Repository not available");
     return await financeRepository.updateTransaction(id, data);
   },

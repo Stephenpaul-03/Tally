@@ -1,3 +1,4 @@
+import { validateRecurringBackup } from "@/modules/Recurring/backup";
 import type {
   DailyFinanceReminderConfig,
   MonthlyInsightPromptConfig,
@@ -10,6 +11,7 @@ export const BACKUP_SECTIONS = [
   "catalogs",
   "budgets",
   "goals",
+  "recurring",
   "workspaces",
   "preferences",
   "drafts",
@@ -20,6 +22,7 @@ export const SECTION_LABELS: Record<BackupSection, string> = {
   catalogs: "Categories and accounts",
   budgets: "Budgets and defaults",
   goals: "Goals",
+  recurring: "Recurring schedules and linked entries",
   workspaces: "Workspaces",
   preferences: "Appearance and preferences",
   drafts: "Unfinished drafts",
@@ -97,10 +100,11 @@ export function validateBackup(raw: unknown): AppBackup {
     "accounts",
     "transactions",
     "budgets",
-    "categoryBudgets",
+    "categoryBudgets", "recurringTemplates", "recurringOccurrences",
   ] as const)
     if (db[key] !== undefined && !Array.isArray(db[key]))
       throw Error(`Invalid ${key}`);
+  validateRecurringBackup(db.recurringTemplates,db.recurringOccurrences,db);
   const workspaceIds = new Set((db.workspaces || []).map((w) => w.id));
   if (
     workspaceIds.size !== (db.workspaces || []).length ||
@@ -253,6 +257,7 @@ export function validateBackup(raw: unknown): AppBackup {
       b.drafts.entries.some(
         (d) =>
           !str(d.id) ||
+          (d.recurring !== undefined && (typeof d.recurring.enabled !== "boolean" || !["weekly","monthly","yearly"].includes(d.recurring.frequency))) ||
           d.isDraft !== true ||
           typeof d.amountInput !== "string" ||
           !numeric(d.amount) ||
@@ -265,7 +270,8 @@ export function validateBackup(raw: unknown): AppBackup {
   )
     throw Error("Invalid drafts");
   if (
-    (db.transactions && !b.sections.includes("transactions")) ||
+    (db.transactions && !b.sections.includes("transactions") && !b.sections.includes("recurring")) ||
+    (((db.recurringTemplates?.length || 0) > 0 || (db.recurringOccurrences?.length || 0) > 0) && !b.sections.includes("recurring")) ||
     ((db.budgets ||
       db.categoryBudgets ||
       b.preferences.tallyWorkspaceDefaults) &&
@@ -290,7 +296,8 @@ export function selectBackupSections(
 ): AppBackup {
   const includes = (s: BackupSection) => sections.includes(s);
   const catalog =
-    includes("catalogs") || includes("transactions") || includes("budgets");
+    includes("catalogs") || includes("transactions") || includes("budgets") || includes("recurring");
+  const linkedIds = new Set([...(source.database.recurringTemplates || []).map(template=>template.source_transaction_id),...(source.database.recurringOccurrences || []).map(item=>item.transaction_id).filter(Boolean)]);
   const preferences = Object.fromEntries(
     Object.entries(source.preferences).filter(([key]) =>
       key === "tallyWorkspaceDefaults"
@@ -314,9 +321,10 @@ export function selectBackupSections(
             accounts: source.database.accounts,
           }
         : {}),
-      ...(includes("transactions")
-        ? { transactions: source.database.transactions }
+      ...(includes("transactions") || includes("recurring")
+        ? { transactions: includes("transactions") ? source.database.transactions : source.database.transactions?.filter(transaction=>linkedIds.has(transaction.id)) }
         : {}),
+      ...(includes("recurring") ? { recurringTemplates:source.database.recurringTemplates || [],recurringOccurrences:source.database.recurringOccurrences || [] } : {}),
       ...(includes("budgets")
         ? {
             budgets: source.database.budgets,

@@ -14,7 +14,7 @@ export type RootParamList = {
     | undefined;
   Settings:
     | {
-        section?: "notification-reminders" | "workspaces" | "budget" | "goals";
+        section?: "notification-reminders" | "workspaces" | "budget" | "goals" | "recurring";
         source?: "notification";
       }
     | undefined;

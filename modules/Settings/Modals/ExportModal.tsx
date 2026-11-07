@@ -908,6 +908,7 @@ export function BackupExportModal({
     "catalogs",
     "budgets",
     "goals",
+    "recurring",
     "workspaces",
     "preferences",
   ]);

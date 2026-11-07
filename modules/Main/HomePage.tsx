@@ -1,3 +1,4 @@
+import { HomeRecurring } from "./HomeRecurring";
 import { HomeGoals } from "./HomeGoals";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MainEntrance } from "@/components/animations/MainEntrance";
@@ -45,6 +46,7 @@ export function HomePage(
 }
 
 function HomePageContent({
+  pagePan,
   active,
   raw,
   month,
@@ -317,6 +319,7 @@ function HomePageContent({
             )}
           </SpotlightTarget>
         </MainEntrance>
+        <HomeRecurring active={active} pagePan={pagePan} />
         <MainEntrance delay={155} duration={240} distance={8}><HomeGoals /></MainEntrance>
         <MainEntrance delay={170} duration={240} distance={8}>
           <HomeAttention

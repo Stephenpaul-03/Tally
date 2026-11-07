@@ -1,3 +1,6 @@
+import { RecurringControl } from "@/modules/Recurring/RecurringControl";
+import { recurringForTransaction, editRecurringTemplate, createRecurringTemplate } from "@/modules/Recurring/repository";
+import type { Frequency, RecurringTemplate, RecurringOccurrence } from "@/modules/Recurring/model";
 import type { Transaction } from "@/utils/Types";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useTransactionPresentation } from "./useTransactionPresentation";
@@ -36,6 +39,7 @@ import { useBreakpoint } from "@/hooks/use-breakpoints";
 import { useWorkspaceDefaults } from "@/hooks/use-workspace-defaults";
 import {
   addTransactionAsync,
+  confirmRecurringAsync,
   deleteTransactionAsync,
   openEditModal,
   removeTransactionDraft,
@@ -73,7 +77,7 @@ import {
 import { TransactionFormData, TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Animated, Keyboard, Pressable, View } from "react-native";
+import { Animated, Keyboard, Pressable, ScrollView, View } from "react-native";
 import { Portal, TextInput, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
@@ -90,6 +94,9 @@ interface TransactionModalProps {
   nested?: boolean;
   readOnlyTransaction?: (Transaction & { categoryIcon?: string; categoryColor?: string }) | null;
   readOnlySourceLabel?: string;
+  createRecurring?: boolean;
+  recurringTemplate?: RecurringTemplate | null;
+  recurringOccurrence?: { template: RecurringTemplate; occurrence: RecurringOccurrence } | null;
 }
 
 const MemoDatePicker = React.memo(InlineDatePicker);
@@ -112,6 +119,9 @@ export function TransactionModal({
   nested = false,
   readOnlyTransaction = null,
   readOnlySourceLabel,
+  createRecurring = false,
+  recurringTemplate = null,
+  recurringOccurrence = null,
 }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const theme = useTheme<ExtendedMD3Theme>();
@@ -124,12 +134,13 @@ export function TransactionModal({
   const { bottom } = useSafeAreaInsets();
 
   const storedModalMode = useAppSelector(selectModalMode);
-  const modalMode = readOnlyTransaction ? "view" : storedModalMode;
+  const modalMode = readOnlyTransaction ? "view" : createRecurring || recurringTemplate || recurringOccurrence ? "add" : storedModalMode;
   const storedTransactionId = useAppSelector(selectEditingTransactionId);
-  const editingTransactionId = readOnlyTransaction?.id ?? storedTransactionId;
-  const activeDraftId = useAppSelector(selectActiveTransactionDraftId);
+  const editingTransactionId = createRecurring || recurringTemplate || recurringOccurrence ? null : readOnlyTransaction?.id ?? storedTransactionId;
+  const storedDraftId = useAppSelector(selectActiveTransactionDraftId);
+  const activeDraftId = createRecurring || recurringTemplate || recurringOccurrence ? null : storedDraftId;
   const storedDraft = useAppSelector(selectActiveTransactionDraft);
-  const activeDraft = readOnlyTransaction ? null : storedDraft;
+  const activeDraft = readOnlyTransaction || createRecurring || recurringTemplate || recurringOccurrence ? null : storedDraft;
   const transactions = useAppSelector(selectTransactions);
   const storedTransaction = useAppSelector(
     editingTransactionId
@@ -163,6 +174,30 @@ export function TransactionModal({
 
   const isEditMode = modalMode === "edit";
   const isViewMode = modalMode === "view";
+  const [recurringExpanded,setRecurringExpanded] = useState(false);
+  const [recurringEnabled,setRecurringEnabled] = useState(false);
+  const [recurringFrequency,setRecurringFrequency] = useState<Frequency>("monthly");
+  const [hasRecurringSchedule,setHasRecurringSchedule] = useState(false);
+  const [recurringLoading,setRecurringLoading] = useState(false);
+  const [updateFutureAmount,setUpdateFutureAmount] = useState(false);
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setUpdateFutureAmount(false);
+    setRecurringExpanded(false);
+    if (createRecurring) { setRecurringEnabled(true); setRecurringFrequency("monthly"); setHasRecurringSchedule(false); return; }
+    if (recurringTemplate) { setRecurringEnabled(true); setRecurringFrequency(recurringTemplate.frequency); setHasRecurringSchedule(true); return; }
+    if (recurringOccurrence) { setRecurringEnabled(false); setHasRecurringSchedule(false); return; }
+    setRecurringEnabled(Boolean(activeDraft?.recurring?.enabled)); setRecurringFrequency(activeDraft?.recurring?.frequency || "monthly"); setHasRecurringSchedule(false);
+    if (!isEditMode || !editingTransactionId) return;
+    let alive=true;
+    setRecurringLoading(true);
+    void recurringForTransaction(activeWorkspaceId,editingTransactionId).then(template => {
+      if (alive && template) { setRecurringEnabled(true); setRecurringFrequency(template.frequency); setHasRecurringSchedule(true); }
+    }).catch(error => { if (alive) toast.error(`Could not load the recurring schedule: ${error instanceof Error ? error.message : String(error)}`); })
+      .finally(() => { if (alive) setRecurringLoading(false); });
+    return () => { alive=false; setRecurringLoading(false); };
+  },[isOpen,isEditMode,editingTransactionId,activeWorkspaceId,createRecurring,recurringTemplate,recurringOccurrence,activeDraft]);
+
   const openEdit = React.useCallback(
     (id: string) => dispatch(openEditModal(id)),
     [dispatch],
@@ -333,6 +368,14 @@ export function TransactionModal({
         setCalendarMonth(parsed.month);
         setCalendarYear(parsed.year);
       }
+    } else if (recurringTemplate || recurringOccurrence) {
+      const template = recurringTemplate || recurringOccurrence!.template;
+      const form = { ...template.form, date: recurringTemplate ? template.startDate : recurringOccurrence!.occurrence.dueDate };
+      setFormData(form);
+      setAmountString(String(form.amount));
+      baselineAmountInputRef.current = String(form.amount);
+      const parsed = parseIsoDateOnlyParts(form.date);
+      if (parsed) { setCalendarMonth(parsed.month); setCalendarYear(parsed.year); }
     } else if (activeDraft) {
       const nextFormData: TransactionFormData = {
         title: activeDraft.title,
@@ -405,6 +448,9 @@ export function TransactionModal({
     resolveDefaultAccount,
     resolveDefaultCategory,
     editingTransaction,
+    createRecurring,
+    recurringTemplate,
+    recurringOccurrence,
     initialAmount,
     initialDate,
     addModeDate,
@@ -419,7 +465,7 @@ export function TransactionModal({
   ]);
 
   React.useEffect(() => {
-    if (isViewMode || !activeAccounts.length) return;
+    if (isViewMode || recurringTemplate || recurringOccurrence || !activeAccounts.length) return;
     if (activeAccounts.includes(formData.account)) return;
     setFormData((prev) => {
       const next = { ...prev, account: activeAccounts[0] };
@@ -431,7 +477,7 @@ export function TransactionModal({
       }
       return next;
     });
-  }, [activeAccounts, formData.account, isEditMode, isViewMode]);
+  }, [activeAccounts, formData.account, isEditMode, isViewMode, recurringTemplate, recurringOccurrence]);
 
   const hasMeaningfulDraft = React.useCallback(() => {
     const baseline = addBaselineRef.current;
@@ -447,9 +493,9 @@ export function TransactionModal({
       formData.date !== baseline.date ||
       formData.type !== baseline.type ||
       formData.category !== baseline.category ||
-      formData.account !== baseline.account
+      formData.account !== baseline.account || recurringEnabled
     );
-  }, [amountString, formData]);
+  }, [amountString, formData, recurringEnabled]);
 
   const saveDraft = React.useCallback(() => {
     const draftAmount = amountSession.operation
@@ -461,6 +507,7 @@ export function TransactionModal({
         amountInput: draftAmount,
         data: {
           ...formData,
+          recurring: { enabled:recurringEnabled,frequency:recurringFrequency },
           amount: Math.abs(Number.parseFloat(draftAmount) || 0),
           notes: formData.notes?.trim()
             ? formData.notes.trim().slice(0, MAX_NOTE_LENGTH)
@@ -474,6 +521,8 @@ export function TransactionModal({
     amountString,
     amountSession.operation,
     amountSession.lhs,
+    recurringEnabled,
+    recurringFrequency,
     dispatch,
     formData,
   ]);
@@ -491,7 +540,7 @@ export function TransactionModal({
       closeWithAnimation(onClose);
       return;
     }
-    if (modalMode === "add") {
+    if (modalMode === "add" && !createRecurring && !recurringTemplate && !recurringOccurrence) {
       if (hasMeaningfulDraft()) {
         saveDraft();
         toast.info("Draft saved");
@@ -513,6 +562,9 @@ export function TransactionModal({
     modalMode,
     onClose,
     saveDraft,
+    createRecurring,
+    recurringTemplate,
+    recurringOccurrence,
   ]);
 
   const { requestEdit } = presentation;
@@ -546,7 +598,7 @@ export function TransactionModal({
 
   const handleSubmit = async () => {
     if (readOnlyTransaction) return;
-    if (savingRef.current || !validateForm()) return;
+    if (savingRef.current || recurringLoading || !validateForm()) return;
     const amount = Math.abs(parseFloat(amountString) || 0);
     const data: TransactionFormData = {
       ...formData,
@@ -560,11 +612,22 @@ export function TransactionModal({
     savingRef.current = true;
     setIsSaving(true);
     try {
-      if (isEditMode && editingTransactionId) {
-        await dispatch(updateTransactionAsync({ id: editingTransactionId, data })).unwrap();
+      if (createRecurring) {
+        await createRecurringTemplate(activeWorkspaceId,data,recurringFrequency);
+        toast.success("Recurring schedule created");
+      } else if (recurringTemplate) {
+        await editRecurringTemplate(activeWorkspaceId,recurringTemplate.id,{ ...data, date: formData.date },recurringFrequency);
+        toast.success("Recurring schedule updated");
+      } else if (recurringOccurrence) {
+        const saved = await dispatch(confirmRecurringAsync({ templateId:recurringOccurrence.template.id,dueDate:recurringOccurrence.occurrence.dueDate,form:data,updateFutureAmount })).unwrap();
+        skipDraftOnCloseRef.current=true;
+        onTransactionAdded?.(saved.date);
+        toast.success("Recurring transaction recorded");
+      } else if (isEditMode && editingTransactionId) {
+        await dispatch(updateTransactionAsync({ id: editingTransactionId, data, recurring: recurringEnabled || hasRecurringSchedule ? { enabled:recurringEnabled,frequency:recurringFrequency } : undefined })).unwrap();
         toast.success("Transaction updated");
       } else {
-        const saved = await dispatch(addTransactionAsync(data)).unwrap();
+        const saved = await dispatch(addTransactionAsync({ ...data, recurring:recurringEnabled ? { enabled:true,frequency:recurringFrequency } : undefined })).unwrap();
         skipDraftOnCloseRef.current = true;
         if (activeDraftId) dispatch(removeTransactionDraft(activeDraftId));
         onTransactionAdded?.(saved.date);
@@ -882,9 +945,13 @@ export function TransactionModal({
   );
 
   const content = (
-    <View
-      style={[
-        mainContent.keyboardView,
+    <ScrollView
+      style={{ flexShrink: 1 }}
+      keyboardShouldPersistTaps="handled"
+      scrollEnabled={!recurringExpanded}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+      contentContainerStyle={[
         mainContent.iosShell,
         {
           backgroundColor: theme.colors.background,
@@ -953,11 +1020,13 @@ export function TransactionModal({
             position: "absolute",
             top: 0,
             width: 180,
+            ...(recurringOccurrence ? { position: "relative" as const, left: undefined, marginLeft: 0, width: undefined, flex: 1 } : {}),
           }}
         >
           <Animated.View
             pointerEvents={isViewMode ? "none" : "auto"}
             style={{
+              ...(recurringOccurrence ? { width: "100%" as const } : {}),
               opacity: modeTransition.interpolate({
                 inputRange: [0, 1],
                 outputRange: [1, 0],
@@ -1025,6 +1094,12 @@ export function TransactionModal({
           </Animated.View>
         </View>
 
+        {recurringOccurrence ? <Pressable accessibilityRole="checkbox" accessibilityLabel="Use this amount for future occurrences" accessibilityState={{ checked: updateFutureAmount }} onPress={() => setUpdateFutureAmount(value => !value)}
+          style={({ pressed }) => ({ height: 54, paddingHorizontal: 12, borderRadius: 27, flexDirection: "row", alignItems: "center", gap: 5,
+            backgroundColor: updateFutureAmount ? theme.colors.secondaryContainer : tonalButtonSurface(theme), borderWidth: 1, borderColor: updateFutureAmount ? theme.colors.primary : theme.colors.outlineVariant, opacity: pressed ? 0.7 : 1 })}>
+          <MaterialCommunityIcons name={updateFutureAmount ? "check" : "update"} size={17} color={updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant} />
+          <Text style={{ fontSize: 11, fontWeight: "700", color: updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant }}>Future</Text>
+        </Pressable> : <>
         {isViewMode && !readOnlyTransaction ? (
           <Animated.View
             style={{
@@ -1081,6 +1156,7 @@ export function TransactionModal({
         ) : (
           <View style={mainContent.iosTopSpacer} />
         )}
+        </>}
       </Animated.View>
 
       <Animated.View
@@ -1367,6 +1443,7 @@ export function TransactionModal({
           />
         </Animated.View>
 
+
         {!isViewMode ? (
           <Animated.View
             style={[sectionEntranceStyle(cardSectionEntrances[3])]}
@@ -1376,11 +1453,13 @@ export function TransactionModal({
               onKey={handleKeypadPress}
               calculating={amountSession.open}
               controls={
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, overflow: "hidden" }}>
                 <CalculationControls
                   open={amountSession.open}
                   operation={amountSession.operation}
                   onToggle={() => {
                     blurInputs();
+                    setRecurringExpanded(false);
                     dispatchAmount({ type: "toggle" });
                   }}
                   onOperation={(operation) =>
@@ -1389,6 +1468,9 @@ export function TransactionModal({
                   onClear={() => dispatchAmount({ type: "key", key: "clear" })}
                   onEquals={() => dispatchAmount({ type: "equals" })}
                 />
+                {!recurringOccurrence && !amountSession.open && <RecurringControl open={recurringExpanded} enabled={recurringEnabled} frequency={recurringFrequency} required={createRecurring || Boolean(recurringTemplate)} disabled={isSaving || recurringLoading}
+                  onToggle={() => { blurInputs(); setRecurringExpanded(value => !value); }} onSelect={frequency => { setRecurringEnabled(Boolean(frequency)); if (frequency) setRecurringFrequency(frequency); }} />}
+                </View>
               }
             />
           </Animated.View>
@@ -1398,12 +1480,13 @@ export function TransactionModal({
           <Animated.View
             style={[
               mainContent.iosBottomRow,
+              { gap: 8 },
               sectionEntranceStyle(cardSectionEntrances[4]),
             ]}
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Change date"
+              accessibilityLabel={createRecurring || recurringTemplate ? "Change first due date" : "Change date"}
               onPress={() => {
                 Keyboard.dismiss();
                 setIsDatePickerOpen(true);
@@ -1426,16 +1509,16 @@ export function TransactionModal({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Save transaction"
+              accessibilityLabel={createRecurring || recurringTemplate ? "Save recurring schedule" : "Save transaction"}
               accessibilityState={{ disabled: isSaving, busy: isSaving }}
-              disabled={isSaving}
+              disabled={isSaving || recurringLoading}
               onPress={handleSubmit}
               style={({ pressed }) => [
                 mainContent.iosSaveButton,
                 { opacity: pressed ? 0.72 : 1 },
               ]}
             >
-              <Text style={mainContent.iosSaveButtonText}>{isSaving ? "Saving…" : "Save"}</Text>
+              <Text style={mainContent.iosSaveButtonText}>{isSaving ? "Saving…" : createRecurring || recurringTemplate ? "Save" : recurringOccurrence ? "Record" : "Save"}</Text>
             </Pressable>
           </Animated.View>
         ) : null}
@@ -1468,7 +1551,7 @@ export function TransactionModal({
         onCloseAccount={closeAccountPicker}
         onCloseCategory={closeCategoryPicker}
       />
-    </View>
+    </ScrollView>
   );
 
   return (

@@ -148,6 +148,7 @@ export function MainSettingsScreen() {
   }, []);
   const settingsItems = React.useMemo<SettingsSearchItem[]>(
     () => [
+      { id:"recurring",icon:"calendar-refresh-outline",label:"Recurring",description:"Payment reminders and recurring schedules",keywords:["recurring","repeat","schedule","payments"],onPress:()=>navigation.navigate("Recurring") },
       {
         id: "workspace-summary",
         icon: "layers-triple-outline",
@@ -445,6 +446,7 @@ export function MainSettingsScreen() {
     ],
     [
       navigateToScreen,
+      navigation,
       openBetaContactModal,
       openAboutModal,
       openAppearanceModal,
@@ -559,6 +561,7 @@ export function MainSettingsScreen() {
                   onPress={() => navigation.navigate("Categories")}
                   theme={theme}
                 />
+                <ActionRow icon="calendar-refresh-outline" label="Recurring" description="Payment reminders and recurring schedules" onPress={() => navigation.navigate("Recurring")} theme={theme} />
                 <ActionRow
                   icon="wallet-outline"
                   label="Accounts"

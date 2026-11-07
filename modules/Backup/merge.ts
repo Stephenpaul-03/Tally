@@ -67,6 +67,8 @@ export function mergeBackups(inputs: AppBackup[]): AppBackup {
     accounts: (r: any) => `${r.workspace_id}:${r.name}`,
     transactions: (r: any) => r.id,
     budgets: (r: any) => r.workspace_id,
+    recurringTemplates: (r: any) => r.id,
+    recurringOccurrences: (r: any) => `${r.template_id}:${r.due_date}`,
     categoryBudgets: (r: any) => `${r.workspace_id}:${r.category_id}`,
   };
   for (const key of Object.keys(keys) as (keyof typeof keys)[]) {

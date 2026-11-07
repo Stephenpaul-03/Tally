@@ -54,6 +54,7 @@ export interface Transaction {
 }
 
 export interface TransactionDraft extends TransactionFormData {
+  recurring?: { enabled: boolean; frequency: "weekly" | "monthly" | "yearly" };
   id: string;
   amountInput: string;
   isDraft: true;

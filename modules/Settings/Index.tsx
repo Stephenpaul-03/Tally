@@ -8,7 +8,9 @@ export function SettingsScreen() {
   const initialRouteName =
     route.params?.section === "notification-reminders"
       ? "Labs"
-      : route.params?.section === "goals"
+      : route.params?.section === "recurring"
+        ? "Recurring"
+        : route.params?.section === "goals"
         ? "Goals"
         : route.params?.section === "budget"
           ? "Budget"

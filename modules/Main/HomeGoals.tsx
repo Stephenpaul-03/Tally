@@ -1,3 +1,4 @@
+import { MainEntrance } from "@/components/animations/MainEntrance";
 import React from "react";
 import { View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -14,8 +15,8 @@ export function HomeGoals() {
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const open = () => navigation.navigate("Settings", { section: "goals" });
   const goal = goals.find(goal => !goalProgress(goal).complete) ?? goals[0];
-  if (error) return null;
-  return <View style={{ gap: 10 }}>
+  if (error || !goal) return null;
+  return <MainEntrance delay={155} duration={240} distance={8}><View style={{ gap: 10 }}>
     <HomeGoalCard goal={goal} onPress={open} />
-  </View>;
+  </View></MainEntrance>;
 }

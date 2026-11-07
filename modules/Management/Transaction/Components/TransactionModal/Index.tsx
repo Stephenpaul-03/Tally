@@ -174,6 +174,7 @@ export function TransactionModal({
 
   const isEditMode = modalMode === "edit";
   const isViewMode = modalMode === "view";
+  const [controlsWidth,setControlsWidth] = useState(0);
   const [recurringExpanded,setRecurringExpanded] = useState(false);
   const [recurringEnabled,setRecurringEnabled] = useState(false);
   const [recurringFrequency,setRecurringFrequency] = useState<Frequency>("monthly");
@@ -1453,7 +1454,7 @@ export function TransactionModal({
               onKey={handleKeypadPress}
               calculating={amountSession.open}
               controls={
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, overflow: "hidden" }}>
+                <View onLayout={event => setControlsWidth(event.nativeEvent.layout.width)} style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <CalculationControls
                   open={amountSession.open}
                   operation={amountSession.operation}
@@ -1468,8 +1469,8 @@ export function TransactionModal({
                   onClear={() => dispatchAmount({ type: "key", key: "clear" })}
                   onEquals={() => dispatchAmount({ type: "equals" })}
                 />
-                {!recurringOccurrence && !amountSession.open && <RecurringControl open={recurringExpanded} enabled={recurringEnabled} frequency={recurringFrequency} required={createRecurring || Boolean(recurringTemplate)} disabled={isSaving || recurringLoading}
-                  onToggle={() => { blurInputs(); setRecurringExpanded(value => !value); }} onSelect={frequency => { setRecurringEnabled(Boolean(frequency)); if (frequency) setRecurringFrequency(frequency); }} />}
+                {!recurringOccurrence && !amountSession.open && <View onTouchStart={event => event.stopPropagation()} style={{flexShrink:0}}><RecurringControl availableWidth={Math.max(0,controlsWidth-52)} open={recurringExpanded} enabled={recurringEnabled} frequency={recurringFrequency} required={createRecurring || Boolean(recurringTemplate)} disabled={isSaving || recurringLoading}
+                  onToggle={() => { blurInputs(); setRecurringExpanded(value => !value); }} onSelect={frequency => { setRecurringEnabled(Boolean(frequency)); if (frequency) setRecurringFrequency(frequency); }} /></View>}
                 </View>
               }
             />

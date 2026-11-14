@@ -34,6 +34,16 @@ test("scanner exclusions apply only to release configurations", () => {
   assert.match(result, /module: "play-services-code-scanner"/);
 });
 
+test("Windows native builds shorten object paths and preserve the fix across prebuilds", () => {
+  const result = updateAppBuildGradle(template);
+  assert.match(result, /System\.getProperty\("os.name"\).*contains\("windows"\)/);
+  assert.match(result, /cmake.arguments "-DCMAKE_OBJECT_PATH_MAX=256"/);
+  assert.match(result, /buildStagingDirectory file\("\$rootDir\/..\/\.expo\/cxx"\)/);
+  assert.equal(updateAppBuildGradle(result), result);
+  const olderConfig = result.replace('    android.externalNativeBuild.cmake.buildStagingDirectory file("$rootDir/../.expo/cxx")\n', '');
+  assert.equal(updateAppBuildGradle(olderConfig), result);
+});
+
 test("unrecognized native templates fail rather than silently retaining debug release signing", () => {
   assert.throws(() => updateAppBuildGradle("android {}"), /unrecognized Android signing/);
 });

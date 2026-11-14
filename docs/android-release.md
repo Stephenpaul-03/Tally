@@ -33,6 +33,8 @@ npm run build:android:release -- --abi=x86_64
 
 Build release and debug variants in separate Gradle invocations. The release configuration removes the unused barcode scanner dependencies pulled in by Expo's developer launcher. Debug builds retain the full development client. Release code is minified, and development-only JavaScript is removed.
 
+On Windows, the release plugin sets `CMAKE_OBJECT_PATH_MAX=256` and uses the shorter `.expo/cxx` staging directory so CMake can hash long generated C++ object paths before the Android SDK's Ninja reaches its path limit. These settings are reapplied by Expo prebuild; they do not require moving the repository or changing Windows registry settings. Cross-drive hard-link warnings from the Gradle cache are separate: Gradle falls back to copying those libraries.
+
 ## Test without a release key
 
 ```sh

@@ -40,6 +40,14 @@ configurations.matching { it.name.toLowerCase().contains("release") }.configureE
 }
 `;
 
+const windowsNativePaths = `
+// Tally Windows native paths: make CMake hash long generated object directories.
+if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+    android.defaultConfig.externalNativeBuild.cmake.arguments "-DCMAKE_OBJECT_PATH_MAX=256"
+    android.externalNativeBuild.cmake.buildStagingDirectory file("$rootDir/../.expo/cxx")
+}
+`;
+
 function updateProguardRules(source) {
   if (source.includes("# Tally: Expo record reflection")) return source;
   return source + `
@@ -64,6 +72,8 @@ android.defaultConfig {
   if (source.includes("// Tally release signing:")) {
     let result = source.includes("// Tally isolated release check:") ? source : source + previewConfig;
     if (!result.includes("// Tally has no barcode scanning.")) result += scannerExclusions;
+    if (!result.includes("// Tally Windows native paths:")) result += windowsNativePaths;
+    else result = result.replace(/\/\/ Tally Windows native paths:[\s\S]*?\r?\n}\r?\n?/, windowsNativePaths.trimStart());
     return result;
   }
   const releaseSigningPattern = /(buildTypes\s*\{[\s\S]*?\brelease\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/;
@@ -74,7 +84,7 @@ android.defaultConfig {
     .replace("android {", `${signingSetup}\nandroid {`)
     .replace("signingConfigs {", `signingConfigs {\n        ${releaseSigning}`)
     .replace(releaseSigningPattern, "$1signingConfig tallyHasReleaseKey ? signingConfigs.release : (tallyTestSigning ? signingConfigs.debug : null)")
-    .replace('getDefaultProguardFile("proguard-android.txt")', 'getDefaultProguardFile("proguard-android-optimize.txt")') + previewConfig + scannerExclusions;
+    .replace('getDefaultProguardFile("proguard-android.txt")', 'getDefaultProguardFile("proguard-android-optimize.txt")') + previewConfig + scannerExclusions + windowsNativePaths;
 }
 
 function withAndroidRelease(config) {

@@ -2,13 +2,16 @@ import {
   DEFAULT_WORKSPACE_ID,
   SQLiteFinanceRepository,
   SQLiteWorkspaceRepository,
+  financeDb,
 } from "./SQLiteRepo";
 import type { FinanceRepository } from "./Interface";
+import { restoreWorkspaceSelection, saveWorkspaceSelection } from "./workspaceSelection";
 
-let activeWorkspaceId = DEFAULT_WORKSPACE_ID;
+let activeWorkspaceId = restoreWorkspaceSelection(financeDb, DEFAULT_WORKSPACE_ID);
 let activeRepository = new SQLiteFinanceRepository(activeWorkspaceId);
 
 export function switchWorkspace(workspaceId: string) {
+  saveWorkspaceSelection(financeDb, workspaceId);
   activeWorkspaceId = workspaceId;
   activeRepository = new SQLiteFinanceRepository(activeWorkspaceId);
 }

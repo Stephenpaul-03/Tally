@@ -1,4 +1,6 @@
-import { RecurringControl } from "@/modules/Recurring/RecurringControl";
+import { RecurringControl, RECURRING_PILL_WIDTH } from "@/modules/Recurring/RecurringControl";
+import { HistorySuggestionPill } from "./Molecules/HistorySuggestionPill";
+import { suggestTransactionDetails } from "../../suggestions";
 import { recurringForTransaction, editRecurringTemplate, createRecurringTemplate } from "@/modules/Recurring/repository";
 import type { Frequency, RecurringTemplate, RecurringOccurrence } from "@/modules/Recurring/model";
 import type { Transaction } from "@/utils/Types";
@@ -15,6 +17,7 @@ import Reanimated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  LinearTransition,
 } from "react-native-reanimated";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { categoryTone } from "@/theme/sage";
@@ -695,6 +698,26 @@ export function TransactionModal({
   );
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const historySuggestion = useMemo(() => suggestTransactionDetails(transactions, {
+    title: formData.title, type: formData.type, currency: formData.currencyCode || activeWorkspace?.currencyCode || "INR",
+    fallbackCurrency: activeWorkspace?.currencyCode || "INR",
+    categories: formData.type === "income" ? activeIncomeCategories : activeExpenseCategories,
+    accounts: activeAccounts,
+  }), [transactions, formData.title, formData.type, formData.currencyCode, activeWorkspace?.currencyCode,
+    activeIncomeCategories, activeExpenseCategories, activeAccounts]);
+  const historyKey = historySuggestion ? JSON.stringify([formData.title.trim().toLowerCase(), formData.type,
+    formData.currencyCode, historySuggestion.category, historySuggestion.account]) : "";
+  const [appliedHistoryKey, setAppliedHistoryKey] = useState("");
+  const hasHistorySuggestion = Boolean(historySuggestion && !isViewMode && !isEditMode);
+  const historyApplied = Boolean(historySuggestion && historyKey === appliedHistoryKey
+    && formData.category === historySuggestion.category && formData.account === historySuggestion.account);
+  React.useEffect(() => {
+    setAppliedHistoryKey("");
+    if (isOpen && hasHistorySuggestion) {
+      dispatchAmount({ type: "close" });
+      setRecurringExpanded(false);
+    }
+  }, [historyKey, hasHistorySuggestion, isOpen]);
   const closeAccountPicker = React.useCallback(
     () => setAccountPickerOpen(false),
     [],
@@ -1454,7 +1477,9 @@ export function TransactionModal({
               onKey={handleKeypadPress}
               calculating={amountSession.open}
               controls={
-                <View onLayout={event => setControlsWidth(event.nativeEvent.layout.width)} style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Reanimated.View layout={motionEnabled ? LinearTransition.duration(240) : undefined}
+                  onLayout={event => setControlsWidth(event.nativeEvent.layout.width)}
+                  style={{ width: "100%", minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <CalculationControls
                   open={amountSession.open}
                   operation={amountSession.operation}
@@ -1469,9 +1494,22 @@ export function TransactionModal({
                   onClear={() => dispatchAmount({ type: "key", key: "clear" })}
                   onEquals={() => dispatchAmount({ type: "equals" })}
                 />
-                {!recurringOccurrence && !amountSession.open && <View onTouchStart={event => event.stopPropagation()} style={{flexShrink:0}}><RecurringControl availableWidth={Math.max(0,controlsWidth-52)} open={recurringExpanded} enabled={recurringEnabled} frequency={recurringFrequency} required={createRecurring || Boolean(recurringTemplate)} disabled={isSaving || recurringLoading}
+                {!recurringOccurrence && <View onTouchStart={event => event.stopPropagation()} style={{flexShrink:0}}><RecurringControl visible={!amountSession.open} availableWidth={Math.max(0,controlsWidth-52)} open={recurringExpanded} enabled={recurringEnabled} frequency={recurringFrequency} required={createRecurring || Boolean(recurringTemplate)} disabled={isSaving || recurringLoading}
                   onToggle={() => { blurInputs(); setRecurringExpanded(value => !value); }} onSelect={frequency => { setRecurringEnabled(Boolean(frequency)); if (frequency) setRecurringFrequency(frequency); }} /></View>}
-                </View>
+                {hasHistorySuggestion && historySuggestion ? <HistorySuggestionPill key={historyKey}
+                  visible={isOpen && !amountSession.open && !recurringExpanded} applied={historyApplied}
+                  availableWidth={Math.max(0, controlsWidth - (recurringOccurrence ? 60 : 68 + (recurringEnabled ? RECURRING_PILL_WIDTH : 44)))}
+                  category={historySuggestion.category} account={historySuggestion.account}
+                  categoryColor={getCategoryColor(historySuggestion.category, formData.type, categoryColors)}
+                  categoryIcon={getCategoryIconName(historySuggestion.category, formData.type, categoryIcons) as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
+                  accountColor={getAccountColor(historySuggestion.account, accountColors)}
+                  accountIcon={getAccountIconName(historySuggestion.account, accountIcons) as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
+                  onApply={() => {
+                    blurInputs();
+                    setFormData(previous => ({ ...previous, category: historySuggestion.category, account: historySuggestion.account }));
+                    setAppliedHistoryKey(historyKey);
+                  }} /> : null}
+                </Reanimated.View>
               }
             />
           </Animated.View>

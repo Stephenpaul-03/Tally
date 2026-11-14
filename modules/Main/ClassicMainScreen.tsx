@@ -42,6 +42,7 @@ import {
 import { MonthPickerSheet } from "./MonthPickerSheet";
 
 type Controls = {
+  group?: GestureControlButtonConfig;
   left?: GestureControlButtonConfig;
   leftMiddle?: GestureControlButtonConfig;
   middle?: GestureControlButtonConfig;
@@ -396,6 +397,7 @@ export function ClassicMainScreen({
                                 }}
                               >
                                 {control(controlButtons.left)}
+                                {control(controlButtons.group)}
                                 {control(controlButtons.leftMiddle)}
                                 {control(controlButtons.right)}
                               </View>

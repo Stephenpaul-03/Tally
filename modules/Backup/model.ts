@@ -28,6 +28,7 @@ export const SECTION_LABELS: Record<BackupSection, string> = {
   drafts: "Unfinished drafts",
 };
 export const PREFERENCE_KEYS = [
+  "insightsGroupingEnabled",
   "appThemeId",
   "appThemeTrueBlack",
   "themeModePreference",

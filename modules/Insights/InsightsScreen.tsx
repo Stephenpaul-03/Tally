@@ -1,4 +1,6 @@
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
+import { WorkspaceSummaryCard } from "@/modules/Summary/WorkspaceSummaryCard";
+import { workspaceSnapshot } from "@/modules/Summary/snapshot";
 import { InsightsLayoutContext } from "./components/InsightsLayoutContext";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
@@ -160,6 +162,8 @@ function WorkspaceInsights({
   }, [registerControls]);
   const money = (value: number) => formatInsightAmount(value, a.currency);
   const reportWorkspace = useAppSelector(selectActiveWorkspace);
+  const workspaceOverview = React.useMemo(() => workspaceSnapshot(a.transactions, a.currency, workspaceCurrency),
+    [a.transactions, a.currency, workspaceCurrency]);
   const reportSummary = React.useMemo(
     () => ({
       incomeTotal: a.data.income,
@@ -674,6 +678,12 @@ function WorkspaceInsights({
           importantForAccessibility={expanded ? "auto" : "no-hide-descendants"}
           style={[{ gap: 12, paddingTop: 14 }, bodyMotion]}
         >
+          <InsightCard title="Workspace summary" icon="layers-triple-outline"
+            active={expanded} initiallyVisible={expressive || standalone} headerGap={8}>
+            <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>{reportWorkspace?.name || "Workspace"} · All time · {a.currency}</Text>
+            <WorkspaceSummaryCard snapshot={workspaceOverview} contained
+              money={money} onPress={() => navigation.navigate("DatabaseSummary", { currency: a.currency })} />
+          </InsightCard>
           {showExpenses ? (
             <>
               <InsightCard

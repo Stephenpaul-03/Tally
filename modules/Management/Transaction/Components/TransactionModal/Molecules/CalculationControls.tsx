@@ -108,7 +108,7 @@ export function CalculationControls({
           borderRadius: 22,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: background,
+          backgroundColor: label === "Open calculator" ? tonalButtonSurface(theme) : background,
           opacity: pressed ? 0.7 : 1,
         })}
       >
@@ -122,7 +122,7 @@ export function CalculationControls({
         <Animated.View pointerEvents={open ? "none" : "auto"}
           accessibilityElementsHidden={open} importantForAccessibility={open ? "no-hide-descendants" : "auto"}
           style={[{ position: "absolute", top: 3, left: 0, width: 44 }, compact]}>
-          {auxiliary("Open calculator", <Icon name="calculator-variant-outline" size={21} color={c.primary} />, onToggle, "#64748B")}
+          {auxiliary("Open calculator", <Icon name="calculator-variant-outline" size={21} color={c.onSurface} />, onToggle, "#64748B")}
         </Animated.View>
         <Animated.View pointerEvents={open ? "auto" : "none"}
           accessibilityElementsHidden={!open} importantForAccessibility={!open ? "no-hide-descendants" : "auto"}

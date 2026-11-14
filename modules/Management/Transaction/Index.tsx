@@ -37,7 +37,7 @@ import { AccountManagementModal } from "@/modules/Management/Account/Index";
 import { CategoryManagementModal } from "@/modules/Management/Category/Index";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
-import { typography } from "@/theme/typography";
+import { fontFamilies, typography } from "@/theme/typography";
 import {
   getAccountColor,
   getAccountIconName,
@@ -489,21 +489,22 @@ function FilterSelectCard({
       style={({ pressed }) => [
         local.filterSelectCard,
         {
+          flexDirection: "column",
+          alignItems: "stretch",
           backgroundColor: theme.colors.elevation.level1,
           ...(theme.expressive
             ? {
-                flexDirection: "column",
-                alignItems: "flex-start",
-                minHeight: 116,
+                minHeight: 92,
                 borderRadius: 28,
-                padding: 14,
-                gap: 8,
+                padding: 10,
+                gap: 4,
               }
             : {}),
           opacity: pressed ? 0.72 : 1,
         },
       ]}
     >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       {theme.expressive ? (
         <CategoryIconBadge icon={icon} color={resolvedIconColor} />
       ) : (
@@ -516,7 +517,6 @@ function FilterSelectCard({
           <MaterialCommunityIcons name={icon} size={18} color={WHITE_ICON} />
         </View>
       )}
-      <View style={[local.filterSelectCopy, theme.expressive && { flex: 0 }]}>
         <Text
           numberOfLines={1}
           style={[
@@ -524,11 +524,15 @@ function FilterSelectCard({
             theme.expressive && { fontSize: 13, lineHeight: 18 },
             {
               color: theme.colors.onSurfaceVariant,
+              flex: 1,
+              minWidth: 0,
             },
           ]}
         >
           {label}
         </Text>
+        <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.onSurfaceVariant} />
+      </View>
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -543,17 +547,6 @@ function FilterSelectCard({
         >
           {value || placeholder}
         </Text>
-      </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        style={
-          theme.expressive
-            ? { position: "absolute", top: 18, right: 16 }
-            : undefined
-        }
-        size={18}
-        color={theme.colors.onSurfaceVariant}
-      />
     </Pressable>
   );
 }
@@ -2240,11 +2233,11 @@ const local = StyleSheet.create({
     borderRadius: 16,
     flex: 1,
     flexDirection: "row",
-    gap: 10,
-    minHeight: 76,
+    gap: 4,
+    minHeight: 80,
     minWidth: 0,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   filterSelectIcon: {
     alignItems: "center",
@@ -2264,8 +2257,10 @@ const local = StyleSheet.create({
     lineHeight: 13,
   },
   filterSelectValue: {
+    textAlign: "center",
     fontSize: 11,
-    fontWeight: "800",
+    fontFamily: fontFamilies.sansRegular,
+    fontWeight: "normal",
     lineHeight: 15,
   },
   filterChip: {

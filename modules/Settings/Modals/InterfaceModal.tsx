@@ -56,7 +56,7 @@ function SheetShell({
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const { design, setDesign, insightsStyle, setInsightsStyle } = useMainDesign();
-  const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled } = useAddonPrefs();
+  const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled, insightsGroupingEnabled, setInsightsGroupingEnabled } = useAddonPrefs();
   const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
     useTabBarModePreference();
   const {
@@ -82,6 +82,11 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
         />
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
+          <ActionRow icon="layers-triple-outline" label="Group similar entries in Insights"
+            description="Combine matching titles, categories and accounts into expandable groups. Only affects Insights."
+            theme={theme} showChevron={false} onPress={() => setInsightsGroupingEnabled(!insightsGroupingEnabled)}
+            rightElement={<Switch value={insightsGroupingEnabled} onValueChange={setInsightsGroupingEnabled}
+              accessibilityLabel="Group similar entries in Insights" />} />
           <ActionRow icon="chart-box-outline" label="Insights type"
             description="Choose how Insights looks" theme={theme} showChevron={false}
             onPress={() => setInsightsStyle((insightsStyle ?? design.layout) === "classic" ? "sage" : "classic")}

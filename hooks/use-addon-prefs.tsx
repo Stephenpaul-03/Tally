@@ -10,6 +10,8 @@ import React, {
 } from "react";
 
 type AddonPrefsContextValue = {
+  insightsGroupingEnabled: boolean;
+  setInsightsGroupingEnabled: (next: boolean) => void;
   guidedChatEnabled: boolean;
   betterAnalyticsEnabled: boolean;
   minimalIconsEnabled: boolean;
@@ -79,6 +81,7 @@ function parseStoredBoolean(value: string | null): boolean | null {
 const AddonPrefsContext = createContext<AddonPrefsContextValue | null>(null);
 
 export function AddonPrefsProvider({ children }: { children: ReactNode }) {
+  const [insightsGroupingEnabled, setInsightsGroupingEnabled] = useState(false);
   const [guidedChatEnabled, setGuidedChatEnabledState] = useState(false);
   const [betterAnalyticsEnabled, setBetterAnalyticsEnabledState] =
     useState(false);
@@ -107,6 +110,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           storedInteractionHints,
           storedLabsNoticeDismissed,
           storedInsightsCardOrder,
+          storedInsightsGrouping,
         ] = await Promise.all([
           AsyncStorage.getItem(GUIDED_CHAT_STORAGE_KEY),
           AsyncStorage.getItem(BETTER_ANALYTICS_STORAGE_KEY),
@@ -116,6 +120,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(INTERACTION_HINTS_STORAGE_KEY),
           AsyncStorage.getItem(LABS_NOTICE_DISMISSED_STORAGE_KEY),
           AsyncStorage.getItem(INSIGHTS_CARD_ORDER_STORAGE_KEY),
+          AsyncStorage.getItem("insightsGroupingEnabled"),
         ]);
 
         const parsedGuidedChat = parseStoredBoolean(storedGuidedChat);
@@ -139,6 +144,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
         }
 
         if (!isMounted) return;
+        setInsightsGroupingEnabled(parseStoredBoolean(storedInsightsGrouping) ?? false);
         if (parsedGuidedChat != null)
           setGuidedChatEnabledState(parsedGuidedChat);
         if (parsedBetterAnalytics != null)
@@ -167,6 +173,10 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
     if (!isHydrated) return;
     void AsyncStorage.setItem("summaryWorkspaceEnabled", String(summaryWorkspaceEnabled));
   }, [summaryWorkspaceEnabled, isHydrated]);
+
+  useEffect(() => {
+    if (isHydrated) void AsyncStorage.setItem("insightsGroupingEnabled", String(insightsGroupingEnabled));
+  }, [insightsGroupingEnabled, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -294,6 +304,8 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      insightsGroupingEnabled,
+      setInsightsGroupingEnabled,
       guidedChatEnabled,
       betterAnalyticsEnabled,
       minimalIconsEnabled,
@@ -319,6 +331,7 @@ export function AddonPrefsProvider({ children }: { children: ReactNode }) {
       toggleAnimationsEnabled,
     }),
     [
+      insightsGroupingEnabled,
       guidedChatEnabled,
       betterAnalyticsEnabled,
       minimalIconsEnabled,

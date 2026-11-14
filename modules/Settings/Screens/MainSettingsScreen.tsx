@@ -145,6 +145,9 @@ export function MainSettingsScreen() {
   }, []);
   const settingsItems = React.useMemo<SettingsSearchItem[]>(
     () => [
+      { id: "insights-grouping", icon: "layers-triple-outline", label: "Group similar entries in Insights",
+        description: "Combine matching titles, categories and accounts in Insights",
+        keywords: ["insights", "grouping", "similar", "matching", "entries"], onPress: openInterfaceModal },
       { id:"recurring",icon:"calendar-refresh-outline",label:"Recurring",description:"Payment reminders and recurring schedules",keywords:["recurring","repeat","schedule","payments"],onPress:()=>navigation.navigate("Recurring") },
       {
         id: "workspaces",

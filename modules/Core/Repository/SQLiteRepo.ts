@@ -3,7 +3,7 @@ import { recurringSchema } from "@/modules/Recurring/schema";
 import { sortCategories } from "@/utils/category-order";
 import { validateImport, needsReview, type ImportRow } from "@/modules/Core/import/validation";
 import { initializeOnboarding, isOnboardingComplete, resetOnboarding, saveOnboarding, getTourProgress, saveTourProgress, type OnboardingSetup } from "../../Onboarding/storage";
-import * as SQLite from "expo-sqlite";
+import { openFinanceDatabase, type FinanceDatabase } from "./Database";
 import { getFinanceDatabaseRuntime, initializeFinanceDatabaseRuntime } from "./databaseRuntime";
 import { createSampleTransactions, SAMPLE_ID_PREFIX } from "../../Insights/sampleData";
 import { createTransaction, formatAccountLabel } from "../../../utils/Helpers";
@@ -271,8 +271,8 @@ const shouldAutoSeedWorkspace = (workspaceId: string) =>
 
 // --- Database Connection ---
 // expo-sqlite v2: openDatabaseSync replaces the deprecated openDatabase
-export type FinanceExecutor = Pick<SQLite.SQLiteDatabase, "getFirstAsync" | "getAllAsync" | "runAsync">;
-const databaseRuntime = getFinanceDatabaseRuntime(SQLite.openDatabaseSync);
+export type FinanceExecutor = Pick<FinanceDatabase, "getFirstAsync" | "getAllAsync" | "runAsync">;
+const databaseRuntime = getFinanceDatabaseRuntime(openFinanceDatabase);
 const db = databaseRuntime.database;
 
 // Export db for debugging purposes

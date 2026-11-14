@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "@/modules/Settings/Components/SettingsSheetHandle";
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SectionLabel } from "@/components/SectionLabel";
@@ -295,16 +296,7 @@ export function AccountDeleteModal(props: AccountDeleteModalProps) {
         overflow: "hidden",
       }}
     >
-      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
-        <View
-          style={{
-            backgroundColor: theme.colors.outlineVariant,
-            borderRadius: 999,
-            height: 4,
-            width: 42,
-          }}
-        />
-      </View>
+      <SettingsSheetHandle />
       {content}
     </AnimatedPaperModal>
   );

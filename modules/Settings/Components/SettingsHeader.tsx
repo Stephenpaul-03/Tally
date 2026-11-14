@@ -9,6 +9,7 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import { TouchableRipple, useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import { SettingsStyles } from "../Styles";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
 
 type Props = {
   containerStyle?: StyleProp<ViewStyle>;
@@ -46,6 +47,8 @@ export function SettingsHeader({
   modal = false,
 }: Props) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const embedded = React.useContext(SettingsDetailContext);
+  const paneHeaderStyle = embedded ? { paddingTop: 4, paddingBottom: 12 } : undefined;
   const closeSearch = React.useCallback(() => {
     onQueryChange?.("");
     onSearchOpenChange?.(false);
@@ -110,7 +113,7 @@ export function SettingsHeader({
 
   if (searchOpen && searchEnabled) {
     return (
-      <View style={[SettingsStyles.header, containerStyle]}>
+      <View style={[SettingsStyles.header, paneHeaderStyle, containerStyle]}>
         <View style={SettingsStyles.headerCenter}>
           <UniversalSearchBar
             bg={theme.colors.background}
@@ -142,8 +145,8 @@ export function SettingsHeader({
   }
 
   return (
-    <View style={[SettingsStyles.header, containerStyle]}>
-      {onBack && !searchOpen ? (
+    <View style={[SettingsStyles.header, paneHeaderStyle, containerStyle]}>
+      {embedded ? null : onBack && !searchOpen ? (
         modal ? (
           <TouchableRipple
             onPress={onBack}

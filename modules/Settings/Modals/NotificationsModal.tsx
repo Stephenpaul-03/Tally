@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { settingsShape } from "@/theme/settingsShape";
 import { ActionRow } from "@/components/ActionRow";
@@ -301,14 +302,7 @@ export function NotificationsModal({
       }}
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <NotificationsContent modal onBack={onDismiss} />
     </AnimatedPaperModal>
   );

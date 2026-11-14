@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
@@ -1064,14 +1065,7 @@ export function BackupExportModal({
       keyboardAware
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <SettingsHeader title="Export Backup" onBack={onDismiss} modal />
 
       <ScrollView

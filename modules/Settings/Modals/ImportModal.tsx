@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
@@ -586,14 +587,7 @@ export function BackupImportModal({
       keyboardAware
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <SettingsHeader title="Import data" onBack={handleDismiss} modal />
 
       <ScrollView

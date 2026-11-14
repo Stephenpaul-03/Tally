@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { settingsShape } from "@/theme/settingsShape";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
@@ -283,14 +284,7 @@ function SheetShell({
       }}
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       {children}
     </AnimatedPaperModal>
   );

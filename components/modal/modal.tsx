@@ -25,6 +25,8 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
+import { InlineSettingsModalContext, SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
+import { SettingsCardEntranceProvider } from "@/components/animations/SettingsCardEntrance";
 
 type Presentation = "modal" | "sheet";
 type Props = {
@@ -50,7 +52,31 @@ type Props = {
 };
 
 /** One UI-thread timeline owns the panel, backdrop and drag. No nested Paper fade. */
-export function AnimatedPaperModal({
+export function AnimatedPaperModal(props: Props) {
+  const inline = React.useContext(InlineSettingsModalContext);
+  const { width, height } = useWindowDimensions();
+  const tablet = Math.min(width, height) >= 600 && width >= 768;
+  if (inline) {
+    return props.visible ? (
+      <InlineSettingsModalContext.Provider value={false}>
+        <View style={{ flex: 1, minHeight: 0 }}>{props.children}</View>
+      </InlineSettingsModalContext.Provider>
+    ) : null;
+  }
+  return <SettingsDetailContext.Provider value={false}>
+    <AnimatedPaperModalPresentation {...props}
+      presentation={tablet ? "modal" : props.presentation}
+      style={[props.style, tablet && { justifyContent: "center", paddingHorizontal: 24 }]}
+      contentContainerStyle={[
+        props.contentContainerStyle,
+        tablet && { width: "100%", maxWidth: Math.min(width - 48, Number(StyleSheet.flatten(props.contentContainerStyle)?.maxWidth) || 640), alignSelf: "center", borderRadius: 28,
+          maxHeight: height - 96, overflow: "hidden", paddingBottom: 16 },
+      ]}
+    />
+  </SettingsDetailContext.Provider>;
+}
+
+function AnimatedPaperModalPresentation({
   visible,
   onDismiss,
   onHidden,
@@ -326,7 +352,9 @@ export function AnimatedPaperModal({
   );
 
   if (!rendered) return null;
-  const presentedChildren = visible ? children : lastChildren.current;
+  const presentedChildren = <SettingsCardEntranceProvider>
+    {visible ? children : lastChildren.current}
+  </SettingsCardEntranceProvider>;
   return (
     <Portal>
       <View

@@ -1,3 +1,5 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
+import { InlineSettingsModalContext } from "../Layouts/SettingsDetailContext";
 import { ManagementEntranceItem, useManagementEntranceProgress } from "@/components/animations/ManagementEntranceItem";
 import { settingsShape } from "@/theme/settingsShape";
 import { AlertModal } from "@/components/alert/AlertModal";
@@ -472,14 +474,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
         keyboardAware
         includeBottomInset={true}
       >
-        <View style={styles.handleWrap}>
-          <View
-            style={[
-              styles.handle,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-        </View>
+        <SettingsSheetHandle />
         <>
           <SettingsHeader
             title="Workspaces"
@@ -752,12 +747,14 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
           ) : null}
         </>
       </AnimatedPaperModal>
+      <InlineSettingsModalContext.Provider value={false}>
       <WorkspaceEditor
         onBack={closeWorkspaceEditor}
         theme={theme}
         visible={visible && editorOpen}
         workspace={workspaceToEdit}
       />
+      </InlineSettingsModalContext.Provider>
     </>
   );
 }

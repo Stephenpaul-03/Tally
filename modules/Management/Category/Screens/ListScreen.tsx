@@ -1,4 +1,5 @@
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
+import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryBulkDeleteModal } from "../Components/BulkDeleteModal";
@@ -90,6 +91,7 @@ function CategoryListContent({
   renderHeader,
 }: ListScreenProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const embedded = React.useContext(SettingsDetailContext);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const c = theme.colors;
@@ -214,7 +216,13 @@ function CategoryListContent({
   );
 
   const sortAccessory = !pickerMode ? (
-    <View style={{ flexDirection: "row", gap: 8 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      {embedded ? <View style={{ width: (pageWidth || width - 350) >= 600 ? 220 : 120 }}>
+        <TypeToggle value={management.selectedType} onChange={handleSelectType}
+          mini={(pageWidth || width - 350) < 600}
+          progressAnim={pageProgress} borderWidth={0} radius={24} height={44}
+          trackBackgroundColor={c.elevation.level1} />
+      </View> : null}
       <TouchableRipple
         accessibilityLabel="Delete multiple categories"
         onPress={() => setBulkDeleteOpen(true)}
@@ -298,7 +306,7 @@ function CategoryListContent({
           ? { height: pickerModalHeight, flexShrink: 0 }
           : {
               flex: 1,
-              minHeight: listHeight + 128,
+              minHeight: embedded ? 0 : listHeight + 128,
             }
       }
     >
@@ -408,7 +416,9 @@ function CategoryListContent({
       )}
 
       {!pickerMode && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: embedded ? 16 : 0, gap: 10,
+          ...(embedded ? { flexDirection: "row", alignItems: "center" } : {}) }}>
+          {!embedded ? <View>
           <TypeToggle
             value={management.selectedType}
             onChange={handleSelectType}
@@ -417,6 +427,7 @@ function CategoryListContent({
             radius={(theme as ExtendedMD3Theme).expressive ? 24 : undefined}
             trackBackgroundColor={c.elevation.level1}
           />
+          </View> : null}
           <Pressable
             onPress={management.handleAddNewCategory}
             disabled={management.iconOptions.length === 0}
@@ -427,13 +438,14 @@ function CategoryListContent({
               gap: 10,
               paddingVertical: 14,
               paddingHorizontal: 20,
-              borderRadius: 14,
+              borderRadius: embedded ? 28 : 14,
               backgroundColor: c.primary,
               opacity: pressed
                 ? 0.75
                 : management.iconOptions.length === 0
                   ? 0.4
                   : 1,
+              ...(embedded ? { marginLeft: "auto" } : {}),
             })}
           >
             <MaterialCommunityIcons name="plus" size={20} color={c.onPrimary} />
@@ -631,6 +643,7 @@ function CategoryPage({
   theme: MD3Theme;
   divider: string;
 }) {
+  const embedded = React.useContext(SettingsDetailContext);
   const c = theme.colors;
 
   return (
@@ -642,7 +655,7 @@ function CategoryPage({
         style={
           pickerMode
             ? { height: listHeight, marginHorizontal: 20 }
-            : { flex: 1, minHeight: listHeight, marginHorizontal: 20 }
+            : { flex: 1, minHeight: embedded ? 0 : listHeight, marginHorizontal: 20 }
         }
       >
         <KeyboardAwareScrollView

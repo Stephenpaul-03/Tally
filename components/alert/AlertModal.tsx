@@ -288,7 +288,8 @@ function AlertModalContent({
     }, 220);
   }, [displayOpen, onCancel]);
 
-  const isMobile = !forceModal && (Platform.OS !== "web" || width < 768);
+  const tablet = Math.min(width, height) >= 600 && width >= 768;
+  const isMobile = !forceModal && !tablet && (Platform.OS !== "web" || width < 768);
 
   const modalWidth = Math.min(modalMaxWidth, width - 48);
   const maxHeight =

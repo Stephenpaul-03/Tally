@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { useAddonPrefs } from "@/hooks/use-addon-prefs";
 import { ActivityTypeToggle } from "@/modules/Insights/components/ActivityTypeToggle";
 import { useMainDesign } from "@/hooks/use-main-design";
@@ -40,14 +41,7 @@ function SheetShell({
       }}
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       {children}
     </AnimatedPaperModal>
   );

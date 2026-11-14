@@ -158,7 +158,10 @@ export function EntityEditLayout({
 }: EntityEditLayoutProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const { bottom, top } = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const tabletModal = presentation === "modal" && Math.min(windowWidth, windowHeight) >= 600 && windowWidth >= 768;
+  const wideTabletEditor = tabletModal && windowWidth >= 1000;
+  const width = tabletModal ? Math.min(wideTabletEditor ? 880 : 640, windowWidth - 48) : windowWidth;
   const c = theme.colors;
 
   const previewColor = localColor || c.primary;
@@ -195,7 +198,7 @@ export function EntityEditLayout({
   const [pickerWidth, setPickerWidth] = React.useState(0);
   const [iconSearchOpen, setIconSearchOpen] = React.useState(false);
   const [iconQuery, setIconQuery] = React.useState("");
-  const sideBySidePickers = pickerLayout === "columns";
+  const sideBySidePickers = pickerLayout === "columns" || tabletModal;
   const fullPickerWidth = pickerWidth || Math.max(0, width - 40);
   const availablePickerWidth = sideBySidePickers ? Math.max(44, (fullPickerWidth - 16) / 2) : fullPickerWidth;
   const iconColumns = Math.max(
@@ -409,7 +412,7 @@ export function EntityEditLayout({
             )}
           </View>
 
-          {previewBlock}
+          {!wideTabletEditor ? previewBlock : null}
         </View>
       ) : showPreview ? (
         <View
@@ -425,10 +428,14 @@ export function EntityEditLayout({
 
       <View
         onLayout={(event) =>
-          setPickerWidth(event.nativeEvent.layout.width - 40)
+          setPickerWidth(wideTabletEditor
+            ? (event.nativeEvent.layout.width - 40) * 0.66 - 24
+            : event.nativeEvent.layout.width - 40)
         }
-        style={{ paddingHorizontal: 20 }}
+        style={{ paddingHorizontal: 20, ...(wideTabletEditor ? { flexDirection: "row", flexWrap: "wrap", columnGap: 24, alignItems: "flex-start" } : {}) }}
       >
+        <View style={wideTabletEditor ? { width: "34%" } : undefined}>
+        {wideTabletEditor ? previewBlock : null}
         {/* Name */}
         <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
           <Text
@@ -501,8 +508,9 @@ export function EntityEditLayout({
         </View>
 
         {afterNameFields ? <View style={{ marginTop: 16 }}>{afterNameFields}</View> : null}
+        </View>
 
-        <View style={sideBySidePickers ? { flexDirection: "row", gap: 16, marginTop: 20, alignItems: "flex-start" } : undefined}>
+        <View style={sideBySidePickers ? { flexDirection: "row", gap: 16, marginTop: wideTabletEditor ? 0 : 20, alignItems: "flex-start", ...(wideTabletEditor ? { flex: 1, minWidth: 0 } : {}) } : undefined}>
         <View style={sideBySidePickers ? { flex: 1, minWidth: 0 } : { marginVertical: 20 }}>
           <View
             style={{
@@ -768,12 +776,12 @@ export function EntityEditLayout({
         </View>
 
         {additionalFields ? (
-          <View style={{ gap: 16, marginTop: 20 }}>{additionalFields}</View>
+          <View style={{ gap: 16, marginTop: 20, width: "100%" }}>{additionalFields}</View>
         ) : null}
 
         {/* Details */}
         {onChangeOwnerName || (localCurrency && onChangeCurrency) ? (
-          <>
+          <View style={{ width: "100%" }}>
             <Text
               style={{
                 ...typography.editorial.sectionLabel,
@@ -853,13 +861,14 @@ export function EntityEditLayout({
                 </View>
               ) : null}
             </View>
-          </>
+          </View>
         ) : null}
       </View>
 
       <View style={{ marginTop: "auto" }}>
         {footer ?? (
-          <View style={{ flexDirection: "row", margin: 16, marginTop: 24 }}>
+          <View style={{ flexDirection: "row", margin: 16, marginTop: 24,
+            ...(tabletModal ? { alignSelf: "flex-end", width: 280 } : {}) }}>
             <Pressable
               disabled={!canSubmit}
               onPress={onSubmit}
@@ -953,6 +962,7 @@ export function EntityEditLayout({
           maxHeight: "94%",
           overflow: "hidden",
           width: "100%",
+          maxWidth: tabletModal ? (wideTabletEditor ? 880 : 640) : undefined,
         }}
         keyboardAware
         dismissable={dismissable}
@@ -964,6 +974,7 @@ export function EntityEditLayout({
           accessibilityLabel="Drag handle"
           style={{
             alignItems: "center",
+            display: tabletModal ? "none" : "flex",
             backgroundColor: background,
             paddingBottom: 6,
             paddingTop: 10,

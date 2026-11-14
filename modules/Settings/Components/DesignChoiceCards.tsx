@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
 
 type Choice = "sage" | "classic";
 export function DesignChoiceCards({
@@ -18,6 +19,7 @@ export function DesignChoiceCards({
   purpose: "layout" | "style";
 }) {
   const { colors: c } = useTheme();
+  const embedded = React.useContext(SettingsDetailContext);
   const progress = useManagementEntranceProgress();
   return (
     <View
@@ -26,6 +28,7 @@ export function DesignChoiceCards({
         gap: 12,
         marginHorizontal: 20,
         marginBottom: 20,
+        ...(embedded ? { maxWidth: 460 } : {}),
       }}
     >
       {(["classic", "sage"] as const).map((choice, index) => {

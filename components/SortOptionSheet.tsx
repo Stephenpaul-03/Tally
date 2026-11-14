@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "@/modules/Settings/Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MotionItem, useMotionEnabled } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -336,7 +337,7 @@ export function SortOptionSheet({
           },
         ]}
       >
-        <View style={[styles.handle, { backgroundColor: c.outlineVariant }]} />
+        <SettingsSheetHandle />
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"

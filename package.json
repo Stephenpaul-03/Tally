@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "scripts": {
     "start": "expo start",
+    "web": "expo start --web",
+    "electron": "npm run web -- --port 8081",
+    "electron:dev": "node electron/dev.cjs",
+    "electron:open": "node electron/open.cjs",
+    "electron:preview": "expo export --platform web && node electron/open.cjs --local",
     "test:onboarding": "node --test modules/Onboarding/__tests__/*.test.cjs",
     "test:analytics": "node --test modules/Insights/__tests__/*.test.cjs",
     "android": "expo run:android",
@@ -51,6 +56,7 @@
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
+    "react-dom": "^19.1.0",
     "react-native": "0.81.5",
     "react-native-calendars": "^1.1314.0",
     "react-native-gesture-handler": "~2.28.0",
@@ -62,6 +68,7 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0",
     "react-native-worklets": "0.5.1",
     "react-redux": "^9.2.0",
     "readable-stream": "^4.7.0",
@@ -70,10 +77,37 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "concurrently": "^9.2.1",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
   },
   "private": true,
-  "license": "GPL-3.0-only"
+  "license": "GPL-3.0-only",
+  "build": {
+    "appId": "com.stephenpaul.tally.desktop",
+    "productName": "Tally",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
 }

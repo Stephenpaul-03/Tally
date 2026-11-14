@@ -1,5 +1,3 @@
-import { useAddonPrefs } from "@/hooks/use-addon-prefs";
-import { navigationRef } from "@/navigation/RootNavigation";
 import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
 import { useMainDesign } from "@/hooks/use-main-design";
 import { SpotlightTarget } from "@/modules/Onboarding/SpotlightTour";
@@ -68,7 +66,6 @@ type SettingsSearchItem = {
 type SearchableSettingsScreen = Exclude<keyof SettingsStackParamList, never>;
 
 export function MainSettingsScreen() {
-  const { summaryWorkspaceEnabled } = useAddonPrefs();
   const theme = useTheme();
   const { design } = useMainDesign();
   const navigation =
@@ -149,14 +146,6 @@ export function MainSettingsScreen() {
   const settingsItems = React.useMemo<SettingsSearchItem[]>(
     () => [
       { id:"recurring",icon:"calendar-refresh-outline",label:"Recurring",description:"Payment reminders and recurring schedules",keywords:["recurring","repeat","schedule","payments"],onPress:()=>navigation.navigate("Recurring") },
-      {
-        id: "workspace-summary",
-        icon: "layers-triple-outline",
-        label: "Summary",
-        description: "Income and spending for this workspace",
-        keywords: ["database", "summary", "workspace", "salary", "spending"],
-        onPress: () => { if (summaryWorkspaceEnabled) { closeSearch(); navigationRef.navigate("DatabaseSummary"); } else openInterfaceModal(); },
-      },
       {
         id: "workspaces",
         icon: "briefcase-outline",
@@ -456,8 +445,6 @@ export function MainSettingsScreen() {
       openNotificationsModal,
       openSecurityModal,
       openWorkspacesModal,
-      summaryWorkspaceEnabled,
-      closeSearch,
     ],
   );
 
@@ -548,7 +535,6 @@ export function MainSettingsScreen() {
                 theme={theme}
                 iconColor={activeWorkspace?.color ?? theme.colors.primary}
               />
-              {summaryWorkspaceEnabled ? <ActionRow icon="layers-triple-outline" label="Summary" description="Income and spending for this workspace" theme={theme} onPress={() => navigationRef.navigate("DatabaseSummary")} /> : null}
             </SheetCard>
 
             <SpotlightTarget id="settings-management">

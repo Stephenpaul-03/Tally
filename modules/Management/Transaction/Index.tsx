@@ -1,4 +1,7 @@
 import { TransactionMutationScope, TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "./Components/TransactionMutation";
+import { groupTransactions, type TransactionGrouping } from "./grouping";
+import { TransactionGroupingSheet } from "./Components/TransactionGroupingSheet";
+import { separateLedgerTotals } from "@/modules/Main/presentation";
 import { DesignText as Text } from "@/components/DesignText";
 import { MotionItem } from "@/components/animations/Motion";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
@@ -34,7 +37,7 @@ import { AccountManagementModal } from "@/modules/Management/Account/Index";
 import { CategoryManagementModal } from "@/modules/Management/Category/Index";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
-import { typography } from "@/theme/typography";
+import { fontFamilies, typography } from "@/theme/typography";
 import {
   getAccountColor,
   getAccountIconName,
@@ -81,6 +84,9 @@ type MonthSection = {
   total: number;
   totalLabel?: string;
   metric?: "spent" | "earned";
+  currencyCode?: string;
+  currencySymbol?: string;
+  grouping?: TransactionGrouping;
   transactions: (Transaction | TransactionDraft)[];
 };
 
@@ -483,21 +489,22 @@ function FilterSelectCard({
       style={({ pressed }) => [
         local.filterSelectCard,
         {
+          flexDirection: "column",
+          alignItems: "stretch",
           backgroundColor: theme.colors.elevation.level1,
           ...(theme.expressive
             ? {
-                flexDirection: "column",
-                alignItems: "flex-start",
-                minHeight: 116,
+                minHeight: 92,
                 borderRadius: 28,
-                padding: 14,
-                gap: 8,
+                padding: 10,
+                gap: 4,
               }
             : {}),
           opacity: pressed ? 0.72 : 1,
         },
       ]}
     >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       {theme.expressive ? (
         <CategoryIconBadge icon={icon} color={resolvedIconColor} />
       ) : (
@@ -510,7 +517,6 @@ function FilterSelectCard({
           <MaterialCommunityIcons name={icon} size={18} color={WHITE_ICON} />
         </View>
       )}
-      <View style={[local.filterSelectCopy, theme.expressive && { flex: 0 }]}>
         <Text
           numberOfLines={1}
           style={[
@@ -518,11 +524,15 @@ function FilterSelectCard({
             theme.expressive && { fontSize: 13, lineHeight: 18 },
             {
               color: theme.colors.onSurfaceVariant,
+              flex: 1,
+              minWidth: 0,
             },
           ]}
         >
           {label}
         </Text>
+        <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.onSurfaceVariant} />
+      </View>
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -537,17 +547,6 @@ function FilterSelectCard({
         >
           {value || placeholder}
         </Text>
-      </View>
-      <MaterialCommunityIcons
-        name="chevron-right"
-        style={
-          theme.expressive
-            ? { position: "absolute", top: 18, right: 16 }
-            : undefined
-        }
-        size={18}
-        color={theme.colors.onSurfaceVariant}
-      />
     </Pressable>
   );
 }
@@ -1432,21 +1431,18 @@ export function TransactionSortModal({
   );
 }
 
-const TimelineDaySection = React.memo(function TimelineDaySection({
-  item,
-  currencyCode,
-  currencySymbol,
-  onPressTransaction,
-  collapsed,
-  onToggleCollapsed,
-}: {
+
+type TimelineDaySectionProps = {
   item: MonthSection;
   currencyCode: string;
   currencySymbol: string;
   onPressTransaction: (id: string) => void;
   collapsed: boolean;
   onToggleCollapsed: (key: string) => void;
-}) {
+};
+
+const TimelineDaySection = React.memo(function TimelineDaySection(props: TimelineDaySectionProps) {
+  const { item, currencyCode, currencySymbol, onPressTransaction, collapsed, onToggleCollapsed } = props;
   const theme = useTheme<ExtendedMD3Theme>();
   return (
     <TimelineSectionHeader
@@ -1454,8 +1450,8 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
       total={item.total}
       totalLabel={item.totalLabel}
       metric={item.metric}
-      currencyCode={currencyCode}
-      currencySymbol={currencySymbol}
+      currencyCode={item.currencyCode || currencyCode}
+      currencySymbol={item.currencySymbol || currencySymbol}
       collapsed={collapsed}
       onToggleCollapsed={() => onToggleCollapsed(item.key)}
     >
@@ -1474,6 +1470,7 @@ const TimelineDaySection = React.memo(function TimelineDaySection({
           >
             <TransactionRow
               transaction={transaction}
+              secondaryLabelMode={item.grouping && item.grouping !== "date" ? "date" : "time"}
               onPressTransaction={onPressTransaction}
               grouped
               groupPosition={
@@ -1524,6 +1521,8 @@ export default function Transactions({
     React.useState("");
   const [filtersVisible, setFiltersVisible] = React.useState(false);
   const [sortVisible, setSortVisible] = React.useState(false);
+  const [groupingVisible, setGroupingVisible] = React.useState(false);
+  const [grouping, setGrouping] = React.useState<TransactionGrouping>("date");
   const [appliedFilters, setAppliedFilters] =
     React.useState<TransactionViewFilters>(DEFAULT_VIEW_FILTERS);
   const [draftFilters, setDraftFilters] =
@@ -1712,18 +1711,9 @@ export default function Transactions({
   ]);
 
   const monthSections = useMemo<MonthSection[]>(() => {
-    const grouped = new Map<string, Transaction[]>();
-    [...monthTransactions.expense, ...monthTransactions.income].forEach(
-      (transaction) => {
-        if (!transaction.date) return;
-        const group = grouped.get(transaction.date) ?? [];
-        group.push(transaction);
-        grouped.set(transaction.date, group);
-      },
-    );
-
-    const sections: MonthSection[] = [...grouped.entries()]
-      .map(([dateKey, transactions]) => {
+    const grouped = groupTransactions([...monthTransactions.expense, ...monthTransactions.income], grouping, currencyCode);
+    const sections: MonthSection[] = grouped
+      .map(({ key: dateKey, title, currencyCode: groupCurrency, transactions }) => {
         const sortedTransactions = [...transactions].sort((left, right) =>
           compareTransactionsBySort(left, right, appliedSort),
         );
@@ -1736,7 +1726,13 @@ export default function Transactions({
 
         return {
           key: dateKey,
-          title: formatDateTitle(dateKey, todayKey),
+          title: grouping === "date" ? formatDateTitle(dateKey, todayKey) : title,
+          currencyCode: groupCurrency,
+          grouping,
+          currencySymbol: sortedTransactions[0]?.currencySymbol || (groupCurrency === currencyCode ? currencySymbol : groupCurrency),
+          totalLabel: grouping === "date" && new Set(sortedTransactions.map(row => row.currencyCode || currencyCode)).size > 1
+            ? Object.values(separateLedgerTotals(sortedTransactions, currencyCode, currencySymbol)).filter(Boolean).join(" ? ")
+            : undefined,
           total: sortedTransactions.reduce(
             (sum, transaction) =>
               transaction.type === (incomeOnly ? "income" : "expense")
@@ -1749,7 +1745,7 @@ export default function Transactions({
         };
       })
       .sort((left, right) => {
-        if (appliedSort.field === "date") {
+        if (grouping === "date" && appliedSort.field === "date") {
           return appliedSort.direction === "desc"
             ? right.key.localeCompare(left.key)
             : left.key.localeCompare(right.key);
@@ -1779,6 +1775,9 @@ export default function Transactions({
     return sections;
   }, [
     appliedSort,
+    grouping,
+    currencyCode,
+    currencySymbol,
     monthTransactions.expense,
     monthTransactions.income,
     todayKey,
@@ -1985,6 +1984,7 @@ export default function Transactions({
             onAdd={handleAddTransaction}
             onEdit={handleEdit}
             onSort={handleOpenSort}
+            onGroup={() => setGroupingVisible(true)}
             onFilter={handleOpenFilters}
             filterCount={activeFilterCount}
             query={transactionSearchQuery}
@@ -2002,6 +2002,10 @@ export default function Transactions({
             onMonth={(month) => setSelectedDateOverride(`${month}-01`)}
             onEdit={handleEdit}
             controlButtons={{
+              group: {
+                label: "Group", icon: "layers-triple-outline", iconColor: theme.colors.primary,
+                accessibilityLabel: "Group transactions", onPress: () => setGroupingVisible(true),
+              },
               left: {
                 label: "Sort",
                 icon: "sort-variant",
@@ -2111,6 +2115,9 @@ export default function Transactions({
         onReset={handleResetSort}
         onDismiss={() => setSortVisible(false)}
       />
+      <TransactionGroupingSheet visible={groupingVisible} value={grouping}
+        onApply={value => { setGrouping(value); setCollapsedDaySections({}); }}
+        onDismiss={() => setGroupingVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -2226,11 +2233,11 @@ const local = StyleSheet.create({
     borderRadius: 16,
     flex: 1,
     flexDirection: "row",
-    gap: 10,
-    minHeight: 76,
+    gap: 4,
+    minHeight: 80,
     minWidth: 0,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   filterSelectIcon: {
     alignItems: "center",
@@ -2250,8 +2257,10 @@ const local = StyleSheet.create({
     lineHeight: 13,
   },
   filterSelectValue: {
+    textAlign: "center",
     fontSize: 11,
-    fontWeight: "800",
+    fontFamily: fontFamilies.sansRegular,
+    fontWeight: "normal",
     lineHeight: 15,
   },
   filterChip: {

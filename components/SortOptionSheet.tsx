@@ -285,6 +285,11 @@ export function SortOptionSheet({
   applyLabel = "Apply sort",
   onApply,
   onReset,
+  children,
+  showDirection = true,
+  sectionTitle = "Sort types",
+  suspended = false,
+  zIndex = 1000,
 }: {
   visible: boolean;
   title: string;
@@ -299,6 +304,11 @@ export function SortOptionSheet({
   applyLabel?: string;
   onApply?: (value: string, direction: "asc" | "desc") => void;
   onReset?: () => void;
+  children?: React.ReactNode;
+  showDirection?: boolean;
+  sectionTitle?: string;
+  suspended?: boolean;
+  zIndex?: number;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
@@ -324,6 +334,9 @@ export function SortOptionSheet({
     <AnimatedPaperModal
       visible={visible}
       onDismiss={onDismiss}
+      dismissable={!suspended}
+      escapeEnabled={!suspended}
+      zIndex={zIndex}
       presentation="sheet"
       includeBottomInset={false}
       contentContainerStyle={[styles.modalContent, { maxHeight: "92%" }]}
@@ -399,6 +412,8 @@ export function SortOptionSheet({
           </Pressable>
         </View>
 
+        {children}
+        {showDirection ? <>
         <Text style={[styles.sectionLabel, { color: c.onSurfaceVariant }]}>
           Direction
         </Text>
@@ -420,8 +435,9 @@ export function SortOptionSheet({
             },
           ]}
         />
+        </> : null}
         <Text style={[styles.sectionLabel, { color: c.onSurfaceVariant }]}>
-          Sort types
+          {sectionTitle}
         </Text>
         <ScrollView
           style={{ flexShrink: 1 }}

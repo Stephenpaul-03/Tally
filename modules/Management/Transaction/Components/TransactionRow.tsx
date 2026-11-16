@@ -45,6 +45,7 @@ interface TransactionRowProps {
   secondaryLabelMode?: SecondaryLabelMode;
   disableLongPress?: boolean;
   homeReveal?: boolean;
+  groupCount?: number;
 }
 
 function TransactionRowComponent({
@@ -56,6 +57,7 @@ function TransactionRowComponent({
   secondaryLabelMode = "time",
   disableLongPress = false,
   homeReveal = false,
+  groupCount,
 }: TransactionRowProps) {
   const theme = useTheme<ExtendedMD3Theme>();
   const RowText = homeReveal ? HomeText : Text;
@@ -93,7 +95,7 @@ function TransactionRowComponent({
       : secondaryLabelMode === "time"
         ? formatTransactionTime(transaction.createdAt || transaction.updatedAt)
         : "";
-  const secondaryMetaLabel = [accountLabel, secondaryLabel]
+  const secondaryMetaLabel = [accountLabel, groupCount ? `${groupCount} grouped entries` : secondaryLabel]
     .filter(Boolean)
     .join(" · ");
 
@@ -204,6 +206,7 @@ function TransactionRowComponent({
             >
               {amount}
             </RowDesignText>
+            {groupCount ? <MaterialCommunityIcons name="chevron-right" size={18} color={theme.colors.onSurfaceVariant} /> : null}
           </View>
         ) : (
           <View style={styles.row}>
@@ -233,7 +236,7 @@ function TransactionRowComponent({
                   ]}
                   numberOfLines={1}
                 >
-                  {meta}
+                  {groupCount ? [meta, secondaryMetaLabel].filter(Boolean).join(" · ") : meta}
                 </RowText>
               </View>
             </View>
@@ -245,7 +248,7 @@ function TransactionRowComponent({
                 >
                   {amount}
                 </RowText>
-                {secondaryMetaLabel ? (
+                {secondaryMetaLabel && !groupCount ? (
                   <RowDateText
                     style={[
                       styles.time,
@@ -303,6 +306,7 @@ function areTransactionRowPropsEqual(
     previous.secondaryLabelMode === next.secondaryLabelMode &&
     previous.disableLongPress === next.disableLongPress &&
     previous.homeReveal === next.homeReveal &&
+    previous.groupCount === next.groupCount &&
     previous.onPressTransaction === next.onPressTransaction
   );
 }

@@ -1,7 +1,8 @@
+import { WorkspaceSummaryCard } from "./WorkspaceSummaryCard";
+import { workspaceSnapshot } from "./snapshot";
 import { useAppSelector } from "@/hooks/Redux";
 import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
 import { ControlsSheet } from "@/modules/Insights/sheets/ControlsSheet";
-import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 import { workspaceSummaryReport } from "./report";
 import { ShareInsightsSheet } from "@/modules/Insights/sheets/ShareInsightsSheet";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
@@ -9,8 +10,10 @@ import { reportComparisonMode } from "@/modules/Insights/reportSelection";
 import { TransactionModal } from "@/modules/Management/Transaction/Components/TransactionModal/Index";
 import React from "react";
 import { FlatList, Pressable, RefreshControl, View } from "react-native";
-import { ActivityIndicator, Button, Chip, SegmentedButtons, TextInput, useTheme } from "react-native-paper";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { ActivityIndicator, Button, Chip, IconButton, useTheme } from "react-native-paper";
+import { SlidingPillToggle } from "@/components/SortOptionSheet";
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import type { RootParamList } from "@/navigation/types";
 import { DesignText as Text } from "@/components/DesignText";
 import { SettingsPage } from "@/modules/Settings/Components/SettingsPage";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
@@ -26,18 +29,20 @@ export function DatabaseSummaryScreen() {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootParamList, "DatabaseSummary">>();
   const workspace = useAppSelector(selectActiveWorkspace);
   const workspaceId = workspace?.id;
   const [databaseRows, setRows] = React.useState<DatabaseTransaction[]>([]);
   const rows = React.useMemo(() => databaseRows.filter(row => row.workspaceId === workspaceId), [databaseRows, workspaceId]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-  const [currency, setCurrency] = React.useState("");
+  const [currency, setCurrency] = React.useState(route.params?.currency || "");
   const [month, setMonth] = React.useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = React.useState(false);
   const [picker, setPicker] = React.useState(false);
   const [query, setQuery] = React.useState("");
-  const [type, setType] = React.useState("all");
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [type, setType] = React.useState<"all" | "income" | "expense">("all");
   const [shareOpen, setShareOpen] = React.useState(false);
   const [viewOpen, setViewOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<DatabaseTransaction | null>(null);
@@ -68,34 +73,30 @@ export function DatabaseSummaryScreen() {
     `${periodLabel} · ${workspace?.name || "Workspace"} · ${currency}`, { accounts: reportData.accounts, transactions: reportData.transactions, reportTitle: "Summary", recordedPeriodDescription: `${periodLabel} · ${workspace?.name || "Workspace"} · ${currency}` });
   const card = { backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 16, padding: 18, gap: 12 };
   return <SettingsPage style={{ backgroundColor: c.background }}>
-    <SettingsHeader title="Summary" onBack={() => navigation.goBack()} rightIcon="share-variant-outline" rightAccessibilityLabel="Share Summary PDF" onRightPress={() => setShareOpen(true)} />
-    <FlatList data={entries} keyExtractor={row => row.id} contentContainerStyle={{ padding: 16, gap: 3, paddingBottom: 40 }}
+    <SettingsHeader title="Summary" onBack={() => navigation.goBack()}
+      query={query} onQueryChange={setQuery} searchOpen={searchOpen} onSearchOpenChange={setSearchOpen}
+      searchPlaceholder="Search transactions"
+      rightAccessoryBeforeSearch={<View style={{ flexDirection: "row", gap: 4 }}>
+        <IconButton icon="tune-variant" size={20} style={{ margin: 0, backgroundColor: c.surface }}
+          accessibilityLabel={`Change currency and period, ${currency || "no currency"}, ${periodLabel}`}
+          onPress={() => setOptionsOpen(true)} />
+        <IconButton icon="share-variant-outline" size={20} style={{ margin: 0, backgroundColor: c.surface }}
+          accessibilityLabel="Share Summary PDF" onPress={() => setShareOpen(true)} />
+      </View>} />
+    <FlatList data={entries} keyExtractor={row => row.id} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 0, gap: 3, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={() => setRetry(value => value + 1)} tintColor={c.primary} />}
       ListHeaderComponent={<View style={{ gap: 14, paddingBottom: 14 }}>
         {!!error && <View style={card}><Text accessibilityRole="alert" style={{ color: c.error }}>Could not load the summary: {error}</Text><Button onPress={() => setRetry(value => value + 1)}>Retry</Button></View>}
         {loading && !rows.length ? <ActivityIndicator /> : null}
-        <>
-          <View style={[card, { backgroundColor: c.primaryContainer }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <Text numberOfLines={1} style={{ color: c.onPrimaryContainer, fontWeight: "700", flex: 1 }}>Balance · {workspace?.name || "Workspace"}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Change currency and period, ${currency || "no currency"}, ${periodLabel}`} onPress={() => setOptionsOpen(true)}
-                style={({ pressed }) => ({ minHeight: 44, flexShrink: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: theme.expressive ? 22 : 12, backgroundColor: c.surface, opacity: pressed ? 0.7 : 1 })}>
-                <Text numberOfLines={1} style={{ color: c.onSurface, fontWeight: "700", fontSize: 12 }}>{currency || "Currency"} · {month ? new Date(`${month}-01T12:00:00`).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "All time"}</Text>
-                <Icon name="chevron-down" size={18} color={c.onSurface} />
-              </Pressable>
-            </View>
-            {summary.entries.length ? <>
-            <Text style={{ fontSize: 36, fontWeight: "800", color: c.onPrimaryContainer }}>{summary.balance < 0 ? "−" : ""}{money(summary.balance)}</Text>
-            <View style={{ flexDirection: "row", gap: 20 }}>
-              <View style={{ flex: 1 }}><Text style={{ color: c.onPrimaryContainer }}>Income</Text><Text style={{ color: c.onPrimaryContainer, fontWeight: "800", fontSize: 19 }}>{money(summary.income)}</Text></View>
-              <View style={{ flex: 1 }}><Text style={{ color: c.onPrimaryContainer }}>Spent</Text><Text style={{ color: c.onPrimaryContainer, fontWeight: "800", fontSize: 19 }}>{money(summary.spent)}</Text></View>
-            </View>
-            </> : <Text style={{ color: c.onPrimaryContainer, lineHeight: 21 }}>{loading ? "Loading summary…" : "No entries in this period. Choose another month or currency."}</Text>}
-          </View>
-        </>
+        <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>{workspace?.name || "Workspace"} · {periodLabel} · {currency}</Text>
+          <WorkspaceSummaryCard snapshot={workspaceSnapshot(rows, currency, workspace?.currencyCode || currency, month)}
+            money={money} />
         <Text style={{ color: c.onSurface, fontSize: 20, fontWeight: "800" }}>Transactions · {entries.length}</Text>
-        <SegmentedButtons value={type} onValueChange={setType} buttons={[{ value: "all", label: "All" }, { value: "income", label: "Income" }, { value: "expense", label: "Expenses" }]} />
-        <TextInput mode="outlined" label="Search transactions" value={query} onChangeText={setQuery} right={query ? <TextInput.Icon icon="close" onPress={() => setQuery("")} /> : undefined} />
+        <SlidingPillToggle value={type} onChange={setType} options={[
+          { key: "all", label: "All", icon: "format-list-bulleted", color: c.primary },
+          { key: "income", label: "Income", icon: "arrow-bottom-left", color: theme.semantic.income },
+          { key: "expense", label: "Expenses", icon: "arrow-top-right", color: theme.semantic.expense },
+        ]} />
       </View>}
       ListEmptyComponent={!loading && !error ? <View style={card}><Text style={{ color: c.onSurface }}>No entries {query || type !== "all" ? "match these filters" : month ? "in this month" : "in the database yet"}.</Text></View> : null}
       renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.title} from ${item.workspaceName}`} onPress={() => { setSelected(item); setViewOpen(true); }} style={[card, { padding: 14, borderRadius: 12 }]}>

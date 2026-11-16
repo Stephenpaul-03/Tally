@@ -1,3 +1,7 @@
+import { useAddonPrefs } from "@/hooks/use-addon-prefs";
+import { selectActiveWorkspace } from "@/modules/Core/Slices/WorkspaceSlice";
+import { groupInsightEntries, type InsightEntryGroup } from "../entryGrouping";
+import { GroupedEntriesSheet } from "./GroupedEntriesSheet";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { DesignText as Text } from "@/components/DesignText";
@@ -151,6 +155,11 @@ function DetailPageSheet({
   suspended?: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const { insightsGroupingEnabled } = useAddonPrefs();
+  const workspace = useAppSelector(selectActiveWorkspace);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  useEffect(() => { setSelectedGroupKey(null); }, [detail, insightsGroupingEnabled]);
+
   const reduceMotion = useReducedMotion();
   const { height: screenHeight } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
@@ -193,15 +202,26 @@ function DetailPageSheet({
   );
   const historyOpen = detail !== null && historyPage === pageKey;
   const category = page.detail?.categoryType;
+  const transactions = useMemo(
+    () =>
+      [...(page.detail?.transactions ?? [])].sort(
+        (a, b) =>
+          b.date.localeCompare(a.date) ||
+          b.createdAt.localeCompare(a.createdAt),
+      ),
+    [page.detail?.transactions],
+  );
+  const displayEntries = useMemo(() => groupInsightEntries(transactions, insightsGroupingEnabled, workspace?.currencyCode || "INR"),
+    [transactions, insightsGroupingEnabled, workspace?.currencyCode]);
   const maxHeight = screenHeight * 0.84;
   // Virtualized batches must not resize the sheet during its entrance.
   const sheetHeight =
-    (page.detail?.transactions.length ?? 0) > 6
+    displayEntries.length > 6
       ? maxHeight
       : contentSize.key === pageKey
         ? Math.min(maxHeight, headerHeight + contentSize.height + bottom + 28)
         : Math.min(maxHeight, 480);
-  const longTransactionList = (page.detail?.transactions.length ?? 0) > 6;
+  const longTransactionList = displayEntries.length > 6;
   const measureContent = useCallback(
     (_width: number, height: number) => {
       // Long lists have a fixed viewport: measuring every virtualized batch only
@@ -215,59 +235,25 @@ function DetailPageSheet({
     },
     [longTransactionList, pageKey],
   );
-  const transactions = useMemo(
-    () =>
-      [...(page.detail?.transactions ?? [])].sort(
-        (a, b) =>
-          b.date.localeCompare(a.date) ||
-          b.createdAt.localeCompare(a.createdAt),
-      ),
-    [page.detail?.transactions],
-  );
-  // Give virtualization the complete dataset from the first frame. Mount enough
-  // rows to fill this viewport so its card surface never grows in visible chunks.
   const initialRowCount = Math.max(4, Math.ceil(maxHeight / 64));
+  const selectedGroup = displayEntries.find(group => group.key === selectedGroupKey && group.transactions.length > 1) ?? null;
   const renderTransaction = useCallback(
-    ({ item, index }: { item: Transaction; index: number }) => (
-      <View
-        style={{
-          marginHorizontal: 16,
-          paddingHorizontal: 8,
-          paddingTop: 2,
-          paddingBottom: index === transactions.length - 1 ? 8 : 0,
-          borderBottomLeftRadius: index === transactions.length - 1 ? 28 : 0,
-          borderBottomRightRadius: index === transactions.length - 1 ? 28 : 0,
-          backgroundColor: theme.colors.surface,
-        }}
-      >
-        <DetailRowReveal
-          id={item.id}
-          index={index}
-          seen={revealedRows}
-          scrolling={listScrolling}
-          revealStart={readyPage?.key === pageKey ? readyPage.startedAt : null}
-        >
-          <TransactionRow
-            grouped
-            groupPosition={
-              index === transactions.length - 1 ? "last" : "middle"
-            }
-            showDivider={false}
-            transaction={item}
-            disableLongPress
-            onPressTransaction={onTransaction}
-          />
+    ({ item, index }: { item: InsightEntryGroup; index: number }) => (
+      <View style={{ marginHorizontal: 16, paddingHorizontal: 8, paddingTop: 2,
+        paddingBottom: index === displayEntries.length - 1 ? 8 : 0,
+        borderBottomLeftRadius: index === displayEntries.length - 1 ? 28 : 0,
+        borderBottomRightRadius: index === displayEntries.length - 1 ? 28 : 0,
+        backgroundColor: theme.colors.surface }}>
+        <DetailRowReveal id={item.key} index={index} seen={revealedRows} scrolling={listScrolling}
+          revealStart={readyPage?.key === pageKey ? readyPage.startedAt : null}>
+          <TransactionRow grouped groupPosition={index === displayEntries.length - 1 ? "last" : "middle"}
+            showDivider={false} groupCount={item.transactions.length > 1 ? item.transactions.length : undefined}
+            transaction={item.transactions.length > 1 ? { ...item.transactions[0], amount: item.amount } : item.transactions[0]}
+            disableLongPress secondaryLabelMode={item.transactions.length > 1 ? "none" : "time"}
+            onPressTransaction={item.transactions.length > 1 ? () => setSelectedGroupKey(item.key) : onTransaction} />
         </DetailRowReveal>
       </View>
-    ),
-    [
-      transactions.length,
-      theme.colors.surface,
-      onTransaction,
-      revealedRows,
-      readyPage,
-      pageKey,
-    ],
+    ), [displayEntries.length, theme.colors, onTransaction, revealedRows, readyPage, pageKey],
   );
   const summaryContent = page.detail ? (
     <View style={{ paddingHorizontal: 16, gap: 14 }}>
@@ -412,8 +398,8 @@ function DetailPageSheet({
   return (
     <>
       <AnimatedPaperModal
-        escapeEnabled={!historyOpen && !suspended}
-        dismissable={!historyOpen && !suspended}
+        escapeEnabled={!historyOpen && !suspended && !selectedGroup}
+        dismissable={!historyOpen && !suspended && !selectedGroup}
         visible={visible}
         onShown={handleShown}
         onDismiss={onClose}
@@ -561,7 +547,7 @@ function DetailPageSheet({
             <FlatList
               style={{ flex: 1 }}
               onContentSizeChange={measureContent}
-              data={transactions}
+              data={displayEntries}
               onScrollBeginDrag={() => {
                 listScrolling.current = true;
               }}
@@ -569,7 +555,7 @@ function DetailPageSheet({
               maxToRenderPerBatch={3}
               updateCellsBatchingPeriod={80}
               windowSize={3}
-              keyExtractor={(row) => row.id}
+              keyExtractor={(row) => row.key}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 32 }}
               ListHeaderComponent={summaryContent}
@@ -603,6 +589,8 @@ function DetailPageSheet({
           )}
         </View>
       </AnimatedPaperModal>
+      <GroupedEntriesSheet group={selectedGroup} suspended={suspended}
+        onClose={() => setSelectedGroupKey(null)} onTransaction={onTransaction} />
       <PastMonthsSheet
         visible={historyOpen && !suspended}
         detail={page.detail}

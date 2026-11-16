@@ -59,6 +59,7 @@ type Section = {
   title: string;
   total: number;
   totalLabel?: string;
+  grouping?: string;
   metric?: "spent" | "earned";
   transactions: Row[];
 };
@@ -73,6 +74,7 @@ type Props = {
   onAdd: () => void;
   onEdit: (id: string) => void;
   onSort: () => void;
+  onGroup: () => void;
   onFilter: () => void;
   filterCount: number;
   query: string;
@@ -117,6 +119,7 @@ function LedgerPage(p: Props & { active: boolean }) {
     <View style={[s.stickyTools, { backgroundColor: c.background }]}>
       <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
         {button("sort-variant", "Sort transactions", p.onSort)}
+        {button("layers-triple-outline", "Group transactions", p.onGroup)}
         {button(
           "filter-outline",
           `Filter transactions${p.filterCount ? `, ${p.filterCount} active` : ""}`,
@@ -258,7 +261,7 @@ function LedgerPage(p: Props & { active: boolean }) {
                     letterSpacing: -1,
                   }}
                 >
-                  {valid ? date.getDate() : "—"}
+                  {valid ? date.getDate() : item.transactions.length}
                 </Text>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text
@@ -334,7 +337,7 @@ function LedgerPage(p: Props & { active: boolean }) {
                           ? "last"
                           : "middle"
                       }
-                      secondaryLabelMode="time"
+                      secondaryLabelMode={item.grouping && item.grouping !== "date" ? "date" : "time"}
                     />
                   </View>
                 )} />

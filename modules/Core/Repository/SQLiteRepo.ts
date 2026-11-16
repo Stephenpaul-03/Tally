@@ -4,6 +4,7 @@ import { sortCategories } from "@/utils/category-order";
 import { validateImport, needsReview, type ImportRow } from "@/modules/Core/import/validation";
 import { initializeOnboarding, isOnboardingComplete, resetOnboarding, saveOnboarding, getTourProgress, saveTourProgress, type OnboardingSetup } from "../../Onboarding/storage";
 import * as SQLite from "expo-sqlite";
+import { getFinanceDatabaseRuntime, initializeFinanceDatabaseRuntime } from "./databaseRuntime";
 import { createSampleTransactions, SAMPLE_ID_PREFIX } from "../../Insights/sampleData";
 import { createTransaction, formatAccountLabel } from "../../../utils/Helpers";
 import {
@@ -271,7 +272,8 @@ const shouldAutoSeedWorkspace = (workspaceId: string) =>
 // --- Database Connection ---
 // expo-sqlite v2: openDatabaseSync replaces the deprecated openDatabase
 export type FinanceExecutor = Pick<SQLite.SQLiteDatabase, "getFirstAsync" | "getAllAsync" | "runAsync">;
-const db = SQLite.openDatabaseSync("finance.db");
+const databaseRuntime = getFinanceDatabaseRuntime(SQLite.openDatabaseSync);
+const db = databaseRuntime.database;
 
 // Export db for debugging purposes
 export const financeDb = db;
@@ -303,6 +305,7 @@ const ensureWorkspaceSchema = () => {
     `);
   } catch (error) {
     console.error("Failed to initialize workspace schema:", error);
+    throw error;
   }
 };
 
@@ -466,6 +469,7 @@ const migrateWorkspaceUniqueConstraints = () => {
     }
   } catch (error) {
     console.error("Failed to migrate workspace unique constraints:", error);
+    throw error;
   } finally {
     try {
       db.execSync("PRAGMA foreign_keys = ON;");
@@ -829,8 +833,8 @@ export class SQLiteWorkspaceRepository {
 }
 
 // --- Initialize Database ---
-// execSync is safe here because this runs once at module load before any
-// component mounts, and the schema DDL is fast.
+// Startup writes run once per connection, including across Fast Refresh.
+initializeFinanceDatabaseRuntime(databaseRuntime, () => {
 ensureWorkspaceSchema();
 addWorkspaceMetadataColumns();
 addWorkspaceColumn("transactions");
@@ -841,6 +845,7 @@ try {
   db.execSync(schema);
 } catch (error) {
   console.error("Failed to initialize database schema:", error);
+  throw error;
 }
 
 try {
@@ -882,6 +887,7 @@ try {
   db.execSync(recurringSchema);
 } catch (error) {
   console.error("Failed to finalize database schema:", error);
+  throw error;
 }
 
 ensureWorkspaceSchema();
@@ -909,6 +915,7 @@ try {
   }
 } catch (error) {
   console.error("Failed to seed default workspaces and accounts:", error);
+  throw error;
 }
 
 try {
@@ -926,7 +933,9 @@ try {
   );
 } catch (error) {
   console.error("Failed to normalize account sort order:", error);
+  throw error;
 }
+});
 
 // --- Repository Implementation ---
 export class SQLiteFinanceRepository implements FinanceRepository {

@@ -22,7 +22,7 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import { useTheme } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 
 const SORT_OPTION_COLORS: Record<string, string> = {
   date: "#0EA5E9",
@@ -312,7 +312,7 @@ export function SortOptionSheet({
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
-  const { bottom } = useSafeAreaInsets();
+  const { bottom } = useModalInsets();
   const [draftValue, setDraftValue] = React.useState(value);
   const [draftDirection, setDraftDirection] = React.useState(direction);
 

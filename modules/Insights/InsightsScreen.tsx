@@ -3,6 +3,7 @@ import { WorkspaceSummaryCard } from "@/modules/Summary/WorkspaceSummaryCard";
 import { workspaceSnapshot } from "@/modules/Summary/snapshot";
 import { InsightsLayoutContext } from "./components/InsightsLayoutContext";
 import { useMainDesign } from "@/hooks/use-main-design";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
 import { ClassicSpending } from "./components/ClassicSpending";
 import { Gesture } from "react-native-gesture-handler";
@@ -99,6 +100,7 @@ function WorkspaceInsights({
 }: InsightsProps & {
   workspaceCurrency: string;
 }) {
+  const tablet = useTabletLayout();
   const { activeTab, requestTab } = useAppShell();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const dispatch = useAppDispatch();
@@ -606,7 +608,7 @@ function WorkspaceInsights({
                   color={theme.colors.onSurface}
                 />
               </MotionPressable>
-              <MotionPressable
+              {!tablet ? <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel="Settings"
                 onPress={() => navigation.navigate("Settings")}
@@ -626,7 +628,7 @@ function WorkspaceInsights({
                   size={21}
                   color={theme.colors.onSurface}
                 />
-              </MotionPressable>
+              </MotionPressable> : null}
             </View>
             {a.currencies.length > 1 ? (
               <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>

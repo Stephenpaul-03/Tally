@@ -1,5 +1,5 @@
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
-import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
+import { SettingsDetailContext, SettingsDetailWidthContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryBulkDeleteModal } from "../Components/BulkDeleteModal";
@@ -92,11 +92,13 @@ function CategoryListContent({
 }: ListScreenProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const embedded = React.useContext(SettingsDetailContext);
+  const detailWidth = React.useContext(SettingsDetailWidthContext);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const c = theme.colors;
   const divider = c.outlineVariant;
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const tabletPortrait = embedded && height >= width;
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
@@ -123,7 +125,7 @@ function CategoryListContent({
     new Animated.Value(management.selectedType === "income" ? 1 : 0),
   ).current;
   const [pageWidth, setPageWidth] = React.useState(0);
-  const effectivePageWidth = pageWidth || width;
+  const effectivePageWidth = embedded && detailWidth !== null ? detailWidth : pageWidth || width;
   const normalizedQuery = query.trim().toLowerCase();
 
   const count =
@@ -217,9 +219,8 @@ function CategoryListContent({
 
   const sortAccessory = !pickerMode ? (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      {embedded ? <View style={{ width: (pageWidth || width - 350) >= 600 ? 220 : 120 }}>
+      {embedded && !tabletPortrait ? <View style={{ width: 220 }}>
         <TypeToggle value={management.selectedType} onChange={handleSelectType}
-          mini={(pageWidth || width - 350) < 600}
           progressAnim={pageProgress} borderWidth={0} radius={24} height={44}
           trackBackgroundColor={c.elevation.level1} />
       </View> : null}
@@ -351,7 +352,7 @@ function CategoryListContent({
         <View
           style={{
             flex: 1,
-            minHeight: listHeight,
+            minHeight: embedded ? 0 : listHeight,
             overflow: "hidden",
           }}
           onLayout={(event) => setPageWidth(event.nativeEvent.layout.width)}
@@ -418,17 +419,20 @@ function CategoryListContent({
       {!pickerMode && (
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: embedded ? 16 : 0, gap: 10,
           ...(embedded ? { flexDirection: "row", alignItems: "center" } : {}) }}>
-          {!embedded ? <View>
+          {!embedded || tabletPortrait ? <View style={tabletPortrait ? { flex: 1, maxWidth: 220 } : undefined}>
           <TypeToggle
             value={management.selectedType}
             onChange={handleSelectType}
             progressAnim={pageProgress}
             borderWidth={0}
-            radius={(theme as ExtendedMD3Theme).expressive ? 24 : undefined}
+            radius={embedded || (theme as ExtendedMD3Theme).expressive ? 24 : undefined}
+            height={tabletPortrait ? 44 : undefined}
             trackBackgroundColor={c.elevation.level1}
           />
           </View> : null}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add new category"
             onPress={management.handleAddNewCategory}
             disabled={management.iconOptions.length === 0}
             style={({ pressed }) => ({
@@ -438,6 +442,7 @@ function CategoryListContent({
               gap: 10,
               paddingVertical: 14,
               paddingHorizontal: 20,
+              flexShrink: 0,
               borderRadius: embedded ? 28 : 14,
               backgroundColor: c.primary,
               opacity: pressed
@@ -456,7 +461,7 @@ function CategoryListContent({
                 color: c.onPrimary,
               }}
             >
-              Add new category
+              Add
             </Text>
           </Pressable>
         </View>

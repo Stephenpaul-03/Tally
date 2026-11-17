@@ -54,7 +54,9 @@ type Props = {
 /** One UI-thread timeline owns the panel, backdrop and drag. No nested Paper fade. */
 export function AnimatedPaperModal(props: Props) {
   const inline = React.useContext(InlineSettingsModalContext);
+  const theme = useTheme();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const tablet = Math.min(width, height) >= 600 && width >= 768;
   if (inline) {
     return props.visible ? (
@@ -66,11 +68,17 @@ export function AnimatedPaperModal(props: Props) {
   return <SettingsDetailContext.Provider value={false}>
     <AnimatedPaperModalPresentation {...props}
       presentation={tablet ? "modal" : props.presentation}
-      style={[props.style, tablet && { justifyContent: "center", paddingHorizontal: 24 }]}
+      style={[props.style, tablet && {
+        justifyContent: "center", padding: 24,
+        marginTop: insets.top, marginBottom: insets.bottom,
+        marginLeft: insets.left, marginRight: insets.right,
+      }]}
       contentContainerStyle={[
         props.contentContainerStyle,
-        tablet && { width: "100%", maxWidth: Math.min(width - 48, Number(StyleSheet.flatten(props.contentContainerStyle)?.maxWidth) || 640), alignSelf: "center", borderRadius: 28,
-          maxHeight: height - 96, overflow: "hidden", paddingBottom: 16 },
+        tablet && { width: "100%", maxWidth: Math.min(width - insets.left - insets.right - 48, Number(StyleSheet.flatten(props.contentContainerStyle)?.maxWidth) || 640), alignSelf: "center", borderRadius: 28,
+          backgroundColor: StyleSheet.flatten(props.contentContainerStyle)?.backgroundColor ?? theme.colors.background,
+          maxHeight: height - insets.top - insets.bottom - 48, overflow: "hidden",
+          padding: 8, paddingTop: 8, paddingBottom: 8, paddingLeft: 8, paddingRight: 8 },
       ]}
     />
   </SettingsDetailContext.Provider>;
@@ -426,6 +434,7 @@ function AnimatedPaperModalPresentation({
               >
                 {keyboardAware && presentation !== "sheet" ? (
                   <KeyboardAvoidingView
+                    style={{ flexShrink: 1, minHeight: 0 }}
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
                     keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 24}
                   >

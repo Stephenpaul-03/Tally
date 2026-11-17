@@ -40,6 +40,7 @@ import {
   settledTabIndex,
 } from "./pagerGeometry";
 import { MonthPickerSheet } from "./MonthPickerSheet";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 
 type Controls = {
   group?: GestureControlButtonConfig;
@@ -69,6 +70,7 @@ export function ClassicMainScreen({
   controlButtons: Controls;
 }) {
   const { colors: c } = useTheme();
+  const tablet = useTabletLayout();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const shell = useAppShell();
   const motion = useMotionEnabled();
@@ -351,7 +353,7 @@ export function ClassicMainScreen({
                               color={c.onSurfaceVariant}
                             />
                           </Pressable>
-                          <Pressable
+                          {!tablet ? <Pressable
                             accessibilityRole="button"
                             accessibilityLabel="Settings"
                             onPress={() => navigation.navigate("Settings")}
@@ -367,7 +369,7 @@ export function ClassicMainScreen({
                               size={21}
                               color={c.onSurface}
                             />
-                          </Pressable>
+                          </Pressable> : null}
                         </View>
                         <SpotlightTarget id="entry-controls">
                           <View

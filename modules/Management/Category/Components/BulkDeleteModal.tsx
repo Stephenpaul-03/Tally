@@ -11,12 +11,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Button, Checkbox, Text, useTheme } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 
 type Props = { visible: boolean; onDismiss: () => void; management: ReturnType<typeof useCategoryManagement> };
 export function CategoryBulkDeleteModal({ visible, onDismiss, management }: Props) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInsets();
   const dispatch = useAppDispatch();
   const [selected, setSelected] = React.useState<string[]>([]);
   const [usage, setUsage] = React.useState<{ name: string; count: number }[]>([]);

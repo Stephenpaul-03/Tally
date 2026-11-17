@@ -72,6 +72,7 @@ import { TransactionRow } from "./Components/TransactionRow";
 import TimelineSectionHeader from "./Components/TransactionSectionHeader";
 import { useTransactionsPage } from "./Hooks";
 import { ClassicMainScreen } from "@/modules/Main/ClassicMainScreen";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { styles } from "./Styles";
 
 type TransactionsProps = {
@@ -1516,6 +1517,7 @@ export default function Transactions({
   const setTabBarHidden = useSetTabBarHidden();
   const tabBarHeight = useTabBarHeight();
   const { tabBarEnabled } = useTabBarModePreference();
+  const tablet = useTabletLayout();
   const { bottom } = useSafeAreaInsets();
   const [transactionSearchQuery, setTransactionSearchQuery] =
     React.useState("");
@@ -1867,7 +1869,7 @@ export default function Transactions({
     return () => setTabBarEdgeButton(null);
   }, [handleAddTransaction, isFocused, setTabBarEdgeButton, shellActiveTab]);
 
-  const transactionListBottomPadding = tabBarEnabled
+  const transactionListBottomPadding = tablet ? bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE : tabBarEnabled
     ? Math.max(69, tabBarHeight) + bottom + TAB_BAR_TRANSACTION_LIST_CLEARANCE
     : bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE;
   // Each day already contributes 18 points after its final row, even when folded.

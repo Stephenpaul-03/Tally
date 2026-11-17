@@ -23,7 +23,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { type MD3Theme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 
 export type IconGrid = {
   columns: number;
@@ -157,11 +157,10 @@ export function EntityEditLayout({
   ownerNameLimit = MANAGEMENT_NAME_LIMIT,
 }: EntityEditLayoutProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
-  const { bottom, top } = useSafeAreaInsets();
+  const { bottom, top } = useModalInsets(presentation === "modal");
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const tabletModal = presentation === "modal" && Math.min(windowWidth, windowHeight) >= 600 && windowWidth >= 768;
-  const wideTabletEditor = tabletModal && windowWidth >= 1000;
-  const width = tabletModal ? Math.min(wideTabletEditor ? 880 : 640, windowWidth - 48) : windowWidth;
+  const width = tabletModal ? Math.min(560, windowWidth - 48) - 16 : windowWidth;
   const c = theme.colors;
 
   const previewColor = localColor || c.primary;
@@ -198,7 +197,7 @@ export function EntityEditLayout({
   const [pickerWidth, setPickerWidth] = React.useState(0);
   const [iconSearchOpen, setIconSearchOpen] = React.useState(false);
   const [iconQuery, setIconQuery] = React.useState("");
-  const sideBySidePickers = pickerLayout === "columns" || tabletModal;
+  const sideBySidePickers = !tabletModal && pickerLayout === "columns";
   const fullPickerWidth = pickerWidth || Math.max(0, width - 40);
   const availablePickerWidth = sideBySidePickers ? Math.max(44, (fullPickerWidth - 16) / 2) : fullPickerWidth;
   const iconColumns = Math.max(
@@ -357,6 +356,48 @@ export function EntityEditLayout({
     );
   };
 
+  const stickyFooter = presentation === "modal";
+  const editorFooter = (
+    <View style={{ flexShrink: 0, backgroundColor: background, marginTop: stickyFooter ? 0 : "auto" }}>
+        {footer ?? (
+          <View style={{ flexDirection: "row", margin: 16, marginTop: stickyFooter ? 12 : 24 }}>
+            <Pressable
+              disabled={!canSubmit}
+              onPress={onSubmit}
+              style={({ pressed }) => ({
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                paddingVertical: 14,
+                borderRadius: expressive ? 24 : 14,
+                minHeight: expressive ? 56 : undefined,
+                backgroundColor: expressive ? c.primary : previewColor,
+                opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
+              })}
+            >
+              <MaterialCommunityIcons
+                color={expressive ? c.onPrimary : palette.white}
+                name={isEditing ? "content-save-outline" : "plus"}
+                size={18}
+              />
+              <Text
+                style={{
+                  ...typography.editorial.sectionLabel,
+                  fontSize: expressive ? 16 : 14,
+                  color: expressive ? c.onPrimary : palette.white,
+                  textTransform: expressive ? "none" : undefined,
+                }}
+              >
+                {isEditing ? submitLabelEdit : submitLabelCreate}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+  );
+
   const editorBody = (
     <View
       style={{
@@ -412,7 +453,7 @@ export function EntityEditLayout({
             )}
           </View>
 
-          {!wideTabletEditor ? previewBlock : null}
+          {previewBlock}
         </View>
       ) : showPreview ? (
         <View
@@ -428,14 +469,11 @@ export function EntityEditLayout({
 
       <View
         onLayout={(event) =>
-          setPickerWidth(wideTabletEditor
-            ? (event.nativeEvent.layout.width - 40) * 0.66 - 24
-            : event.nativeEvent.layout.width - 40)
+          setPickerWidth(event.nativeEvent.layout.width - 40)
         }
-        style={{ paddingHorizontal: 20, ...(wideTabletEditor ? { flexDirection: "row", flexWrap: "wrap", columnGap: 24, alignItems: "flex-start" } : {}) }}
+        style={{ paddingHorizontal: 20 }}
       >
-        <View style={wideTabletEditor ? { width: "34%" } : undefined}>
-        {wideTabletEditor ? previewBlock : null}
+        <View>
         {/* Name */}
         <View style={{ marginTop: showHeader ? 20 : showPreview ? 16 : 4 }}>
           <Text
@@ -510,7 +548,7 @@ export function EntityEditLayout({
         {afterNameFields ? <View style={{ marginTop: 16 }}>{afterNameFields}</View> : null}
         </View>
 
-        <View style={sideBySidePickers ? { flexDirection: "row", gap: 16, marginTop: wideTabletEditor ? 0 : 20, alignItems: "flex-start", ...(wideTabletEditor ? { flex: 1, minWidth: 0 } : {}) } : undefined}>
+        <View style={sideBySidePickers ? { flexDirection: "row", gap: 16, marginTop: 20, alignItems: "flex-start" } : undefined}>
         <View style={sideBySidePickers ? { flex: 1, minWidth: 0 } : { marginVertical: 20 }}>
           <View
             style={{
@@ -865,51 +903,13 @@ export function EntityEditLayout({
         ) : null}
       </View>
 
-      <View style={{ marginTop: "auto" }}>
-        {footer ?? (
-          <View style={{ flexDirection: "row", margin: 16, marginTop: 24,
-            ...(tabletModal ? { alignSelf: "flex-end", width: 280 } : {}) }}>
-            <Pressable
-              disabled={!canSubmit}
-              onPress={onSubmit}
-              style={({ pressed }) => ({
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                paddingVertical: 14,
-                borderRadius: expressive ? 24 : 14,
-                minHeight: expressive ? 56 : undefined,
-                backgroundColor: expressive ? c.primary : previewColor,
-                opacity: pressed ? 0.65 : !canSubmit ? 0.4 : 1,
-              })}
-            >
-              <MaterialCommunityIcons
-                color={expressive ? c.onPrimary : palette.white}
-                name={isEditing ? "content-save-outline" : "plus"}
-                size={18}
-              />
-              <Text
-                style={{
-                  ...typography.editorial.sectionLabel,
-                  fontSize: expressive ? 16 : 14,
-                  color: expressive ? c.onPrimary : palette.white,
-                  textTransform: expressive ? "none" : undefined,
-                }}
-              >
-                {isEditing ? submitLabelEdit : submitLabelCreate}
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
+      {!stickyFooter ? editorFooter : null}
     </View>
   );
 
   const content = (
     <>
-      {showHeader ? (
+      {showHeader && !tabletModal ? (
         <View
           pointerEvents="none"
           style={{
@@ -940,12 +940,13 @@ export function EntityEditLayout({
         scrollEnabled={outerScrollEnabled}
         showsVerticalScrollIndicator={false}
         style={{
-          ...(presentation === "screen" ? { flex: 1 } : {}),
+          ...(presentation === "screen" ? { flex: 1 } : { flexShrink: 1, minHeight: 0 }),
           backgroundColor: background,
         }}
       >
         {editorBody}
       </KeyboardAwareScrollView>
+      {stickyFooter ? editorFooter : null}
     </>
   );
 
@@ -962,7 +963,7 @@ export function EntityEditLayout({
           maxHeight: "94%",
           overflow: "hidden",
           width: "100%",
-          maxWidth: tabletModal ? (wideTabletEditor ? 880 : 640) : undefined,
+          maxWidth: tabletModal ? 560 : undefined,
         }}
         keyboardAware
         dismissable={dismissable}

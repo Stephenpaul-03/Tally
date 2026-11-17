@@ -11,6 +11,7 @@ import {
   MotionEntranceScope,
 } from "@/components/animations/Motion";
 import { ExpressiveTabBar } from "./ExpressiveTabBar";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import {
   clampSwipePosition,
   snapSwipeIndex,
@@ -84,6 +85,7 @@ type Props = {
   onFold: () => void;
 };
 function LedgerPage(p: Props & { active: boolean }) {
+  const tablet = useTabletLayout();
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;
   const { bottom } = useSafeAreaInsets();
@@ -184,9 +186,9 @@ function LedgerPage(p: Props & { active: boolean }) {
           >
             Transactions
           </Text>
-          {button("cog-outline", "Settings", () =>
+          {!tablet ? button("cog-outline", "Settings", () =>
             navigation.navigate("Settings"),
-          )}
+          ) : null}
         </View>
       </SpotlightTarget>
       <Pressable
@@ -225,7 +227,7 @@ function LedgerPage(p: Props & { active: boolean }) {
         ListHeaderComponent={header}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingBottom: 92 + 56 + 8 + bottom, // Nav/FAB top plus one small row clearance.
+          paddingBottom: (tablet ? 24 : 92) + 56 + 8 + bottom,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -357,6 +359,7 @@ function LedgerPage(p: Props & { active: boolean }) {
   );
 }
 export function SageMainScreen(p: Props) {
+  const tablet = useTabletLayout();
   const { colors: c } = useTheme();
   const { activeTab, reportTab } = useAppShell();
   const { bottom } = useSafeAreaInsets();
@@ -460,9 +463,9 @@ export function SageMainScreen(p: Props) {
   );
   const setTabBarHeight = useSetTabBarHeight();
   React.useLayoutEffect(() => {
-    setTabBarHeight(76);
+    setTabBarHeight(tablet ? 0 : 76);
     return () => setTabBarHeight(0);
-  }, [setTabBarHeight]);
+  }, [setTabBarHeight, tablet]);
   React.useLayoutEffect(() => {
     const target = EXPRESSIVE_TABS.indexOf(activeTab);
     if (navigationTarget.value !== target) selectTab(activeTab);
@@ -535,7 +538,7 @@ export function SageMainScreen(p: Props) {
             activeTab === "calendar" ? "auto" : "no-hide-descendants"
           }
           style={[
-            { position: "absolute", right: 16, bottom: 92 + bottom },
+            { position: "absolute", right: 16, bottom: (tablet ? 24 : 92) + bottom },
             fabMotion,
           ]}
         >
@@ -566,7 +569,7 @@ export function SageMainScreen(p: Props) {
             </Text>
           </Pressable>
         </Animated.View>
-        <MainEntrance
+        {!tablet ? <MainEntrance
           distance={32}
           index={1}
           style={[
@@ -587,7 +590,7 @@ export function SageMainScreen(p: Props) {
             onSettle={settle}
             reduceMotion={reduceMotion}
           />
-        </MainEntrance>
+        </MainEntrance> : null}
       </View>
     </MotionEntranceScope>
   );

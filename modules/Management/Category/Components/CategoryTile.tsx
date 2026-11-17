@@ -9,6 +9,7 @@ import { Pressable, View } from "react-native";
 import type { MD3Theme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import { typography } from "@/theme/typography";
+import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 
 function darkenHex(hex: string, amount = 0.18) {
   const clean = hex.replace("#", "");
@@ -56,6 +57,8 @@ export function CategoryTile({
   theme: MD3Theme;
 }) {
   const c = theme.colors;
+  const embedded = React.useContext(SettingsDetailContext);
+  const expressive = Boolean((theme as ExtendedMD3Theme).expressive);
   const { minimalIconsEnabled, tonalSettingsCardsEnabled } = useAddonPrefs();
   const displayColor = minimalIconsEnabled ? color : iconColorOverride ?? color;
   const useMinimalBadge = minimalIconsEnabled || Boolean(iconColorOverride);
@@ -70,13 +73,13 @@ export function CategoryTile({
       onPress={onPress}
       style={({ pressed }) => ({
         borderRadius: settingsShape(theme)?.borderRadius ?? 16,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        paddingHorizontal: embedded ? expressive ? 12 : 16 : 14,
+        paddingVertical: embedded ? 13 : 10,
         backgroundColor: useTonalCard ? cardBackground : c.surface,
         borderWidth: multiSelect ? 2 : 0,
         borderColor: multiSelect && isSelected ? color : "transparent",
         gap: 6,
-        minHeight: 58,
+        minHeight: embedded ? 76 : 58,
         justifyContent: "center",
         opacity: pressed ? 0.75 : 1,
       })}
@@ -137,7 +140,7 @@ export function CategoryTile({
             <Text
               style={{
                 ...typography.bodyBold,
-                fontSize: (theme as ExtendedMD3Theme).expressive ? 14 : 12,
+                fontSize: embedded ? expressive ? 16 : 14 : expressive ? 14 : 12,
                 color: useTonalCard ? cardForeground : c.onSurface,
               }}
               numberOfLines={1}
@@ -147,7 +150,7 @@ export function CategoryTile({
             {showTransactionLabel ? (
               <Text
                 style={{
-                  fontSize: 10,
+                  fontSize: embedded ? 12 : 10,
                   color: useTonalCard ? cardForeground : c.onSurfaceVariant,
                   opacity: 0.78,
                 }}

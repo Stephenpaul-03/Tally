@@ -82,7 +82,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Animated, Keyboard, Pressable, ScrollView, View } from "react-native";
 import { Portal, TextInput, useTheme } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
 import { createMainContentStyles, modal, withAlpha } from "./Styles";
 
@@ -134,7 +134,7 @@ export function TransactionModal({
     [theme.colors, theme.expressive, theme.dark],
   );
   const { width, isMobileLayout } = useBreakpoint();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom } = useModalInsets();
 
   const storedModalMode = useAppSelector(selectModalMode);
   const modalMode = readOnlyTransaction ? "view" : createRecurring || recurringTemplate || recurringOccurrence ? "add" : storedModalMode;

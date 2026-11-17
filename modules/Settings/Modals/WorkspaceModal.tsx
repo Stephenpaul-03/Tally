@@ -32,7 +32,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { SettingsStyles } from "../Styles";
 
@@ -267,7 +267,8 @@ function WorkspaceEditor({
 
 export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   const theme = useTheme<ExtendedMD3Theme>();
-  const insets = useSafeAreaInsets();
+  const inline = React.useContext(InlineSettingsModalContext);
+  const insets = useModalInsets();
   const dispatch = useAppDispatch();
   const { interactionHintsEnabled, minimalIconsEnabled } = useAddonPrefs();
   const workspaces = useAppSelector(selectWorkspaces);
@@ -461,7 +462,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   return (
     <>
       <AnimatedPaperModal
-        visible={visible && !editorOpen}
+        visible={visible && (inline || !editorOpen)}
         onDismiss={dismissModal}
         presentation="sheet"
         contentContainerStyle={{

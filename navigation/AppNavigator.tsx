@@ -11,6 +11,9 @@ import {
 } from "@/components/AppShellContext";
 import { SharedTabHeaderProvider } from "@/components/pageheader/SharedTabHeader";
 import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
+import { TabletNavigationRail } from "@/components/tabbar/TabletNavigationRail";
+import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import {
   TabBarProvider,
   useSetTabBarEdgeButton,
@@ -102,11 +105,18 @@ function ShellBottomBar() {
 
 function MainScreens() {
   const { design } = useMainDesign();
+  const tablet = useTabletLayout();
+  const { tabletNavigationSide } = useTabBarModePreference();
   return (
     <>
       <SharedTabHeaderProvider activeRouteName="Transactions">
+        <View style={{ flex: 1, flexDirection: tablet && tabletNavigationSide === "left" ? "row-reverse" : "row" }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
         <TransactionsScreen />
-        {design.layout === "classic" ? <ShellBottomBar /> : null}
+        {!tablet && design.layout === "classic" ? <ShellBottomBar /> : null}
+        </View>
+        {tablet ? <TabletNavigationRail /> : null}
+        </View>
       </SharedTabHeaderProvider>
     </>
   );

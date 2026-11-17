@@ -8,12 +8,14 @@ import { AnimatedPaperModal } from "@/components/modal/modal";
 import { SheetCard } from "@/components/SheetCard";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import React from "react";
-import { ScrollView, StyleSheet, Switch, View } from "react-native";
-import { useTheme } from "react-native-paper";
+import { ScrollView, Switch } from "react-native";
+import { SegmentedButtons, useTheme } from "react-native-paper";
 import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
 import { SettingsStyles } from "../Styles";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
+import { SettingsLayoutView } from "../Components/SettingsLayoutView";
 
 type SheetProps = {
   visible: boolean;
@@ -49,9 +51,11 @@ function SheetShell({
 
 function InterfaceContent({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
+  const embedded = React.useContext(SettingsDetailContext);
   const { design, setDesign, insightsStyle, setInsightsStyle } = useMainDesign();
   const { tonalSettingsCardsEnabled, setTonalSettingsCardsEnabled, insightsGroupingEnabled, setInsightsGroupingEnabled } = useAddonPrefs();
-  const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels } =
+  const { tabBarEnabled, setTabBarEnabled, hideLabels, setHideLabels,
+    tabletNavigationSide, setTabletNavigationSide } =
     useTabBarModePreference();
   const {
     minimalIconsEnabled,
@@ -64,18 +68,32 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
     <>
       <SettingsHeader title="Interface" onBack={onBack} modal />
       <ScrollView
-        style={{ flexGrow: 0 }}
+        style={embedded ? { flex: 1, minHeight: 0 } : { flexGrow: 0 }}
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionLabel label="Layout" />
+        <SettingsLayoutView>
+        <SettingsLayoutView>
+        <SectionLabel label="Style" />
         <DesignChoiceCards
           value={design.layout}
           onChange={(layout) => setDesign({ layout })}
-          purpose="layout"
+          purpose="style"
         />
+        </SettingsLayoutView>
+        <SettingsLayoutView>
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
+          <ActionRow icon="dock-left" label="Tablet navigation"
+            description="Choose which side holds the navigation rail"
+            theme={theme} showChevron={false}
+            onPress={() => setTabletNavigationSide(tabletNavigationSide === "left" ? "right" : "left")}
+            rightElement={<SegmentedButtons value={tabletNavigationSide}
+              onValueChange={(value) => setTabletNavigationSide(value === "right" ? "right" : "left")}
+              density="small" style={{ width: 176 }}
+              buttons={[{ value: "left", label: "Left", accessibilityLabel: "Navigation on the left" },
+                { value: "right", label: "Right", accessibilityLabel: "Navigation on the right" }]} />}
+          />
           <ActionRow icon="layers-triple-outline" label="Group similar entries in Insights"
             description="Combine matching titles, categories and accounts into expandable groups. Only affects Insights."
             theme={theme} showChevron={false} onPress={() => setInsightsGroupingEnabled(!insightsGroupingEnabled)}
@@ -171,8 +189,8 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
               />
               <ActionRow
                 icon="dock-bottom"
-                label="Bottom bar"
-                description="Show the bottom navigation bar"
+                label="Phone bottom bar"
+                description="Show bottom navigation on phones"
                 onPress={() => setTabBarEnabled(!tabBarEnabled)}
                 theme={theme}
                 showChevron={false}
@@ -195,6 +213,8 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
             </>
           ) : null}
         </SheetCard>
+        </SettingsLayoutView>
+        </SettingsLayoutView>
       </ScrollView>
     </>
   );
@@ -207,15 +227,3 @@ export function InterfaceModal({ visible, onDismiss }: SheetProps) {
     </SheetShell>
   );
 }
-
-const styles = StyleSheet.create({
-  handle: {
-    borderRadius: 999,
-    height: 4,
-    width: 42,
-  },
-  handleWrap: {
-    alignItems: "center",
-    paddingTop: 10,
-  },
-});

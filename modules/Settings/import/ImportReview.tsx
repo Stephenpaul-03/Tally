@@ -10,7 +10,7 @@ import React, { useState } from "react";
 import { FlatList, Pressable, ScrollView, View } from "react-native";
 import { Button, Switch, TextInput, useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { applyImportChoice, categoryNames, exactName, needsAccount, needsCategory, needsReview, type ImportCatalog, type ImportRow } from "@/modules/Core/import/validation";
 
@@ -18,7 +18,7 @@ type Props = { visible: boolean; onDismiss: () => void; rows: ImportRow[]; catal
 export function ImportReviewModal({ visible, onDismiss, rows, catalog, onChange }: Props) {
   const theme = useTheme();
   const { minimalIconsEnabled } = useAddonPrefs();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInsets();
   const [selection, setSelection] = useState<{ rowNumber: number; field: "category" | "account" } | null>(null);
   const [name, setName] = useState("");
   const [matching, setMatching] = useState(false);

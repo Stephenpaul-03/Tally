@@ -5,12 +5,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const Module = require("node:module");
-function harness() {
+function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0, right: 0 } } = {}) {
   let cursor = 0;
   const slots = [],
     effects = [],
     timings = [];
   const React = {
+    useContext: () => false,
     useRef(value) {
       const i = cursor++;
       return (slots[i] ??= { current: value });
@@ -36,9 +37,9 @@ function harness() {
   };
   let height = 844;
   const native = {
-    useWindowDimensions: () => ({ height }),
+    useWindowDimensions: () => ({ width: windowWidth, height }),
     Platform: { OS: "android" },
-    StyleSheet: { absoluteFillObject: {} },
+    StyleSheet: { absoluteFillObject: {}, flatten: (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) },
     BackHandler: { addEventListener: () => ({ remove() {} }) },
     Keyboard: { dismiss() {}, addListener: () => ({ remove() {} }) },
   };
@@ -68,12 +69,16 @@ function harness() {
       Easing: { bezier() {}, out() {}, cubic() {} },
     },
     "react-native-safe-area-context": {
-      useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
+      useSafeAreaInsets: () => safeInsets,
     },
     "@/hooks/use-addon-prefs": {
       useAddonPrefs: () => ({ animationsEnabled: true }),
     },
     "@/hooks/use-escape-to-close": { useEscapeToClose() {} },
+    "@/modules/Settings/Layouts/SettingsDetailContext": {
+      InlineSettingsModalContext: { Provider: ({ children }) => children[0] },
+      SettingsDetailContext: { Provider: ({ children }) => children[0] },
+    },
   };
   const pan = new Proxy({}, { get: () => () => pan });
   const file = path.resolve(__dirname, "../../modal/modal.tsx");
@@ -95,17 +100,23 @@ function harness() {
     node.props?.onLayout?.({ nativeEvent: { layout: { height: size } } });
     node.props?.children?.flat().forEach((child) => layout(child, size));
   }
+  function renderComponents(node) {
+    if (!node || typeof node !== "object") return node;
+    if (Array.isArray(node)) return node.map(renderComponents);
+    if (typeof node.type === "function") return renderComponents(node.type(node.props));
+    return { ...node, props: { ...node.props, children: node.props.children.map(renderComponents) } };
+  }
   return {
     render(visible, windowHeight = 844, onHidden) {
       cursor = 0;
       height = windowHeight;
-      return loaded.exports.AnimatedPaperModal({
+      return renderComponents(loaded.exports.AnimatedPaperModal({
         visible,
         onDismiss() {},
         onHidden,
         presentation: "sheet",
         children: "content",
-      });
+      }));
     },
     flush() {
       while (effects.length) effects.shift()();
@@ -114,6 +125,66 @@ function harness() {
     timings,
   };
 }
+function findNode(node, predicate) {
+  if (!node || typeof node !== "object") return null;
+  if (predicate(node)) return node;
+  for (const child of node.props?.children?.flat(Infinity) ?? []) {
+    const found = findNode(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+const flattenStyle = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+
+test("dialog content drops tablet insets while phones and full screens retain them", () => {
+  let dimensions = { width: 800, height: 1200 };
+  const insets = { top: 24, bottom: 34, left: 12, right: 8 };
+  const file = path.resolve(__dirname, "../../../hooks/use-modal-insets.ts");
+  const loaded = new Module(file, module);
+  loaded.require = (id) => id === "react-native"
+    ? { useWindowDimensions: () => dimensions }
+    : { useSafeAreaInsets: () => insets };
+  loaded._compile(ts.transpileModule(fs.readFileSync(file, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText, file);
+  const readInsets = loaded.exports.useModalInsets;
+  for (const [width, height] of [[800, 1200], [1200, 800]]) {
+    dimensions = { width, height };
+    assert.deepEqual(readInsets(), { top: 0, bottom: 0, left: 0, right: 0 });
+    assert.equal(readInsets(false), insets);
+  }
+  for (const [width, height] of [[390, 844], [844, 390]]) {
+    dimensions = { width, height };
+    assert.equal(readInsets(), insets);
+  }
+});
+
+test("centered tablet cards keep system insets outside and balance all four inside edges", () => {
+  const safeInsets = { top: 24, bottom: 34, left: 12, right: 8 };
+  for (const [windowWidth, windowHeight] of [[1200, 800], [800, 1200]]) {
+    const tree = harness({ windowWidth, safeInsets }).render(true, windowHeight);
+    const panel = flattenStyle(findNode(tree, (node) => Boolean(node.props?.onLayout)).props.style);
+    const frame = flattenStyle(findNode(tree, (node) => node.props?.pointerEvents === "box-none").props.style);
+    assert.deepEqual([panel.paddingTop, panel.paddingBottom, panel.paddingLeft, panel.paddingRight], [8, 8, 8, 8]);
+    assert.equal(panel.maxHeight, windowHeight - 24 - 34 - 48);
+    assert.equal(frame.marginTop, 24);
+    assert.equal(frame.marginBottom, 34);
+    assert.equal(frame.marginLeft, 12);
+    assert.equal(frame.marginRight, 8);
+    assert.equal(frame.padding, 24);
+  }
+});
+
+test("phone sheets retain bottom safe-area padding without tablet card padding", () => {
+  const tree = harness({ safeInsets: { top: 24, bottom: 34, left: 0, right: 0 } }).render(true);
+  const panel = flattenStyle(findNode(tree, (node) => Boolean(node.props?.onLayout)).props.style);
+  const frame = flattenStyle(findNode(tree, (node) => node.props?.pointerEvents === "box-none").props.style);
+  assert.equal(panel.paddingBottom, 34);
+  assert.equal(panel.paddingLeft, undefined);
+  assert.equal(frame.marginTop, 0);
+  assert.equal(frame.padding, undefined);
+});
+
 test("sheet entrance starts once when layout arrives before the visibility effect", () => {
   const h = harness();
   const tree = h.render(true);

@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useNavigation, type ParamListBase } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -26,6 +26,9 @@ import { AboutModal } from "../Modals/AboutModal";
 import { BetaContactModal } from "../Modals/BetaContactModal";
 import { InlineSettingsModalContext, SettingsDetailContext } from "./SettingsDetailContext";
 import { SettingsDetailView } from "../Views/SettingsDetailView";
+import { SettingsLayoutView } from "../Components/SettingsLayoutView";
+import { settingsShape } from "@/theme/settingsShape";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 
 const pages = { Categories: CategoriesScreen, Accounts: AccountsScreen, Budget: BudgetScreen,
   Goals: GoalsScreen, Recurring: RecurringScreen, Defaults: DefaultsScreen, Data: DataScreen };
@@ -92,8 +95,11 @@ function DetailRoute({ selected, destination, onSelect }: {
 }
 
 export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPage?: string }) {
-  const theme = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
   const navigation = useNavigation();
+  const { width, height } = useWindowDimensions();
+  const menuPadding = 4;
+  const menuItemRadius = (settingsShape(theme, "group")?.borderRadius ?? 20) - menuPadding;
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [betaScenario, setBetaScenario] = React.useState<"support" | "report" | "request" | null>(null);
@@ -104,7 +110,7 @@ export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPa
     .filter(group => group.items.length > 0);
   return <SettingsPage style={{ backgroundColor: theme.colors.background }}>
     <View style={styles.body}>
-      <View style={[styles.menu, { borderRightColor: theme.colors.outlineVariant }]}>
+      <SettingsLayoutView style={[styles.menu, { width: width > height ? "30%" : "40%", borderRightColor: theme.colors.outlineVariant }]}>
         <SettingsSearchHeader title="Settings" onBack={() => navigation.goBack()}
           query={query} onQueryChange={setQuery} searchOpen={searchOpen} onSearchOpenChange={setSearchOpen} />
       <ScrollView style={styles.menuScroll}
@@ -113,9 +119,10 @@ export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPa
           style={{ padding: 20, color: theme.colors.onSurfaceVariant }}>No settings found. Try budget, backup, or reminders.</Text> : null}
         {filteredGroups.map(group => <View key={group.title}>
           <SectionLabel label={group.title} />
-          <SheetCard theme={theme} style={{ marginHorizontal: 12 }}>
+          <SheetCard theme={theme} style={{ marginHorizontal: 12, padding: menuPadding }}>
             {group.items.map(([id, label, icon]) => <View key={id}
-              style={selected === id ? { backgroundColor: theme.colors.secondaryContainer, borderRadius: 20 } : undefined}>
+              style={{ borderRadius: menuItemRadius, overflow: "hidden",
+                ...(selected === id ? { backgroundColor: theme.colors.secondaryContainer } : {}) }}>
               <ActionRow label={label} description={descriptions[id]} icon={icon} theme={theme} onPress={() => {
                 if (id === "Support" || id === "Report" || id === "Suggest") {
                   setBetaScenario(id === "Support" ? "support" : id === "Report" ? "report" : "request");
@@ -126,8 +133,8 @@ export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPa
           </SheetCard>
         </View>)}
       </ScrollView>
-      </View>
-      <View style={styles.detail}>
+      </SettingsLayoutView>
+      <SettingsLayoutView style={styles.detail}>
         <SettingsDetailContext.Provider value={true}>
           <DetailStack.Navigator initialRouteName={selected}
             screenOptions={{ headerShown: false, animation: "none", contentStyle: { backgroundColor: theme.colors.background } }}>
@@ -137,7 +144,7 @@ export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPa
               }</DetailStack.Screen>)}
           </DetailStack.Navigator>
         </SettingsDetailContext.Provider>
-      </View>
+      </SettingsLayoutView>
     </View>
     <BetaContactModal visible={betaScenario !== null} scenario={betaScenario ?? "support"}
       onDismiss={() => setBetaScenario(null)} />
@@ -146,7 +153,7 @@ export function TabletSettingsLayout({ initialPage = "Workspaces" }: { initialPa
 
 const styles = StyleSheet.create({
   body: { flex: 1, flexDirection: "row", minHeight: 0 },
-  menu: { width: 350, flexShrink: 0, borderRightWidth: StyleSheet.hairlineWidth },
+  menu: { flexShrink: 0, borderRightWidth: StyleSheet.hairlineWidth },
   menuScroll: { flex: 1 },
   detail: { flex: 1, minWidth: 0, overflow: "hidden" },
 });

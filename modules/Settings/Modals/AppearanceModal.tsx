@@ -12,6 +12,7 @@ import { SectionLabel } from "../Components/SectionLabel";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { useSettings } from "../hooks";
 import { SettingsStyles } from "../Styles";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
 
 export type ModeOption = "light" | "dark" | "system";
 
@@ -33,7 +34,6 @@ type ContentProps = {
 
 type ThemeOption = [ThemeId, (typeof THEME_PRESETS)[ThemeId]];
 const ACCENT_GAP = 8;
-const ACCENT_COLS = 3;
 
 type AppearanceSectionProps = {
   activeModeId: ModeOption;
@@ -61,10 +61,12 @@ export function AppearanceSection({
   section = "all",
 }: AppearanceSectionProps) {
   const theme = useTheme();
+  const embedded = React.useContext(SettingsDetailContext);
   const [gridWidth, setGridWidth] = React.useState(0);
+  const accentColumns = embedded ? gridWidth >= 600 ? 6 : gridWidth >= 360 ? 4 : 3 : 3;
   const cardWidth =
     gridWidth > 0
-      ? Math.floor((gridWidth - ACCENT_GAP * (ACCENT_COLS - 1)) / ACCENT_COLS)
+      ? Math.floor((gridWidth - ACCENT_GAP * (accentColumns - 1)) / accentColumns)
       : undefined;
   const primary = theme.colors.primary;
 
@@ -154,7 +156,7 @@ export function AppearanceSection({
                     color={theme.colors.primary}
                   />
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text
                     style={[
                       SettingsStyles.rowTitle,
@@ -211,6 +213,7 @@ export function AppearanceSection({
                       appearanceStyles.accentCard,
                       settingsShape(theme),
                       cardWidth != null && { width: cardWidth },
+                      embedded && { minHeight: 84 },
                       {
                         backgroundColor: active
                           ? theme.colors.primaryContainer
@@ -291,6 +294,7 @@ function SheetShell({
 }
 
 function AppearanceContent({ modal = false, onBack }: ContentProps) {
+  const embedded = React.useContext(SettingsDetailContext);
   const {
     activeModeId,
     handleModeSelect,
@@ -300,25 +304,25 @@ function AppearanceContent({ modal = false, onBack }: ContentProps) {
     themeOptions,
     trueBlack,
   } = useSettings();
+  const appearanceProps = {
+    activeModeId,
+    onModeSelect: handleModeSelect,
+    themeId,
+    onThemeSelect: setThemeId,
+    themeOptions,
+    trueBlack,
+    onTrueBlackChange: setTrueBlack,
+  };
 
   return (
     <>
       <SettingsHeader title="Appearance" onBack={onBack} modal={modal} />
       <ScrollView
-        style={{ flexGrow: 0 }}
+        style={embedded ? { flex: 1, minHeight: 0 } : { flexGrow: 0 }}
         contentContainerStyle={SettingsStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <AppearanceSection
-          section="all"
-          activeModeId={activeModeId}
-          onModeSelect={handleModeSelect}
-          themeId={themeId}
-          onThemeSelect={setThemeId}
-          themeOptions={themeOptions}
-          trueBlack={trueBlack}
-          onTrueBlackChange={setTrueBlack}
-        />
+        <AppearanceSection {...appearanceProps} section="all" />
       </ScrollView>
     </>
   );
@@ -331,18 +335,6 @@ export function AppearanceModal({ visible, onDismiss }: SheetProps) {
     </SheetShell>
   );
 }
-
-const styles = StyleSheet.create({
-  handle: {
-    borderRadius: 999,
-    height: 4,
-    width: 42,
-  },
-  handleWrap: {
-    alignItems: "center",
-    paddingTop: 10,
-  },
-});
 
 const appearanceStyles = StyleSheet.create({
   accentGrid: {

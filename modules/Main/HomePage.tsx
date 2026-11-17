@@ -33,6 +33,7 @@ import { monthLabel } from "@/modules/Insights/calculations";
 import { ledgerMoney } from "./presentation";
 import { homeOverview } from "./homeOverview";
 import { MonthPickerSheet } from "./MonthPickerSheet";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 
 export function HomePage(
   props: React.ComponentProps<typeof HomePageContent> & { classic?: boolean },
@@ -65,6 +66,7 @@ function HomePageContent({
   onEdit: (id: string) => void;
 }) {
   const classic = useClassicHome();
+  const tablet = useTabletLayout();
   const homeCardShape = useHomeCardShape();
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;
@@ -121,7 +123,7 @@ function HomePageContent({
         contentContainerStyle={{
           padding: 16,
           gap: 14,
-          paddingBottom: 104 + bottom,
+          paddingBottom: (tablet ? 24 : 104) + bottom,
         }}
       >
         <MainEntrance delay={80} duration={240} distance={8} style={s.between}>
@@ -139,9 +141,9 @@ function HomePageContent({
               currency={currency}
               symbol={symbol}
             />
-            {iconButton("cog-outline", "Settings", () =>
+            {!tablet ? iconButton("cog-outline", "Settings", () =>
               navigation.navigate("Settings"),
-            )}
+            ) : null}
           </View>
         </MainEntrance>
         <MainEntrance delay={110} duration={240} distance={8}>

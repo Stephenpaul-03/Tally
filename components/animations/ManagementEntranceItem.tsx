@@ -7,7 +7,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useMotionEnabled } from "./Motion";
+import { motionLayout, useMotionEnabled } from "./Motion";
+import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import { useManagementEntranceReady } from "./UseManagementEntrance";
 
 /** One UI-thread timeline survives row rerenders, sorting and native completion. */
@@ -42,6 +43,8 @@ export function ManagementEntranceItem({
   index: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const embedded = React.useContext(SettingsDetailContext);
+  const enabled = useMotionEnabled();
   const animatedStyle = useAnimatedStyle(() => {
     const phase = animate
       ? Math.max(
@@ -56,7 +59,7 @@ export function ManagementEntranceItem({
     };
   });
   return (
-    <Animated.View collapsable={false} style={[style, animatedStyle]}>
+    <Animated.View collapsable={false} layout={embedded && enabled ? motionLayout : undefined} style={[style, animatedStyle]}>
       {children}
     </Animated.View>
   );

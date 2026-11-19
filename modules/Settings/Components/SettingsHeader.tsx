@@ -9,6 +9,8 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import { TouchableRipple, useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
 import { SettingsStyles } from "../Styles";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
+import { SettingsLayoutView } from "./SettingsLayoutView";
 
 type Props = {
   containerStyle?: StyleProp<ViewStyle>;
@@ -46,6 +48,7 @@ export function SettingsHeader({
   modal = false,
 }: Props) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const embedded = React.useContext(SettingsDetailContext);
   const closeSearch = React.useCallback(() => {
     onQueryChange?.("");
     onSearchOpenChange?.(false);
@@ -110,7 +113,7 @@ export function SettingsHeader({
 
   if (searchOpen && searchEnabled) {
     return (
-      <View style={[SettingsStyles.header, containerStyle]}>
+      <SettingsLayoutView style={[SettingsStyles.header, containerStyle]}>
         <View style={SettingsStyles.headerCenter}>
           <UniversalSearchBar
             bg={theme.colors.background}
@@ -119,7 +122,7 @@ export function SettingsHeader({
             placeholder={searchPlaceholder ?? `Search ${title.toLowerCase()}`}
             autoFocus
             containerStyle={{
-              height: theme.expressive ? 48 : 32,
+              height: theme.expressive ? 44 : 34,
               borderRadius: 12,
               marginHorizontal: 0,
             }}
@@ -137,13 +140,14 @@ export function SettingsHeader({
             color={theme.colors.onSurface}
           />
         </TouchableRipple>
-      </View>
+      </SettingsLayoutView>
     );
   }
 
   return (
-    <View style={[SettingsStyles.header, containerStyle]}>
-      {onBack && !searchOpen ? (
+    <SettingsLayoutView
+      style={[SettingsStyles.header, embedded && { flexWrap: "wrap" }, containerStyle]}>
+      {embedded ? null : onBack && !searchOpen ? (
         modal ? (
           <TouchableRipple
             onPress={onBack}
@@ -179,13 +183,13 @@ export function SettingsHeader({
           ]}
         />
       )}
-      <View style={SettingsStyles.headerCenter}>
+      <View style={[SettingsStyles.headerCenter, embedded && { flexGrow: 1, flexShrink: 0, flexBasis: "auto" }]}>
         {centerContent ? (
           centerContent
         ) : (
           <Text
             numberOfLines={theme.expressive ? 1 : undefined}
-            adjustsFontSizeToFit={Boolean(theme.expressive)}
+            adjustsFontSizeToFit={!embedded && Boolean(theme.expressive)}
             minimumFontScale={0.65}
             style={[
               SettingsStyles.headerTitle,
@@ -195,8 +199,8 @@ export function SettingsHeader({
                 ...(theme.expressive
                   ? {
                       fontFamily: "Figtree-800",
-                      fontSize: modal ? 24 : 36,
-                      lineHeight: modal ? 32 : 44,
+                      fontSize: embedded || !modal ? 36 : 24,
+                      lineHeight: embedded || !modal ? 44 : 32,
                       letterSpacing: -1,
                     }
                   : {}),
@@ -207,7 +211,9 @@ export function SettingsHeader({
           </Text>
         )}
       </View>
-      {rightAction}
-    </View>
+      {embedded ? <SettingsLayoutView style={{ flexShrink: 0, alignItems: "flex-start" }}>
+        {rightAction}
+      </SettingsLayoutView> : rightAction}
+    </SettingsLayoutView>
   );
 }

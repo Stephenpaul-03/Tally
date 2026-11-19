@@ -7,7 +7,8 @@ import {
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { typography } from "@/theme/typography";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { useAppShell } from "@/components/AppShellContext";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, {
@@ -271,6 +272,8 @@ function BasicTabBar({
   actionButtons?: Partial<Record<string, TabActionPair>>;
 }) {
   const hidden = useTabBarHidden();
+  const tablet = useTabletLayout();
+  const { width: screenWidth } = useWindowDimensions();
   const focused = useMotionFocus();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -414,6 +417,7 @@ function BasicTabBar({
       pointerEvents={hidden ? "none" : "box-none"}
       style={[
         styles.container,
+        tablet && { left: Math.max(20, (screenWidth - 560) / 2), right: Math.max(20, (screenWidth - 560) / 2) },
         {
           marginBottom: insets.bottom,
           backgroundColor: theme.colors.surface,
@@ -537,7 +541,9 @@ export function BottomTabBar({
   activePosition,
   onTabPress,
   actionButtons,
+  forceVisible = false,
 }: {
+  forceVisible?: boolean;
   routes: BottomTabRoute[];
   activeIndex: number;
   activePosition?: number;
@@ -561,7 +567,7 @@ export function BottomTabBar({
   const { tabBarEnabled } = useTabBarModePreference();
   const activeActions = getActiveActions(routes, activeIndex, actionButtons);
 
-  if (!tabBarEnabled) {
+  if (!tabBarEnabled && !forceVisible) {
     return <DisabledTabBarActions activeActions={activeActions} />;
   }
 

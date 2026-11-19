@@ -110,8 +110,10 @@ export function ActivityHeatmap({
   money,
   onDay,
   dragProgress,
+  compact = false,
 }: {
   dragProgress?: SharedValue<number>;
+  compact?: boolean;
   days: Data["days"];
   type: "income" | "expense";
   money: (value: number) => string;
@@ -135,7 +137,7 @@ export function ActivityHeatmap({
     "Sunday",
   ];
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: compact ? 4 : 8 }}>
       <View style={{ flexDirection: "row" }}>
         {weekdays.map((label) => (
           <Text
@@ -145,7 +147,7 @@ export function ActivityHeatmap({
               ...typography.body,
               width: "14.285%",
               textAlign: "center",
-              fontSize: 14,
+              fontSize: compact ? 12 : 14,
             }}
           >
             {label[0]}
@@ -197,13 +199,17 @@ export function YearOverview({
   selectedMonth,
   money,
   onShowTotals,
+  fill = false,
 }: {
+  fill?: boolean;
   year: Data["year"];
   selectedMonth: string;
   money: (value: number) => string;
   onShowTotals: () => void;
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const [chartHeight, setChartHeight] = React.useState(112);
+  const barHeight = fill ? Math.max(80, chartHeight - 32) : 80;
   if (!year.months.some((row) => row.incomeCount || row.expenseCount)) {
     return <CardEmptyState message="No entries this year" />;
   }
@@ -218,7 +224,7 @@ export function YearOverview({
     ...year.months.flatMap((row) => [row.income, row.expense]),
   );
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: 12, flexGrow: fill ? 1 : undefined }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}>
         {(
           [
@@ -265,13 +271,16 @@ export function YearOverview({
         ))}
       </View>
       <View
+        onLayout={fill ? event => setChartHeight(event.nativeEvent.layout.height) : undefined}
         accessible
         accessibilityLabel={`${year.label} monthly income and spending chart. Open monthly totals for exact amounts.`}
         style={{
           flexDirection: "row",
           gap: 5,
           alignItems: "flex-end",
-          height: 112,
+          height: fill ? undefined : 112,
+          minHeight: 112,
+          flexGrow: fill ? 1 : undefined,
           paddingTop: 8,
         }}
       >
@@ -287,7 +296,7 @@ export function YearOverview({
           >
             <View
               style={{
-                height: 80,
+                height: barHeight,
                 flexDirection: "row",
                 gap: 2,
                 alignItems: "flex-end",
@@ -297,7 +306,7 @@ export function YearOverview({
               <View
                 style={{
                   flex: 1,
-                  height: Math.max(2, (row.income / max) * 80),
+                  height: Math.max(2, (row.income / max) * barHeight),
                   backgroundColor: row.incomeCount
                     ? incomeForeground
                     : theme.colors.outlineVariant,
@@ -307,7 +316,7 @@ export function YearOverview({
               <View
                 style={{
                   flex: 1,
-                  height: Math.max(2, (row.expense / max) * 80),
+                  height: Math.max(2, (row.expense / max) * barHeight),
                   backgroundColor: row.expenseCount
                     ? expenseForeground
                     : theme.colors.outlineVariant,

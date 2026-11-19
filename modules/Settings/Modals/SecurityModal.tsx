@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { settingsShape } from "@/theme/settingsShape";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -233,14 +234,7 @@ export function SecurityModal({ visible, onDismiss }: SecurityModalProps) {
       }}
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <SecurityContent modal onBack={onDismiss} />
     </AnimatedPaperModal>
   );

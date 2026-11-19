@@ -1,3 +1,5 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { SettingsSheetHandle } from "@/modules/Settings/Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MotionItem, useMotionEnabled } from "@/components/animations/Motion";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -21,7 +23,7 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import { useTheme } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 
 const SORT_OPTION_COLORS: Record<string, string> = {
   date: "#0EA5E9",
@@ -311,7 +313,8 @@ export function SortOptionSheet({
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
-  const { bottom } = useSafeAreaInsets();
+  const { bottom } = useModalInsets();
+  const tablet = useTabletLayout();
   const [draftValue, setDraftValue] = React.useState(value);
   const [draftDirection, setDraftDirection] = React.useState(direction);
 
@@ -331,6 +334,7 @@ export function SortOptionSheet({
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       dismissable={!suspended}
@@ -349,7 +353,7 @@ export function SortOptionSheet({
           },
         ]}
       >
-        <View style={[styles.handle, { backgroundColor: c.outlineVariant }]} />
+        <SettingsSheetHandle />
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
@@ -452,7 +456,7 @@ export function SortOptionSheet({
                 index={index}
                 active={visible}
                 style={{
-                  width: theme.expressive ? "48.5%" : "31.6%",
+                  width: tablet ? "31%" : theme.expressive ? "48.5%" : "31.6%",
                   flexGrow: 1,
                 }}
               >
@@ -470,6 +474,7 @@ export function SortOptionSheet({
                       padding: 16,
                       borderWidth: 2,
                     },
+                    tablet && { aspectRatio: undefined, height: 128, minHeight: 128, padding: 10 },
                     {
                       backgroundColor:
                         theme.expressive && selected

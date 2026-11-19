@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
@@ -32,7 +33,7 @@ import {
 } from "react-native";
 import { Button, Switch, TextInput, useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { SettingsHeader } from "../Components/SettingsHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -413,7 +414,7 @@ function DateRangePicker({
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInsets();
 
   const [fromPickerVisible, setFromPickerVisible] = React.useState(false);
   const [toPickerVisible, setToPickerVisible] = React.useState(false);
@@ -875,7 +876,7 @@ export function BackupExportModal({
   onDismiss,
 }: BackupExportModalProps) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInsets();
   const dispatch = useAppDispatch();
   const activeWorkspaceId = useAppSelector(selectActiveWorkspaceId);
   const encryptionSupported = isEncryptionSupported();
@@ -1064,14 +1065,7 @@ export function BackupExportModal({
       keyboardAware
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <SettingsHeader title="Export Backup" onBack={onDismiss} modal />
 
       <ScrollView

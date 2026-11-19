@@ -59,6 +59,7 @@ export function MonthPickerSheet({
   );
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation="sheet"

@@ -1,3 +1,5 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
+import { InlineSettingsModalContext } from "../Layouts/SettingsDetailContext";
 import { ManagementEntranceItem, useManagementEntranceProgress } from "@/components/animations/ManagementEntranceItem";
 import { settingsShape } from "@/theme/settingsShape";
 import { AlertModal } from "@/components/alert/AlertModal";
@@ -30,7 +32,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { SettingsHeader } from "../Components/SettingsHeader";
 import { SettingsStyles } from "../Styles";
 
@@ -265,7 +267,8 @@ function WorkspaceEditor({
 
 export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   const theme = useTheme<ExtendedMD3Theme>();
-  const insets = useSafeAreaInsets();
+  const inline = React.useContext(InlineSettingsModalContext);
+  const insets = useModalInsets();
   const dispatch = useAppDispatch();
   const { interactionHintsEnabled, minimalIconsEnabled } = useAddonPrefs();
   const workspaces = useAppSelector(selectWorkspaces);
@@ -459,7 +462,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
   return (
     <>
       <AnimatedPaperModal
-        visible={visible && !editorOpen}
+        visible={visible && (inline || !editorOpen)}
         onDismiss={dismissModal}
         presentation="sheet"
         contentContainerStyle={{
@@ -472,14 +475,7 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
         keyboardAware
         includeBottomInset={true}
       >
-        <View style={styles.handleWrap}>
-          <View
-            style={[
-              styles.handle,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-        </View>
+        <SettingsSheetHandle />
         <>
           <SettingsHeader
             title="Workspaces"
@@ -752,12 +748,14 @@ export function WorkspaceModal({ visible, onDismiss }: WorkspaceModalProps) {
           ) : null}
         </>
       </AnimatedPaperModal>
+      <InlineSettingsModalContext.Provider value={false}>
       <WorkspaceEditor
         onBack={closeWorkspaceEditor}
         theme={theme}
         visible={visible && editorOpen}
         workspace={workspaceToEdit}
       />
+      </InlineSettingsModalContext.Provider>
     </>
   );
 }

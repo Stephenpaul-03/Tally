@@ -1,3 +1,5 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
+import { InlineSettingsModalContext } from "../Layouts/SettingsDetailContext";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
@@ -61,6 +63,7 @@ export function BetaContactModal({ visible, scenario, onDismiss }: Props) {
   const copy = SCENARIO_COPY[visible ? scenario : lastVisibleScenario];
 
   return (
+    <InlineSettingsModalContext.Provider value={false}>
     <AnimatedPaperModal
       visible={visible}
       onDismiss={onDismiss}
@@ -71,16 +74,10 @@ export function BetaContactModal({ visible, scenario, onDismiss }: Props) {
         borderTopLeftRadius: 40,
         borderTopRightRadius: 40,
         maxHeight: "92%",
+        maxWidth: 520,
       }}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
 
       <SettingsHeader title={copy.title} onBack={onDismiss} modal />
 
@@ -120,6 +117,7 @@ export function BetaContactModal({ visible, scenario, onDismiss }: Props) {
         </Button>
       </View>
     </AnimatedPaperModal>
+    </InlineSettingsModalContext.Provider>
   );
 }
 

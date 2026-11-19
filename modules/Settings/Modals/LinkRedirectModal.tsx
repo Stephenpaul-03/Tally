@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -39,11 +40,7 @@ export function LinkRedirectModal({
         },
       ]}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[styles.handle, { backgroundColor: theme.colors.outlineVariant }]}
-        />
-      </View>
+      <SettingsSheetHandle />
 
       <SettingsHeader title="Open external link" onBack={onDismiss} modal />
 

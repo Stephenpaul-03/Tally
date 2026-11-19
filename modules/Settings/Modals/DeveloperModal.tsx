@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { ActionRow } from "@/components/ActionRow";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import React from "react";
@@ -31,9 +32,7 @@ export function DeveloperModal({
         maxHeight: "92%",
       }}
     >
-      <View style={{ alignItems: "center", paddingTop: 10 }}>
-        <View style={{ width: 42, height: 4, borderRadius: 999, backgroundColor: theme.colors.outlineVariant }} />
-      </View>
+      <SettingsSheetHandle />
       <SettingsHeader title="Developer" onBack={onDismiss} modal />
       <ScrollView contentContainerStyle={SettingsStyles.scrollContent}>
         <SampleDataControls />

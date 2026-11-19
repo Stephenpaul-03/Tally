@@ -1,7 +1,7 @@
 import { DesignText as Text } from "@/components/DesignText";
 import { SettingsHeader } from "@/modules/Settings/Components/SettingsHeader";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { FlatList, Pressable, View, useWindowDimensions } from "react-native";
@@ -59,7 +59,7 @@ export function CurrencyPickerModal({
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const { height } = useWindowDimensions();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom } = useModalInsets();
   const [query, setQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   React.useEffect(() => {

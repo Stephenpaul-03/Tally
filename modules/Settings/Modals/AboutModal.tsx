@@ -1,3 +1,5 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
 import { useOnboardingTour } from "@/modules/Onboarding/SpotlightTour";
 import { navigationRef } from "@/navigation/RootNavigation";
 import { ActionRow } from "@/components/ActionRow";
@@ -23,6 +25,7 @@ type Props = {
 };
 
 export function AboutModal({ visible, onDismiss }: Props) {
+  const embedded = React.useContext(SettingsDetailContext);
   const theme = useTheme();
   const { start: startTour } = useOnboardingTour();
   const versionTaps = React.useRef(0);
@@ -45,9 +48,9 @@ export function AboutModal({ visible, onDismiss }: Props) {
   const [betaContactScenario, setBetaContactScenario] =
     React.useState<BetaContactScenario | null>(null);
   const openAboutBetaContactModal = React.useCallback(() => {
-    onDismiss();
+    if (!embedded) onDismiss();
     setBetaContactScenario("about");
-  }, [onDismiss]);
+  }, [onDismiss, embedded]);
   const closeBetaContactModal = React.useCallback(() => {
     setBetaContactScenario(null);
   }, []);
@@ -67,14 +70,7 @@ export function AboutModal({ visible, onDismiss }: Props) {
           maxHeight: "92%",
         }}
       >
-        <View style={styles.handleWrap}>
-          <View
-            style={[
-              styles.handle,
-              { backgroundColor: theme.colors.outlineVariant },
-            ]}
-          />
-        </View>
+        <SettingsSheetHandle />
         <SettingsHeader title="About" onBack={onDismiss} />
         <ScrollView
           contentContainerStyle={SettingsStyles.scrollContent}

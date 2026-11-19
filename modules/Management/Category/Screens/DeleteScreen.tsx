@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "@/modules/Settings/Components/SettingsSheetHandle";
 // from categoryManagement Screen
 import { useStagger } from "@/components/animations/UseStagger";
 import { AnimatedPaperModal } from "@/components/modal/modal";
@@ -308,16 +309,7 @@ export function CategoryDeleteModal({
         overflow: "hidden",
       }}
     >
-      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
-        <View
-          style={{
-            backgroundColor: props.theme.colors.outlineVariant,
-            borderRadius: 999,
-            height: 4,
-            width: 42,
-          }}
-        />
-      </View>
+      <SettingsSheetHandle />
       {content}
     </AnimatedPaperModal>
   );

@@ -1,4 +1,6 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
+import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 
@@ -73,11 +75,13 @@ function AccountListContent({
   useSettingsHeader,
 }: AccountListContentProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const embedded = React.useContext(SettingsDetailContext);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
   const activeWorkspace = useAppSelector(selectActiveWorkspace);
   const c = theme.colors;
   const accounts = management.activeAccounts;
   const isPickerMode = Boolean(onSelectAccount);
+  const tablet = useTabletLayout();
   const { width } = useWindowDimensions();
 
   const [query, setQuery] = useState("");
@@ -161,7 +165,7 @@ function AccountListContent({
     <View
       style={
         isPickerMode
-          ? { height: listHeight + 116, flexShrink: 0 }
+          ? { height: (tablet ? Math.max(80, rows.length * 72 + 8) : listHeight) + 116, flexShrink: 0 }
           : { flex: 1 }
       }
     >
@@ -330,6 +334,7 @@ function AccountListContent({
             paddingHorizontal: 20,
             paddingVertical: 12,
             marginTop: "auto",
+            ...(embedded ? { alignSelf: "flex-end", maxWidth: 300, width: "100%" } : {}),
           }}
         >
           <Pressable
@@ -342,7 +347,7 @@ function AccountListContent({
               gap: 10,
               paddingVertical: 14,
               paddingHorizontal: 20,
-              borderRadius: 14,
+              borderRadius: embedded ? 28 : 14,
               backgroundColor: c.primary,
               opacity: pressed
                 ? 0.75

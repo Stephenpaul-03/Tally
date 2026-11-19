@@ -30,7 +30,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import type { calculateInsights } from "../calculations";
 import { SpendingHistory } from "../charts/Charts";
 import { MotionPressable } from "../components/Motion";
@@ -162,7 +162,7 @@ function DetailPageSheet({
 
   const reduceMotion = useReducedMotion();
   const { height: screenHeight } = useWindowDimensions();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom } = useModalInsets();
   const [historyPage, setHistoryPage] = useState<string | null>(null);
   useEffect(() => {
     setHistoryPage(null);

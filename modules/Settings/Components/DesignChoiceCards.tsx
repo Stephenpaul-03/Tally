@@ -4,6 +4,8 @@ import { Pressable, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
+import { SettingsDetailContext } from "../Layouts/SettingsDetailContext";
+import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 
 type Choice = "sage" | "classic";
 export function DesignChoiceCards({
@@ -17,14 +19,16 @@ export function DesignChoiceCards({
   classicDisabled?: boolean;
   purpose: "layout" | "style";
 }) {
-  const { colors: c } = useTheme();
+  const theme = useTheme<ExtendedMD3Theme>();
+  const c = theme.colors;
+  const embedded = React.useContext(SettingsDetailContext);
   const progress = useManagementEntranceProgress();
   return (
     <View
       style={{
         flexDirection: "row",
         gap: 12,
-        marginHorizontal: 20,
+        marginHorizontal: embedded && theme.expressive ? 16 : 20,
         marginBottom: 20,
       }}
     >
@@ -32,16 +36,17 @@ export function DesignChoiceCards({
         const selected = value === choice;
         const disabled = choice === "classic" && classicDisabled;
         return (
-          <ManagementEntranceItem key={choice} progress={progress} index={index} style={{ flex: 1, aspectRatio: 1 }}>
+          <ManagementEntranceItem key={choice} progress={progress} index={index}
+            style={{ flex: 1, ...(embedded ? { minHeight: 128 } : { aspectRatio: 1 }) }}>
           <Pressable
             accessibilityRole="radio"
-            accessibilityLabel={`${choice === "sage" ? "Expressive" : "Classic"} ${purpose}${disabled ? ", requires Classic layout" : ""}`}
+            accessibilityLabel={`${choice === "sage" ? "Expressive" : "Classic"} ${purpose}${disabled ? ", requires Classic style" : ""}`}
             accessibilityState={{ checked: selected, disabled }}
             disabled={disabled}
             onPress={() => onChange(choice)}
             style={({ pressed }) => ({
               flex: 1,
-              aspectRatio: 1,
+              aspectRatio: embedded ? undefined : 1,
               borderRadius: choice === "sage" ? 28 : 20,
               backgroundColor: selected
                 ? c.primaryContainer
@@ -98,7 +103,7 @@ export function DesignChoiceCards({
                 }}
               >
                 {disabled
-                  ? "Requires Classic layout"
+                  ? "Requires Classic style"
                   : choice === "sage"
                     ? "Bold, rounded, tonal"
                     : "Original Tally"}

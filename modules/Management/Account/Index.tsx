@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import { CategoryManagementStyles } from "@/modules/Management/Category/Styles";
 import React from "react";
@@ -19,6 +20,7 @@ export function AccountManagementModal({
   onSelectAccount,
 }: AccountManagementModalProps) {
   const theme = useTheme();
+  const tablet = useTabletLayout();
   const c = theme.colors;
   const divider = c.outlineVariant;
 
@@ -53,6 +55,7 @@ export function AccountManagementModal({
 
   return (
     <AnimatedPaperModal
+        scrollable={screen === "list"}
       visible={isOpen}
       onDismiss={handleClose}
       presentation={isMobile ? "sheet" : "modal"}
@@ -81,7 +84,7 @@ export function AccountManagementModal({
         },
       ]}
     >
-      {isMobile && (
+      {isMobile && !tablet && (
         <View style={CategoryManagementStyles.dragHandleWrap}>
           <View
             style={[

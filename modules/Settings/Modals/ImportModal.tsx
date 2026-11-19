@@ -1,3 +1,4 @@
+import { SettingsSheetHandle } from "../Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { backupFailure } from "@/modules/Backup/errors";
 import {
@@ -28,7 +29,7 @@ import {
 } from "react-native";
 import { Button, useTheme } from "react-native-paper";
 import { DesignText as Text } from "@/components/DesignText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInsets } from "@/hooks/use-modal-insets";
 import { SettingsHeader } from "../Components/SettingsHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -447,7 +448,7 @@ export function BackupImportModal({
   onDismiss,
 }: BackupImportModalProps) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInsets();
 
   const { promptPassword, PasswordPromptModal } = usePasswordPrompt();
   const dataTransfer = useDataTransferControls(undefined, { promptPassword });
@@ -586,14 +587,7 @@ export function BackupImportModal({
       keyboardAware
       includeBottomInset={false}
     >
-      <View style={styles.handleWrap}>
-        <View
-          style={[
-            styles.handle,
-            { backgroundColor: theme.colors.outlineVariant },
-          ]}
-        />
-      </View>
+      <SettingsSheetHandle />
       <SettingsHeader title="Import data" onBack={handleDismiss} modal />
 
       <ScrollView

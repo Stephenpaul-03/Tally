@@ -6,12 +6,12 @@ import { DesignText as Text } from "@/components/DesignText";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import type { workspaceSnapshot } from "./snapshot";
 
-export function WorkspaceSummaryCard({ snapshot, money, onPress, contained = false, compact = false }: {
+export function WorkspaceSummaryCard({ snapshot, money, onPress, contained = false, compact = false, fill = false }: {
   snapshot: ReturnType<typeof workspaceSnapshot>;
-  money: (amount: number) => string; onPress?: () => void; contained?: boolean; compact?: boolean;
+  money: (amount: number) => string; onPress?: () => void; contained?: boolean; compact?: boolean; fill?: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>(), c = theme.colors;
-  return <View style={{ backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 20, padding: contained ? 0 : 16, gap: compact ? 12 : 18 }}>
+  return <View style={{ flexGrow: fill ? 1 : undefined, justifyContent: fill ? "space-between" : undefined, backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 20, padding: contained ? 0 : 16, gap: compact ? 12 : 18 }}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
       {([['Income', snapshot.income, theme.semantic.income], ['Expenses', snapshot.spent, theme.semantic.expense]] as const).map(([label, amount, color]) =>
         <View key={label} style={{ flex: 1, minWidth: compact ? 90 : 120, gap: 6 }}>

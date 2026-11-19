@@ -1,6 +1,4 @@
-import { TabletTransactionSummary } from "@/modules/Main/TabletTransactionSummary";
 import { useTabletLayout } from "@/hooks/use-tablet-layout";
-import { TabletTransactionSection } from "@/modules/Main/TabletTransactionSection";
 import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
 import { TabletTransactionColumns } from "@/modules/Main/TabletTransactionColumns";
 import { TransactionMutationScope, TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "./Components/TransactionMutation";
@@ -600,23 +598,24 @@ function TransactionBottomSheet({
           compact ? local.nativeSheetPanelCompact : null,
           {
             backgroundColor: theme.colors.background,
-            paddingBottom: Math.max(16, bottom + 12),
+            paddingBottom: tabletSheet ? 16 : Math.max(16, bottom + 12),
+            ...(tabletSheet ? { padding: 16, paddingTop: 16 } : {}),
             ...panelSizeStyle,
           },
         ]}
       >
-        <View
+        {!tabletSheet ? <View
           style={[
             local.filterSheetHandle,
             { backgroundColor: theme.colors.outlineVariant },
           ]}
-        />
+        /> : null}
         {theme.expressive ? (
           <View style={{ gap: 4, paddingBottom: 6 }}>
             <SettingsHeader
               containerStyle={{
                 paddingHorizontal: 0,
-                paddingTop: 4,
+                paddingTop: tabletSheet ? 0 : 4,
                 paddingBottom: 0,
               }}
               title={title}
@@ -1454,9 +1453,6 @@ type TimelineDaySectionProps = {
 const TimelineDaySection = React.memo(function TimelineDaySection(props: TimelineDaySectionProps) {
   const { item, currencyCode, currencySymbol, onPressTransaction, collapsed, onToggleCollapsed } = props;
   const theme = useTheme<ExtendedMD3Theme>();
-  const tablet = useTabletLayout();
-  if (tablet) return <TabletTransactionSection item={item} currency={currencyCode} symbol={currencySymbol}
-    collapsed={collapsed} onCollapse={onToggleCollapsed} onEdit={onPressTransaction} />;
   return (
     <TimelineSectionHeader
       title={item.title}
@@ -1530,7 +1526,6 @@ export default function Transactions({
   const tabBarHeight = useTabBarHeight();
   const { tabBarEnabled } = useTabBarModePreference();
   const tabletLandscape = useTabletLandscape();
-  const tablet = useTabletLayout();
   const { bottom } = useSafeAreaInsets();
   const [transactionSearchQuery, setTransactionSearchQuery] =
     React.useState("");
@@ -1940,7 +1935,7 @@ export default function Transactions({
             currencySymbol={currencySymbol} onPressTransaction={handleEdit}
             collapsed={Boolean(collapsedDaySections[section.key])} onToggleCollapsed={handleToggleDaySection} />} /> : <FlatList
           style={local.transactionList}
-          ListHeaderComponent={tablet ? <TabletTransactionSummary rows={monthSections.flatMap(section => section.transactions)} currency={currencyCode} symbol={currencySymbol} /> : null}
+          ListHeaderComponent={null}
           data={sectionPresence.records}
           renderItem={renderMonthSection}
           keyExtractor={(item) => item.key}
@@ -1960,7 +1955,6 @@ export default function Transactions({
     ),
     [
       tabletLandscape,
-      tablet,
       monthSections,
       selectedMonthKey,
       currencyCode,

@@ -43,8 +43,6 @@ import {
 } from "./pagerGeometry";
 import { MonthPickerSheet } from "./MonthPickerSheet";
 import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTabBarHidden } from "@/components/tabbar/TabBarContext";
 
 type Controls = {
   group?: GestureControlButtonConfig;
@@ -78,8 +76,6 @@ export function ClassicMainScreen({
   const { colors: c } = useTheme();
   const sidebar = useTabletLandscape();
   const tablet = useTabletLayout();
-  const { bottom } = useSafeAreaInsets();
-  const hidden = useTabBarHidden();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const shell = useAppShell();
   const motion = useMotionEnabled();
@@ -410,6 +406,10 @@ export function ClassicMainScreen({
                               {control(controlButtons.group)}
                               {control(controlButtons.leftMiddle)}
                               {control(controlButtons.right)}
+                              {controlButtons.middle ? <Pressable accessibilityRole="button" accessibilityLabel="Add transaction" onPress={controlButtons.middle.onPress}
+                                style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 16, borderRadius: 22, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.primary, opacity: pressed ? 0.7 : 1 })}>
+                                <Icon name="plus" size={20} color={c.onPrimary} /><Text style={{ ...typography.bodyMedium, fontSize: 14, color: c.onPrimary }}>Add</Text>
+                              </Pressable> : null}
                             </View> : <Animated.View
                               pointerEvents={searchExpanded ? "none" : "auto"}
                               accessibilityElementsHidden={searchExpanded}
@@ -548,15 +548,6 @@ export function ClassicMainScreen({
             ))}
           </Animated.View>
         </GestureDetector>
-        {sidebar && shell.activeTab === "calendar" && focused && !hidden && controlButtons.middle ?
-          <Pressable accessibilityRole="button" accessibilityLabel="Add transaction"
-            onPress={controlButtons.middle.onPress}
-            style={({ pressed }) => ({ position: "absolute", right: 16, bottom: 24 + bottom, height: 56,
-              paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-              borderRadius: 28, backgroundColor: c.primary, opacity: pressed ? 0.65 : 1 })}>
-            <Icon name="plus" size={24} color={c.onPrimary} />
-            <Text style={{ ...typography.bodyMedium, fontSize: 16, color: c.onPrimary }}>Add</Text>
-          </Pressable> : null}
         <MonthPickerSheet
           visible={picker}
           month={month}

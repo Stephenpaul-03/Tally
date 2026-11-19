@@ -1,3 +1,4 @@
+import { TabletTransactionHeading } from "./TabletTransactionHeading";
 import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { MonthEmptyState } from "@/components/MonthEmptyState";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
@@ -183,7 +184,7 @@ function LedgerPage(p: Props & { active: boolean }) {
       </View>
     </View>
   );
-  const header = (
+  const header = tablet ? <TabletTransactionHeading month={p.month} count={shownRows.length} onMonth={() => setMonthPicker(true)} /> : (
     <View style={[s.header, { gap: 0, paddingBottom: 0 }]}>
       <SpotlightTarget id="transaction-heading" enabled={p.active}>
         <View style={s.between}>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
@@ -32,16 +32,18 @@ export function TabletCard({ title, action, onAction, headerAction, children }: 
   </View>;
 }
 
-export function TabletWorkspaceButton() {
+export function TabletWorkspaceButton({ calendarStyle = false }: { calendarStyle?: boolean }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const workspace = useAppSelector(selectActiveWorkspace);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   return <Pressable accessibilityRole="button" accessibilityLabel={`Switch workspace, ${workspace?.name || "Workspace"}`}
     onPress={() => navigation.navigate("Settings", { section: "workspaces" })}
-    style={{ minHeight: 44, maxWidth: 180, paddingHorizontal: 12, borderRadius: theme.expressive ? 22 : 12,
+    style={{ minHeight: 44, maxWidth: 180, paddingHorizontal: 12, borderRadius: calendarStyle ? 24 : theme.expressive ? 22 : 12,
+      borderWidth: calendarStyle ? StyleSheet.hairlineWidth : 0, borderColor: theme.colors.outlineVariant,
       flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.colors.surface }}>
-    <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 13, fontWeight: "600", color: theme.colors.onSurface }}>{workspace?.name || "Workspace"}</Text>
-    <Icon name="chevron-down" size={17} color={theme.colors.onSurfaceVariant} />
+    <Icon name={(workspace?.icon || "briefcase-outline") as React.ComponentProps<typeof Icon>["name"]} size={19} color={theme.colors.onSurface} />
+    <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: calendarStyle ? 14 : 13, fontWeight: theme.expressive || calendarStyle ? "800" : "600", color: theme.colors.onSurface }}>{workspace?.name || "Workspace"}</Text>
+    <Icon name="chevron-down" size={calendarStyle ? 20 : 17} color={calendarStyle ? theme.colors.onSurface : theme.colors.onSurfaceVariant} />
   </Pressable>;
 }
 
@@ -56,24 +58,26 @@ export function TabletMetrics({ income, spent, balance, money, onIncome, onSpent
     { label: "Income", value: income, color: theme.semantic.income, background: theme.dark ? "#20392B" : "#E5F2E7", icon: "arrow-bottom-left", action: onIncome },
     { label: "Spent", value: spent, color: theme.semantic.expense, background: c.errorContainer, icon: "arrow-top-right", action: onSpent },
   ] as const;
+  const ringSize = compact ? 80 : 64;
   const ring = percent !== undefined ? <View accessibilityLabel={percent === null ? "No income recorded" : `${percent.toFixed(1)}% of income spent`}
-      style={{ width: 88, justifyContent: "center", alignItems: "center", gap: 3 }}>
-      <View style={{ width: 64, height: 64, justifyContent: "center", alignItems: "center" }}>
-        <View style={{ position: "absolute", width: 128, height: 128, left: -32, top: -32, transform: [{ scale: 0.5 }] }}><ProgressRing percent={percent || 0} /></View>
-        <Text style={{ fontWeight: "800", fontSize: 14, color: c.onSurface }}>{percent === null ? "—" : `${percent.toFixed(1)}%`}</Text>
+      style={{ width: compact ? 104 : 88, justifyContent: "center", alignItems: "center", gap: 3 }}>
+      <View style={{ width: ringSize, height: ringSize, justifyContent: "center", alignItems: "center" }}>
+        <View style={{ position: "absolute", width: 128, height: 128, left: (ringSize - 128) / 2, top: (ringSize - 128) / 2, transform: [{ scale: ringSize / 128 }] }}><ProgressRing percent={percent || 0} /></View>
+        <Text style={{ fontWeight: "800", fontSize: compact ? 18 : 14, color: c.onSurface }}>{percent === null ? "—" : `${percent.toFixed(1)}%`}</Text>
       </View>
       <Text style={{ fontSize: 10, color: c.onSurfaceVariant }}>of income spent</Text>
     </View> : null;
-  if (compact) return <View style={{ gap: 12 }}>
+  if (compact) return <View style={{ gap: 10 }}>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-      {ring}<View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+      <View style={{ flex: 1, minWidth: 0, minHeight: 80, padding: 10, gap: 6, justifyContent: "center", borderRadius: 16, backgroundColor: c.surfaceVariant }}>
         <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>Balance</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 26, fontWeight: "800", color: balance < 0 ? theme.semantic.expense : c.onSurface }}>{balance < 0 ? "−" : ""}{money(balance)}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 26, fontWeight: "800", color: balance < 0 ? theme.semantic.expense : c.onSurface }}>{balance < 0 ? "\u2212" : ""}{money(balance)}</Text>
       </View>
+      {ring}
     </View>
-    <View style={{ flexDirection: "row", gap: 10 }}>
+    <View style={{ flexDirection: "row", gap: 8 }}>
       {metrics.slice(1).map(metric => <Pressable key={metric.label} accessibilityRole="button" accessibilityLabel={`View ${metric.label.toLowerCase()} transactions`}
-        onPress={metric.action} style={{ flex: 1, minWidth: 0, minHeight: 64, padding: 10, gap: 4, borderRadius: 16, backgroundColor: metric.background }}>
+        onPress={metric.action} style={{ flex: 1, minWidth: 0, minHeight: 48, padding: 8, gap: 4, borderRadius: 16, backgroundColor: metric.background }}>
         <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>{metric.label}</Text>
         <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 19, fontWeight: "700", color: metric.color }}>{money(metric.value)}</Text>
       </Pressable>)}

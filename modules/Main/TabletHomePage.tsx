@@ -1,4 +1,5 @@
 import React from "react";
+import { TabletCardStretchContext } from "@/components/CardWidthContext";
 import { Pressable, ScrollView, View } from "react-native";
 import { MaterialCommunityIcons as Icon } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
@@ -52,7 +53,7 @@ export function TabletHomePage({ active, raw, month, currency, symbol, onMonth, 
   const [picker, setPicker] = React.useState(false);
   const model = React.useMemo(() => homeOverview(raw, month, currency), [raw, month, currency]);
   const today = localDate();
-  const { posted, recent, accounts } = React.useMemo(() => tabletHomeData(raw, month, currency, today, accountNames), [raw, month, currency, today, accountNames]);
+  const { posted, recent, accounts } = React.useMemo(() => tabletHomeData(raw, month, currency, today, accountNames, landscape ? 6 : 8), [raw, month, currency, today, accountNames, landscape]);
   const money = (value: number) => ledgerMoney(value, currency, symbol);
   const showType = (type: "income" | "expense") => setDetail({ title: type === "income" ? "Income" : "Spent",
     description: monthLabel(month), transactions: posted.filter(row => row.type === type),
@@ -93,9 +94,44 @@ export function TabletHomePage({ active, raw, month, currency, symbol, onMonth, 
     </Pressable> : empty("Set a savings goal and follow your progress here.")}
   </TabletCard> : null;
   const recentCard = <TabletCard title="Recent transactions" onAction={() => shell.requestTab("calendar")}>
+    <View style={{ gap: 4, flexGrow: landscape ? 1 : undefined }}>
     {recent.length ? recent.map((row, index) => <TransactionRow key={row.id} transaction={row} onPressTransaction={onEdit}
       compact grouped groupPosition={index === recent.length - 1 ? "last" : "middle"} secondaryLabelMode="date" />) : empty("No transactions recorded for this month.")}
+    </View>
   </TabletCard>;
+  const accountsCard = <TabletCard title="Accounts · Net this month">
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          {accounts.map(({ name, rows, net }) => {
+            const [background, foreground] = categoryTone("", theme.dark, getAccountColor(name, accountColors));
+            return <Pressable key={name} accessibilityRole="button" accessibilityLabel={`View ${name} transactions`}
+              onPress={() => setDetail({ title: name, description: monthLabel(month), transactions: rows, summary: { label: "Net", value: `${net < 0 ? "−" : ""}${money(net)}` } })}
+              style={{ width: "31%", flexGrow: 1, minWidth: 0, minHeight: 88, padding: 10, borderRadius: 16, backgroundColor: theme.expressive ? background : c.surfaceVariant, flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+              <Icon name={getAccountIconName(name, accountIcons) as React.ComponentProps<typeof Icon>["name"]} size={22} color={theme.expressive ? foreground : c.primary} />
+              <View style={{ flex: 1, gap: 3 }}><Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>{name}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 16, fontWeight: "700", color: net < 0 ? theme.semantic.expense : c.onSurface }}>{net < 0 ? "−" : ""}{money(net)}</Text></View>
+            </Pressable>;
+          })}
+          {!accountNames.length ? empty("Add an account in Settings to see it here.") : null}
+        </View>
+      </TabletCard>;
+  const categories = [...posted.filter(row => row.type === "expense").reduce((groups, row) => {
+    groups.set(row.category, (groups.get(row.category) || 0) + Math.abs(row.amount));
+    return groups;
+  }, new Map<string, number>())].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const spendingCard = categories.length ? <TabletCard title="Leading expenses" action="All" onAction={() => shell.requestTab("insights")}>
+    {categories.map(([name, amount]) => <Pressable key={name} accessibilityRole="button" accessibilityLabel={`View ${name} expenses`}
+      onPress={() => setDetail({ title: name, description: monthLabel(month), transactions: posted.filter(row => row.type === "expense" && row.category === name), summary: { label: "Spent", value: money(amount) } })}
+      style={{ gap: 8, paddingVertical: 10 }}>
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, color: c.onSurface }}>{name}</Text>
+        <Text style={{ fontSize: 14, fontWeight: "700", color: c.onSurface }}>{money(amount)}</Text>
+        <Icon name="chevron-right" size={16} color={c.onSurfaceVariant} />
+      </View>
+      <View style={{ height: 4, borderRadius: 2, backgroundColor: c.surfaceVariant }}>
+        <View style={{ height: 4, borderRadius: 2, width: `${Math.min(100, amount / Math.max(1, model.spent) * 100)}%`, backgroundColor: theme.semantic.expense }} />
+      </View>
+    </Pressable>)}
+  </TabletCard> : null;
   return <View style={{ flex: 1 }}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: (landscape ? 24 : 112) + bottom }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -114,28 +150,18 @@ export function TabletHomePage({ active, raw, month, currency, symbol, onMonth, 
         {!landscape ? <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => navigation.navigate("Settings")} style={{ padding: 10, minHeight: 44 }}><Icon name="cog-outline" size={22} color={c.onSurface} /></Pressable> : null}
       </View>
       <TabletMetrics income={model.income} spent={model.spent} balance={model.left} money={money} onIncome={() => showType("income")} onSpent={() => showType("expense")} />
-      {landscape ? <View style={{ flexDirection: "row", gap: 18, alignItems: "flex-start" }}>
-        <View style={{ flex: 1.6, minWidth: 0 }}>{recentCard}</View>
-        {upcomingCard || goalCard ? <View style={{ flex: 1, minWidth: 0, gap: 18 }}>{upcomingCard}{goalCard}</View> : null}
+      {landscape ? <View style={{ flexDirection: "row", gap: 16, alignItems: "stretch" }}>
+        <View style={{ flex: 1.4, minWidth: 0 }}><TabletCardStretchContext.Provider value={true}>{recentCard}</TabletCardStretchContext.Provider></View>
+        <View style={{ flex: 1, minWidth: 0, gap: 16 }}>{accountsCard}<TabletCardStretchContext.Provider value={true}>{spendingCard}</TabletCardStretchContext.Provider></View>
       </View> : <>
-        {upcomingCard || goalCard ? <View style={{ flexDirection: "row", gap: 16 }}>{upcomingCard ? <View style={{ flex: 1, minWidth: 0 }}>{upcomingCard}</View> : null}{goalCard ? <View style={{ flex: 1, minWidth: 0 }}>{goalCard}</View> : null}</View> : null}
         {recentCard}
-      </>}
-      <TabletCard title="Accounts · Net this month">
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-          {accounts.map(({ name, rows, net }) => {
-            const [background, foreground] = categoryTone("", theme.dark, getAccountColor(name, accountColors));
-            return <Pressable key={name} accessibilityRole="button" accessibilityLabel={`View ${name} transactions`}
-              onPress={() => setDetail({ title: name, description: monthLabel(month), transactions: rows, summary: { label: "Net", value: `${net < 0 ? "−" : ""}${money(net)}` } })}
-              style={{ flex: 1, minWidth: 130, minHeight: 64, padding: 12, borderRadius: 16, backgroundColor: theme.expressive ? background : c.surfaceVariant, flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Icon name={getAccountIconName(name, accountIcons) as React.ComponentProps<typeof Icon>["name"]} size={22} color={theme.expressive ? foreground : c.primary} />
-              <View style={{ flex: 1, gap: 3 }}><Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>{name}</Text>
-                <Text style={{ fontSize: 16, fontWeight: "700", color: net < 0 ? theme.semantic.expense : c.onSurface }}>{net < 0 ? "−" : ""}{money(net)}</Text></View>
-            </Pressable>;
-          })}
-          {!accountNames.length ? empty("Add an account in Settings to see it here.") : null}
+        <View style={{ flexDirection: "row", gap: 16, alignItems: "flex-start" }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 16 }}>{accountsCard}{upcomingCard}</View>
+          {spendingCard || goalCard ? <View style={{ flex: 1, minWidth: 0, gap: 16 }}>{spendingCard}{goalCard}</View> : null}
         </View>
-      </TabletCard>
+      </>}
+      {landscape && (upcomingCard || goalCard) ? <View style={{ flexDirection: "row", gap: 16 }}>{upcomingCard ? <View style={{ flex: 1 }}>{upcomingCard}</View> : null}{goalCard ? <View style={{ flex: 1 }}>{goalCard}</View> : null}</View> : null}
+
     </ScrollView>
     <MonthPickerSheet visible={picker} month={month} onChange={onMonth} onDismiss={() => setPicker(false)} />
     <DetailsSheet detail={active ? detail : null} onClose={() => setDetail(null)} money={money} onTransaction={onEdit} />

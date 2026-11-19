@@ -149,7 +149,7 @@ export function ClassicSpending({
           gap: 12,
         }}
       >
-        {!(compact && type === "income" && !showChart) ? <View
+        {!(compact && !showChart) ? <View
           accessible
           accessibilityRole="image"
           accessibilityLabel={`${type === "income" ? "Income" : "Spending"} breakdown, ${money(total)} total. ${segments.map((item) => `${item.label} ${percentLabel(item.share * 100)}`).join(", ")}`}
@@ -203,7 +203,7 @@ export function ClassicSpending({
         </View> : null}
         <View
           style={{
-            flex: compact && type === "income" && !showChart ? 1 : stacked ? undefined : 1,
+            flex: compact && !showChart ? 1 : stacked ? undefined : 1,
             width: stacked ? "100%" : undefined,
             minWidth: 0,
           }}

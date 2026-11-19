@@ -179,9 +179,11 @@ export function TransactionModal({
 
   const tablet = useTabletLayout();
   const { height: screenHeight } = useWindowDimensions();
+  const [editorKeyboardOpen, setEditorKeyboardOpen] = React.useState(false);
+  const [editorRestingHeight, setEditorRestingHeight] = React.useState(0);
   const isEditMode = modalMode === "edit";
   const isViewMode = modalMode === "view";
-  const tabletEditor = tablet && theme.expressive && !isViewMode;
+  const tabletEditor = tablet && !isViewMode;
   const [controlsWidth,setControlsWidth] = useState(0);
   const [recurringExpanded,setRecurringExpanded] = useState(false);
   const [recurringEnabled,setRecurringEnabled] = useState(false);
@@ -864,9 +866,13 @@ export function TransactionModal({
   }, []);
 
   useEffect(() => {
-    const subscription = Keyboard.addListener("keyboardDidHide", blurInputs);
-    return () => subscription.remove();
-  }, [blurInputs]);
+    const show = Keyboard.addListener("keyboardDidShow", () => { if (tablet) setEditorKeyboardOpen(true); });
+    const subscription = Keyboard.addListener("keyboardDidHide", () => {
+      setEditorKeyboardOpen(false);
+      blurInputs();
+    });
+    return () => { show.remove(); subscription.remove(); };
+  }, [blurInputs, tablet]);
 
   // View and edit are separate presentations; establish the next header before entry.
   useLayoutEffect(() => {
@@ -1379,17 +1385,7 @@ export function TransactionModal({
         ) : null}
 
   </>);
-  const footerSection = (<>
-        {!isViewMode ? (
-          <Animated.View
-            style={[
-              mainContent.iosBottomRow,
-              tabletEditor && { justifyContent: "flex-end", flexShrink: 0 },
-              { gap: 8 },
-              sectionEntranceStyle(cardSectionEntrances[4]),
-            ]}
-          >
-            <Pressable
+  const dateControl = (<Pressable
               accessibilityRole="button"
               accessibilityLabel={createRecurring || recurringTemplate ? "Change first due date" : "Change date"}
               onPress={() => {
@@ -1411,8 +1407,8 @@ export function TransactionModal({
                 }
               />
               <Text style={mainContent.iosDateText}>{dateChipLabel}</Text>
-            </Pressable>
-            <Pressable
+            </Pressable>);
+  const saveControl = (<Pressable
               accessibilityRole="button"
               accessibilityLabel={createRecurring || recurringTemplate ? "Save recurring schedule" : "Save transaction"}
               accessibilityState={{ disabled: isSaving, busy: isSaving }}
@@ -1424,7 +1420,19 @@ export function TransactionModal({
               ]}
             >
               <Text style={mainContent.iosSaveButtonText}>{isSaving ? "Saving…" : createRecurring || recurringTemplate ? "Save" : recurringOccurrence ? "Record" : "Save"}</Text>
-            </Pressable>
+            </Pressable>);
+  const footerSection = (<>
+        {!isViewMode ? (
+          <Animated.View
+            style={[
+              mainContent.iosBottomRow,
+              tabletEditor && { justifyContent: "flex-end", flexShrink: 0 },
+              { gap: 8 },
+              sectionEntranceStyle(cardSectionEntrances[4]),
+            ]}
+          >
+            {dateControl}
+            {saveControl}
           </Animated.View>
         ) : null}
   </>);
@@ -1433,7 +1441,8 @@ export function TransactionModal({
   const content = (
     <EditorScrollView
       {...(tablet ? { bottomOffset: 24 } : {})}
-      style={{ flexShrink: 1, minHeight: 0, maxHeight: tablet ? screenHeight - 96 : undefined }}
+      onLayout={tablet ? event => { if (!Keyboard.isVisible()) setEditorRestingHeight(event.nativeEvent.layout.height); } : undefined}
+      style={{ flexShrink: 1, minHeight: 0, maxHeight: tablet ? Math.min(screenHeight - 96, editorKeyboardOpen && editorRestingHeight ? editorRestingHeight : Infinity) : undefined }}
       keyboardShouldPersistTaps="handled"
       scrollEnabled={tablet || !recurringExpanded}
       showsVerticalScrollIndicator={false}
@@ -1445,6 +1454,7 @@ export function TransactionModal({
           paddingBottom: 18 + bottom,
         },
         isMobileLayout && { paddingTop: 0 },
+        tablet && { padding: 0, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0 },
       ]}
       onTouchStart={(event) => {
         if (
@@ -1567,6 +1577,7 @@ export function TransactionModal({
       <Animated.View
         style={[
           mainContent.iosCard,
+          tabletEditor && { padding: 0, elevation: 0, shadowOpacity: 0 },
           {
             opacity: cardEntrance,
             transform: [
@@ -1586,14 +1597,16 @@ export function TransactionModal({
           },
         ]}
       >
-        {tabletEditor ? <View style={{ gap: 20 }}>
+        {tabletEditor ? <View style={{ gap: 16 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            {modeControl}<View style={{ marginLeft: "auto", flexShrink: 1 }}>{categorySection}</View>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 24 }}>
-            <View style={{ flex: 1, minWidth: 0, gap: 16 }}>{amountSection}{titleSection}</View>
+            <View style={{ flex: 1, minWidth: 0 }}>{amountSection}</View>
             <View style={{ flex: 1.15, minWidth: 0 }}>{keypadSection}</View>
           </View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-            <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 440, minWidth: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>{modeControl}{categorySection}</View>
-            <View style={{ marginLeft: "auto" }}>{footerSection}</View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {dateControl}<View style={{ flex: 1, minWidth: 0 }}>{titleSection}</View>{saveControl}
           </View>
         </View> : <>{categorySection}{amountSection}{titleSection}{keypadSection}{footerSection}</>}
       </Animated.View>

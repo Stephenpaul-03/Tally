@@ -406,7 +406,7 @@ function WorkspaceInsights({
                         paddingVertical: 8,
                         paddingHorizontal: 8,
                         borderRadius: 12,
-                        backgroundColor: theme.colors.surfaceVariant,
+                        backgroundColor: tablet && theme.expressive ? "transparent" : theme.colors.surfaceVariant,
                       }}
                     >
                       <CategoryIconBadge
@@ -510,17 +510,16 @@ function WorkspaceInsights({
     />
   );
   const tabletDashboard = <TabletInsightsDashboard landscape={columns} expressive={theme.expressive}
-    monthly={hasEntries ? <TabletCard title="Month summary">
-      <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{monthLabel(a.month)} / {a.currency}</Text>
+    monthly={hasEntries ? <TabletCard title="Month summary" headerAction={<Text style={{ fontSize: 13, fontWeight: "800", color: theme.colors.primary }}>{monthLabel(a.month)}</Text>}>
       <TabletMetrics compact income={a.data.income} spent={a.data.expense} balance={a.data.remaining} money={money}
         onIncome={showIncome} onSpent={showSpending} percent={a.data.usedPercent} />
     </TabletCard> : null}
     spending={showExpenses ? <TabletCard title={theme.expressive ? "Expense" : "Spending"} action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("expense")}>
-      <ClassicSpending compact groups={a.data.expenseCategories} total={a.data.expense} money={money}
+      <ClassicSpending compact showChart={!expressive} groups={a.data.expenseCategories} total={a.data.expense} money={money}
         icons={a.icons} colors={a.colors} onSelect={group => showCategory(group, "expense")} onShowAll={() => setBrowse("expense")} />
     </TabletCard> : null}
     income={showIncomeCard ? <TabletCard title="Income" action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("income")}>
-      <ClassicSpending compact showChart={classicB || theme.expressive} type="income" groups={a.data.incomeCategories} total={a.data.income} money={money}
+      <ClassicSpending compact showChart={!expressive} type="income" groups={a.data.incomeCategories} total={a.data.income} money={money}
         icons={a.icons} colors={a.colors} onSelect={group => showCategory(group, "income")} onShowAll={() => setBrowse("income")} />
     </TabletCard> : null}
     activity={hasEntries ? <TabletCard title={theme.expressive ? "Monthly" : "Activity"} headerAction={<View style={{ flexShrink: 0 }}>
@@ -530,13 +529,12 @@ function WorkspaceInsights({
         onDay={day => setDetail(dailyActivityDetail(day, activityType, money))} />
     </TabletCard> : null}
     accounts={accounts.length ? <TabletCard title={theme.expressive ? "Accounts" : "Accounts · Spent"} action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("accounts")}>{accountRows()}</TabletCard> : null}
-    summary={<TabletCard title="Workspace summary">
-      <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{reportWorkspace?.name || "Workspace"} · All time · {a.currency}</Text>
-      <WorkspaceSummaryCard snapshot={workspaceOverview} contained compact money={money}
-        onPress={() => navigation.navigate("DatabaseSummary", { currency: a.currency })} />
+    summary={<TabletCard title="Workspace summary" action="Explore" onAction={() => navigation.navigate("DatabaseSummary", { currency: a.currency })}>
+
+      <WorkspaceSummaryCard snapshot={workspaceOverview} contained compact fill money={money} />
     </TabletCard>}
     year={hasEntries && hasYearEntries ? <TabletCard title="Yearly" action={a.data.year.label} onAction={() => setBrowse("year")}>
-      <YearOverview fill={theme.expressive} year={a.data.year} selectedMonth={a.month} money={money} onShowTotals={() => setBrowse("year")} />
+      <YearOverview year={a.data.year} selectedMonth={a.month} money={money} onShowTotals={() => setBrowse("year")} />
     </TabletCard> : null} />;
   return (
     <View style={{ flex: 1, minHeight: 0 }}>
@@ -583,7 +581,7 @@ function WorkspaceInsights({
               >
                 Insights
               </Text>
-              {tablet ? <TabletWorkspaceButton /> : null}
+              {tablet ? <TabletWorkspaceButton calendarStyle={!theme.expressive} /> : null}
               <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel={`Choose month, ${monthLabel(a.month)}`}
@@ -629,10 +627,12 @@ function WorkspaceInsights({
                 style={{
                   width: 44,
                   height: 44,
-                  borderRadius: 22,
+                  borderRadius: tablet && !theme.expressive ? 24 : 22,
+                  borderWidth: tablet && !theme.expressive ? StyleSheet.hairlineWidth : 0,
+                  borderColor: theme.colors.outlineVariant,
                   backgroundColor: theme.expressive
                     ? tonalButtonSurface(theme)
-                    : "transparent",
+                    : tablet ? theme.colors.surface : "transparent",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -691,8 +691,6 @@ function WorkspaceInsights({
             ))}
           </View>
         ) : null}
-        {tablet && !theme.expressive && hasEntries ? <TabletMetrics income={a.data.income} spent={a.data.expense} balance={a.data.remaining}
-          money={money} onIncome={showIncome} onSpent={showSpending} percent={a.data.usedPercent} /> : null}
         {!tablet && !columns ? <SpotlightTarget
           id="overview"
           enabled={(!expressive && !standalone) || activeTab === "insights"}

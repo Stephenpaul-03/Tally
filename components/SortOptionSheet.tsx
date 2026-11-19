@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { SettingsSheetHandle } from "@/modules/Settings/Components/SettingsSheetHandle";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { MotionItem, useMotionEnabled } from "@/components/animations/Motion";
@@ -313,6 +314,7 @@ export function SortOptionSheet({
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
   const { bottom } = useModalInsets();
+  const tablet = useTabletLayout();
   const [draftValue, setDraftValue] = React.useState(value);
   const [draftDirection, setDraftDirection] = React.useState(direction);
 
@@ -454,7 +456,7 @@ export function SortOptionSheet({
                 index={index}
                 active={visible}
                 style={{
-                  width: theme.expressive ? "48.5%" : "31.6%",
+                  width: tablet ? "31%" : theme.expressive ? "48.5%" : "31.6%",
                   flexGrow: 1,
                 }}
               >
@@ -472,6 +474,7 @@ export function SortOptionSheet({
                       padding: 16,
                       borderWidth: 2,
                     },
+                    tablet && { aspectRatio: undefined, height: 128, minHeight: 128, padding: 10 },
                     {
                       backgroundColor:
                         theme.expressive && selected

@@ -25,3 +25,17 @@ test("recent rows are deterministic and limited without mutating the source", ()
   assert.deepEqual(raw.map(item => item.id), order);
   assert.equal(result.accounts[0].net, 7);
 });
+
+
+test("larger tablet previews retain the same ordering, boundaries and account totals", () => {
+  const raw = Array.from({ length: 12 }, (_, index) => ({ id: String(index), type: "expense", amount: 5,
+    account: "Cash", currencyCode: "INR", date: `2026-11-${String(index + 1).padStart(2, "0")}`, createdAt: "2026-11-18T12:00:00" }));
+  const base = tabletHomeData(raw, "2026-11", "INR", "2026-11-10", ["Cash"]);
+  for (const limit of [6, 8]) {
+    const preview = tabletHomeData(raw, "2026-11", "INR", "2026-11-10", ["Cash"], limit);
+    assert.equal(preview.recent.length, limit);
+    assert.deepEqual(preview.recent.slice(0, 4), base.recent);
+    assert.deepEqual(preview.accounts, base.accounts);
+    assert.ok(preview.recent.every(row => row.date <= "2026-11-10"));
+  }
+});

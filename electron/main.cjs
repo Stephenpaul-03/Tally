@@ -1,3 +1,4 @@
+/* global __dirname */
 const { app, BrowserWindow, ipcMain } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -76,7 +77,7 @@ function createWindow() {
     url.searchParams.set("platform", "web");
     url.searchParams.delete("transform.routerRoot");
     window.loadURL(url.toString());
-    window.webContents.openDevTools({ mode: "detach" });
+    if (process.env.TALLY_DEVTOOLS === "1") window.webContents.openDevTools({ mode: "detach" });
     return;
   }
 

@@ -2,6 +2,5 @@ import * as SQLite from "expo-sqlite";
 
 export type FinanceDatabase = SQLite.SQLiteDatabase;
 
-export function openFinanceDatabase(): FinanceDatabase {
-  return SQLite.openDatabaseSync("finance.db");
-}
+// Keep the native opener identity stable so Fast Refresh reuses startup state.
+export const openFinanceDatabase = SQLite.openDatabaseSync;

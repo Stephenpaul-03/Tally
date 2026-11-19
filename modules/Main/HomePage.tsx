@@ -34,14 +34,17 @@ import { ledgerMoney } from "./presentation";
 import { homeOverview } from "./homeOverview";
 import { MonthPickerSheet } from "./MonthPickerSheet";
 import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
+import { TabletHomePage } from "./TabletHomePage";
 
 export function HomePage(
   props: React.ComponentProps<typeof HomePageContent> & { classic?: boolean },
 ) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const tablet = useTabletLayout();
   return (
     <HomePresentation classic={Boolean(props.classic) && !theme.expressive}>
-      <HomePageContent {...props} />
+      {tablet ? <TabletHomePage {...props} /> : <HomePageContent {...props} />}
     </HomePresentation>
   );
 }
@@ -67,6 +70,7 @@ function HomePageContent({
 }) {
   const classic = useClassicHome();
   const tablet = useTabletLayout();
+  const columns = useTabletLandscape();
   const homeCardShape = useHomeCardShape();
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;
@@ -123,7 +127,7 @@ function HomePageContent({
         contentContainerStyle={{
           padding: 16,
           gap: 14,
-          paddingBottom: (tablet ? 24 : 104) + bottom,
+          paddingBottom: (columns ? 24 : 104) + bottom,
         }}
       >
         <MainEntrance delay={80} duration={240} distance={8} style={s.between}>
@@ -141,11 +145,13 @@ function HomePageContent({
               currency={currency}
               symbol={symbol}
             />
-            {!tablet ? iconButton("cog-outline", "Settings", () =>
+            {!columns ? iconButton("cog-outline", "Settings", () =>
               navigation.navigate("Settings"),
             ) : null}
           </View>
         </MainEntrance>
+        <View style={{ flexDirection: columns ? "row" : "column", gap: 16, alignItems: "flex-start" }}>
+        <View style={{ width: columns ? undefined : "100%", flex: columns ? 1 : undefined, minWidth: 0, gap: 14 }}>
         <MainEntrance delay={110} duration={240} distance={8}>
           <HomeGreetingCards
             active={active}
@@ -223,6 +229,7 @@ function HomePageContent({
                   adjustsFontSizeToFit
                   style={[
                     s.balance,
+                    tablet && { fontSize: 52, lineHeight: 64, letterSpacing: -2 },
                     classic && {
                       ...typography.bodyStrong,
                       fontSize: 42,
@@ -321,6 +328,8 @@ function HomePageContent({
             )}
           </SpotlightTarget>
         </MainEntrance>
+        </View>
+        <View style={{ width: columns ? undefined : "100%", flex: columns ? 1 : undefined, minWidth: 0, gap: 14 }}>
         <HomeGoals />
         <HomeRecurring active={active} pagePan={pagePan} />
         <MainEntrance delay={170} duration={240} distance={8}>
@@ -331,6 +340,8 @@ function HomePageContent({
             currency={currency}
           />
         </MainEntrance>
+        </View>
+        </View>
       </ScrollView>
       <DetailsSheet
         detail={active ? detail : null}

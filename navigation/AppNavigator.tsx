@@ -14,6 +14,7 @@ import { BottomTabBar } from "@/components/tabbar/BottomTabBar";
 import { TabletNavigationRail } from "@/components/tabbar/TabletNavigationRail";
 import { useTabBarModePreference } from "@/components/tabbar/TabBarModePreference";
 import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
 import {
   TabBarProvider,
   useSetTabBarEdgeButton,
@@ -54,6 +55,7 @@ function TabBarHeightResetter() {
 }
 
 function ShellBottomBar() {
+  const tablet = useTabletLayout();
   const edgeButtons = useTabBarEdgeButton();
   const { activeTab, activeTabProgress, requestTab } = useAppShell();
   const visibleRoutes = SHELL_TAB_ROUTES;
@@ -91,6 +93,7 @@ function ShellBottomBar() {
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <BottomTabBar
+        forceVisible={tablet}
         routes={visibleRoutes}
         activeIndex={activeIndex}
         activePosition={activeTabProgress}
@@ -105,17 +108,17 @@ function ShellBottomBar() {
 
 function MainScreens() {
   const { design } = useMainDesign();
-  const tablet = useTabletLayout();
+  const sidebar = useTabletLandscape();
   const { tabletNavigationSide } = useTabBarModePreference();
   return (
     <>
       <SharedTabHeaderProvider activeRouteName="Transactions">
-        <View style={{ flex: 1, flexDirection: tablet && tabletNavigationSide === "left" ? "row-reverse" : "row" }}>
+        <View style={{ flex: 1, flexDirection: sidebar && tabletNavigationSide === "left" ? "row-reverse" : "row" }}>
         <View style={{ flex: 1, minWidth: 0 }}>
         <TransactionsScreen />
-        {!tablet && design.layout === "classic" ? <ShellBottomBar /> : null}
+        {!sidebar && design.layout === "classic" ? <ShellBottomBar /> : null}
         </View>
-        {tablet ? <TabletNavigationRail /> : null}
+        {sidebar ? <TabletNavigationRail /> : null}
         </View>
       </SharedTabHeaderProvider>
     </>

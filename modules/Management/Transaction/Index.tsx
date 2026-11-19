@@ -1,3 +1,8 @@
+import { TabletTransactionSummary } from "@/modules/Main/TabletTransactionSummary";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { TabletTransactionSection } from "@/modules/Main/TabletTransactionSection";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
+import { TabletTransactionColumns } from "@/modules/Main/TabletTransactionColumns";
 import { TransactionMutationScope, TransactionRowsPresence, TransactionPresenceItem, useTransactionPresence, type PresenceRecord } from "./Components/TransactionMutation";
 import { groupTransactions, type TransactionGrouping } from "./grouping";
 import { TransactionGroupingSheet } from "./Components/TransactionGroupingSheet";
@@ -72,7 +77,6 @@ import { TransactionRow } from "./Components/TransactionRow";
 import TimelineSectionHeader from "./Components/TransactionSectionHeader";
 import { useTransactionsPage } from "./Hooks";
 import { ClassicMainScreen } from "@/modules/Main/ClassicMainScreen";
-import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { styles } from "./Styles";
 
 type TransactionsProps = {
@@ -575,12 +579,14 @@ function TransactionBottomSheet({
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const panelHeight = Math.round(windowHeight * (compact ? 0.54 : 0.78));
-  const panelSizeStyle = fitContent
+  const tabletSheet = useTabletLayout();
+  const panelSizeStyle = tabletSheet ? {} : fitContent
     ? { maxHeight: panelHeight }
     : { height: panelHeight };
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation="sheet"
@@ -766,10 +772,11 @@ function FilterOptionPickerSheet({
   const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const panelMaxHeight = Math.round(windowHeight * 0.62);
+  const panelMaxHeight = useTabletLayout() ? undefined : Math.round(windowHeight * 0.62);
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation="sheet"
@@ -1153,7 +1160,7 @@ function DateFilterSheet({
   const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const panelMaxHeight = Math.round(windowHeight * 0.66);
+  const panelMaxHeight = useTabletLayout() ? undefined : Math.round(windowHeight * 0.66);
   const activeDateValue =
     activeField === "startDate"
       ? startDate || getTodayKey()
@@ -1161,6 +1168,7 @@ function DateFilterSheet({
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation="sheet"
@@ -1297,10 +1305,11 @@ function AmountFilterSheet({
   const theme = useTheme<ExtendedMD3Theme>();
   const { bottom } = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const panelMaxHeight = Math.round(windowHeight * 0.48);
+  const panelMaxHeight = useTabletLayout() ? undefined : Math.round(windowHeight * 0.48);
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation="sheet"
@@ -1445,6 +1454,9 @@ type TimelineDaySectionProps = {
 const TimelineDaySection = React.memo(function TimelineDaySection(props: TimelineDaySectionProps) {
   const { item, currencyCode, currencySymbol, onPressTransaction, collapsed, onToggleCollapsed } = props;
   const theme = useTheme<ExtendedMD3Theme>();
+  const tablet = useTabletLayout();
+  if (tablet) return <TabletTransactionSection item={item} currency={currencyCode} symbol={currencySymbol}
+    collapsed={collapsed} onCollapse={onToggleCollapsed} onEdit={onPressTransaction} />;
   return (
     <TimelineSectionHeader
       title={item.title}
@@ -1517,6 +1529,7 @@ export default function Transactions({
   const setTabBarHidden = useSetTabBarHidden();
   const tabBarHeight = useTabBarHeight();
   const { tabBarEnabled } = useTabBarModePreference();
+  const tabletLandscape = useTabletLandscape();
   const tablet = useTabletLayout();
   const { bottom } = useSafeAreaInsets();
   const [transactionSearchQuery, setTransactionSearchQuery] =
@@ -1869,7 +1882,7 @@ export default function Transactions({
     return () => setTabBarEdgeButton(null);
   }, [handleAddTransaction, isFocused, setTabBarEdgeButton, shellActiveTab]);
 
-  const transactionListBottomPadding = tablet ? bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE : tabBarEnabled
+  const transactionListBottomPadding = tabletLandscape ? bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE : (tabBarEnabled || tabBarHeight > 0)
     ? Math.max(69, tabBarHeight) + bottom + TAB_BAR_TRANSACTION_LIST_CLEARANCE
     : bottom + NO_TAB_BAR_TRANSACTION_LIST_CLEARANCE;
   // Each day already contributes 18 points after its final row, even when folded.
@@ -1919,8 +1932,15 @@ export default function Transactions({
   const transactionCard = useMemo(
     () => (
       <View style={local.transactionCardWrap}>
-        <FlatList
+        {tabletLandscape ? <TabletTransactionColumns sections={monthSections}
+          totals={separateLedgerTotals(monthSections.flatMap(section => section.transactions), currencyCode, currencySymbol)}
+          period={selectedMonthKey} active={shellActiveTab === "calendar"} bottomPadding={transactionListBottomPadding}
+          renderSection={section => <TimelineDaySection item={{ ...section, totalLabel: section.key !== "draft" && new Set(section.transactions.map(row => row.currencyCode || currencyCode)).size > 1
+            ? Object.values(separateLedgerTotals(section.transactions, currencyCode, currencySymbol)).filter(Boolean).join(" · ") : section.totalLabel }} currencyCode={currencyCode}
+            currencySymbol={currencySymbol} onPressTransaction={handleEdit}
+            collapsed={Boolean(collapsedDaySections[section.key])} onToggleCollapsed={handleToggleDaySection} />} /> : <FlatList
           style={local.transactionList}
+          ListHeaderComponent={tablet ? <TabletTransactionSummary rows={monthSections.flatMap(section => section.transactions)} currency={currencyCode} symbol={currencySymbol} /> : null}
           data={sectionPresence.records}
           renderItem={renderMonthSection}
           keyExtractor={(item) => item.key}
@@ -1935,10 +1955,19 @@ export default function Transactions({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           scrollEnabled={shellActiveTab === "calendar"}
-        />
+        />}
       </View>
     ),
     [
+      tabletLandscape,
+      tablet,
+      monthSections,
+      selectedMonthKey,
+      currencyCode,
+      currencySymbol,
+      handleEdit,
+      collapsedDaySections,
+      handleToggleDaySection,
       sectionPresence.records,
       renderMonthSection,
       shellActiveTab,
@@ -1997,6 +2026,7 @@ export default function Transactions({
           />
         ) : (
           <ClassicMainScreen
+            entryCount={monthSections.reduce((count, section) => count + section.transactions.filter(row => !("isDraft" in row)).length, 0)}
             raw={postedTransactions}
             month={selectedMonthKey}
             currency={currencyCode}

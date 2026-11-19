@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { SettingsDetailContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import { useManagementEntrance } from "@/components/animations/UseManagementEntrance";
@@ -80,6 +81,7 @@ function AccountListContent({
   const c = theme.colors;
   const accounts = management.activeAccounts;
   const isPickerMode = Boolean(onSelectAccount);
+  const tablet = useTabletLayout();
   const { width } = useWindowDimensions();
 
   const [query, setQuery] = useState("");
@@ -163,7 +165,7 @@ function AccountListContent({
     <View
       style={
         isPickerMode
-          ? { height: listHeight + 116, flexShrink: 0 }
+          ? { height: (tablet ? Math.max(80, rows.length * 72 + 8) : listHeight) + 116, flexShrink: 0 }
           : { flex: 1 }
       }
     >

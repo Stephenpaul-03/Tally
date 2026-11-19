@@ -178,6 +178,7 @@ export function InlineDatePicker({
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       presentation={isMobileLayout ? "sheet" : "modal"}

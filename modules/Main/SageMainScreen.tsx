@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { MonthEmptyState } from "@/components/MonthEmptyState";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { FlowDisclosure } from "@/components/animations/FlowDisclosure";
@@ -11,7 +12,8 @@ import {
   MotionEntranceScope,
 } from "@/components/animations/Motion";
 import { ExpressiveTabBar } from "./ExpressiveTabBar";
-import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { TabletTransactionColumns } from "./TabletTransactionColumns";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
 import {
   clampSwipePosition,
   snapSwipeIndex,
@@ -86,6 +88,7 @@ type Props = {
 };
 function LedgerPage(p: Props & { active: boolean }) {
   const tablet = useTabletLayout();
+  const columns = useTabletLandscape();
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;
   const { bottom } = useSafeAreaInsets();
@@ -128,6 +131,11 @@ function LedgerPage(p: Props & { active: boolean }) {
           p.onFilter,
         )}
         {button("unfold-less-horizontal", "Fold or unfold all days", p.onFold)}
+        {tablet ? <Pressable accessibilityRole="button" accessibilityLabel="Add transaction" onPress={() => { Keyboard.dismiss(); p.onAdd(); }}
+          style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 16, borderRadius: 24, backgroundColor: c.primary,
+            flexDirection: "row", alignItems: "center", gap: 6, opacity: pressed ? 0.7 : 1 })}>
+          <Icon name="plus" size={20} color={c.onPrimary} /><Text style={{ fontSize: 14, fontWeight: "700", color: c.onPrimary }}>Add</Text>
+        </Pressable> : null}
         <View
           style={{
             flex: 1,
@@ -186,7 +194,7 @@ function LedgerPage(p: Props & { active: boolean }) {
           >
             Transactions
           </Text>
-          {!tablet ? button("cog-outline", "Settings", () =>
+          {!columns ? button("cog-outline", "Settings", () =>
             navigation.navigate("Settings"),
           ) : null}
         </View>
@@ -214,9 +222,123 @@ function LedgerPage(p: Props & { active: boolean }) {
     </View>
   );
   const emptyState = <MonthEmptyState active={p.active} filtered={Boolean(p.query.trim() || p.filterCount)} onAdd={p.onAdd} onChooseMonth={() => setMonthPicker(true)} />;
+  const renderDay = (item: Section) => {
+    const totals = separateLedgerTotals(
+      item.transactions,
+      p.currency,
+      p.symbol,
+    );
+    const date = new Date(`${item.key}T12:00:00`),
+      valid = !Number.isNaN(date.getTime());
+    return (
+      <View style={[s.day, { backgroundColor: c.surface }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${p.collapsed[item.key] ? "Expand" : "Collapse"} ${item.title}`}
+          accessibilityState={{ expanded: !p.collapsed[item.key] }}
+          onPress={() => p.onCollapse(item.key)}
+          style={s.dayHeader}
+        >
+          <Text
+            style={{
+              color: c.primary,
+              fontSize: 32,
+              fontWeight: "800",
+              letterSpacing: -1,
+            }}
+          >
+            {valid ? date.getDate() : item.transactions.length}
+          </Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: c.onSurfaceVariant,
+              }}
+            >
+              {valid
+                ? date.toLocaleDateString(undefined, { weekday: "long" })
+                : item.title}
+            </Text>
+            {valid ? (
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: c.onSurfaceVariant,
+                }}
+              >
+                {date.toLocaleDateString(undefined, { month: "long" })}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={{ alignItems: "flex-end", gap: 3, flexShrink: 1 }}>
+            {totals.income !== null ? (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: theme.semantic.income,
+                  textAlign: "right",
+                }}
+              >
+                Income {totals.income}
+              </Text>
+            ) : null}
+            {!columns || item.transactions.some(row => row.type === "expense") ? <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: theme.semantic.expense,
+                textAlign: "right",
+              }}
+            >
+              Spent {totals.expense}
+            </Text> : null}
+          </View>
+
+          {
+            <View style={[s.collapse, { backgroundColor: tonalButtonSurface(theme) }]}>
+              <Icon
+                name={
+                  p.collapsed[item.key] ? "chevron-down" : "chevron-up"
+                }
+                size={22}
+                color={c.onSurface}
+              />
+            </View>
+          }
+        </Pressable>
+        <FlowDisclosure open={!p.collapsed[item.key]}>
+          <TransactionRowsPresence rows={item.transactions} renderRow={(row, index, count) => (
+            <View style={{ paddingTop: index > 0 ? 4 : 0 }}>
+              <TransactionRow
+                transaction={row}
+                onPressTransaction={p.onEdit}
+                grouped
+                groupPosition={
+                  index === count - 1
+                    ? "last"
+                    : "middle"
+                }
+                secondaryLabelMode={item.grouping && item.grouping !== "date" ? "date" : "time"}
+              />
+            </View>
+          )} />
+        </FlowDisclosure>
+      </View>
+    );
+  };
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
+      {columns ? <>
+        {header}
+        {transactionTools}
+        <TabletTransactionColumns sections={sections} renderSection={renderDay}
+          bottomPadding={88 + bottom} period={p.month} active={p.active} />
+      </> : <FlatList
         ref={list}
         data={["tools", ...presence.records] as LedgerItem[]}
         stickyHeaderIndices={[1]}
@@ -227,7 +349,7 @@ function LedgerPage(p: Props & { active: boolean }) {
         ListHeaderComponent={header}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingBottom: (tablet ? 24 : 92) + 56 + 8 + bottom,
+          paddingBottom: (columns ? 24 : 92) + 56 + 8 + bottom,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -237,118 +359,11 @@ function LedgerPage(p: Props & { active: boolean }) {
         ListFooterComponentStyle={!presence.records.length ? { flexGrow: 1 } : undefined}
         renderItem={({ item: record }) => {
           if (record === "tools") return transactionTools;
-          const item = record.item;
-          const totals = separateLedgerTotals(
-            item.transactions,
-            p.currency,
-            p.symbol,
-          );
-          const date = new Date(`${item.key}T12:00:00`),
-            valid = !Number.isNaN(date.getTime());
-          return (
-            <TransactionPresenceItem record={record} complete={presence.complete} register={presence.register}>
-            <View style={[s.day, { backgroundColor: c.surface }]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${p.collapsed[item.key] ? "Expand" : "Collapse"} ${item.title}`}
-                accessibilityState={{ expanded: !p.collapsed[item.key] }}
-                onPress={() => p.onCollapse(item.key)}
-                style={s.dayHeader}
-              >
-                <Text
-                  style={{
-                    color: c.primary,
-                    fontSize: 32,
-                    fontWeight: "800",
-                    letterSpacing: -1,
-                  }}
-                >
-                  {valid ? date.getDate() : item.transactions.length}
-                </Text>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: c.onSurfaceVariant,
-                    }}
-                  >
-                    {valid
-                      ? date.toLocaleDateString(undefined, { weekday: "long" })
-                      : item.title}
-                  </Text>
-                  {valid ? (
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: c.onSurfaceVariant,
-                      }}
-                    >
-                      {date.toLocaleDateString(undefined, { month: "long" })}
-                    </Text>
-                  ) : null}
-                </View>
-
-                <View style={{ alignItems: "flex-end", gap: 3, flexShrink: 1 }}>
-                  {totals.income !== null ? (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: theme.semantic.income,
-                        textAlign: "right",
-                      }}
-                    >
-                      Income {totals.income}
-                    </Text>
-                  ) : null}
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "700",
-                      color: theme.semantic.expense,
-                      textAlign: "right",
-                    }}
-                  >
-                    Spent {totals.expense}
-                  </Text>
-                </View>
-
-                {
-                  <View style={[s.collapse, { backgroundColor: tonalButtonSurface(theme) }]}>
-                    <Icon
-                      name={
-                        p.collapsed[item.key] ? "chevron-down" : "chevron-up"
-                      }
-                      size={22}
-                      color={c.onSurface}
-                    />
-                  </View>
-                }
-              </Pressable>
-              <FlowDisclosure open={!p.collapsed[item.key]}>
-                <TransactionRowsPresence rows={item.transactions} renderRow={(row, index, count) => (
-                  <View style={{ paddingTop: index > 0 ? 4 : 0 }}>
-                    <TransactionRow
-                      transaction={row}
-                      onPressTransaction={p.onEdit}
-                      grouped
-                      groupPosition={
-                        index === count - 1
-                          ? "last"
-                          : "middle"
-                      }
-                      secondaryLabelMode={item.grouping && item.grouping !== "date" ? "date" : "time"}
-                    />
-                  </View>
-                )} />
-              </FlowDisclosure>
-            </View>
-            </TransactionPresenceItem>
-          );
+          return <TransactionPresenceItem record={record} complete={presence.complete} register={presence.register}>
+            {renderDay(record.item)}
+          </TransactionPresenceItem>;
         }}
-      />
+      />}
       <MonthPickerSheet
         visible={monthPicker && p.active}
         month={p.month}
@@ -359,6 +374,7 @@ function LedgerPage(p: Props & { active: boolean }) {
   );
 }
 export function SageMainScreen(p: Props) {
+  const sidebar = useTabletLandscape();
   const tablet = useTabletLayout();
   const { colors: c } = useTheme();
   const { activeTab, reportTab } = useAppShell();
@@ -387,7 +403,8 @@ export function SageMainScreen(p: Props) {
   const origin = useSharedValue(0);
   const dragging = useSharedValue(false);
   const dimensions = useWindowDimensions();
-  const [width, setWidth] = React.useState(dimensions.width);
+  const [viewport, setViewport] = React.useState({ width: dimensions.width, height: dimensions.height });
+  const { width, height } = viewport;
   const settle = React.useCallback(
     (index: number) => reportTab(EXPRESSIVE_TABS[snapTabIndex(index)]),
     [reportTab],
@@ -407,6 +424,7 @@ export function SageMainScreen(p: Props) {
     );
   };
   const pan = Gesture.Pan()
+    .enabled(!sidebar)
     .activeOffsetX([-18, 18])
     .failOffsetY([-12, 12])
     .onStart(() => {
@@ -440,7 +458,10 @@ export function SageMainScreen(p: Props) {
       finish(snapSwipeIndex(position.value, 0, origin.value));
     });
   const rail = useAnimatedStyle(() => ({
-    transform: [{ translateX: -position.value * width }],
+    transform: [
+      { translateX: sidebar ? 0 : -position.value * width },
+      { translateY: sidebar ? -position.value * height : 0 },
+    ],
   }));
   const selectTab = React.useCallback(
     (tab: (typeof EXPRESSIVE_TABS)[number]) => {
@@ -463,9 +484,9 @@ export function SageMainScreen(p: Props) {
   );
   const setTabBarHeight = useSetTabBarHeight();
   React.useLayoutEffect(() => {
-    setTabBarHeight(tablet ? 0 : 76);
+    setTabBarHeight(sidebar ? 0 : 76);
     return () => setTabBarHeight(0);
-  }, [setTabBarHeight, tablet]);
+  }, [setTabBarHeight, sidebar]);
   React.useLayoutEffect(() => {
     const target = EXPRESSIVE_TABS.indexOf(activeTab);
     if (navigationTarget.value !== target) selectTab(activeTab);
@@ -474,13 +495,21 @@ export function SageMainScreen(p: Props) {
     <MotionEntranceScope>
       <View
         style={{ flex: 1, backgroundColor: c.background }}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setViewport({ width, height });
+        }}
       >
         <GestureDetector gesture={pan}>
           <View style={{ flex: 1, overflow: "hidden" }} collapsable={false}>
             <Animated.View
               style={[
-                {
+                sidebar ? {
+                  flexDirection: "column",
+                  width,
+                  height: height * 3,
+                  flexShrink: 0,
+                } : {
                   flex: 1,
                   flexDirection: "row",
                   width: width * 3,
@@ -493,7 +522,7 @@ export function SageMainScreen(p: Props) {
                 ? EXPRESSIVE_TABS.map((tab) => (
                     <View
                       key={tab}
-                      style={{ width, flexGrow: 0, flexShrink: 0 }}
+                      style={{ width, height: sidebar ? height : undefined, flexGrow: 0, flexShrink: 0 }}
                       pointerEvents={tab === activeTab ? "auto" : "none"}
                       accessibilityElementsHidden={tab !== activeTab}
                       importantForAccessibility={
@@ -532,14 +561,15 @@ export function SageMainScreen(p: Props) {
           </View>
         </GestureDetector>
         <Animated.View
-          pointerEvents={activeTab === "calendar" ? "box-none" : "none"}
-          accessibilityElementsHidden={activeTab !== "calendar"}
+          pointerEvents={!tablet && activeTab === "calendar" ? "box-none" : "none"}
+          accessibilityElementsHidden={tablet || activeTab !== "calendar"}
           importantForAccessibility={
-            activeTab === "calendar" ? "auto" : "no-hide-descendants"
+            !tablet && activeTab === "calendar" ? "auto" : "no-hide-descendants"
           }
           style={[
-            { position: "absolute", right: 16, bottom: (tablet ? 24 : 92) + bottom },
+            { position: "absolute", right: 16, bottom: (sidebar ? 24 : 92) + bottom },
             fabMotion,
+            tablet && { display: "none" },
           ]}
         >
           <Pressable
@@ -569,7 +599,7 @@ export function SageMainScreen(p: Props) {
             </Text>
           </Pressable>
         </Animated.View>
-        {!tablet ? <MainEntrance
+        {!sidebar ? <MainEntrance
           distance={32}
           index={1}
           style={[
@@ -579,6 +609,8 @@ export function SageMainScreen(p: Props) {
               height: 76 + bottom,
               backgroundColor: c.surfaceVariant,
             },
+            tablet && { left: Math.max(16, (width - 560) / 2), right: Math.max(16, (width - 560) / 2),
+              bottom: bottom + 8, height: 64, paddingBottom: 0, borderRadius: 32 },
           ]}
         >
           <ExpressiveTabBar

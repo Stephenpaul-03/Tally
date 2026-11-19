@@ -6,17 +6,17 @@ import { DesignText as Text } from "@/components/DesignText";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import type { workspaceSnapshot } from "./snapshot";
 
-export function WorkspaceSummaryCard({ snapshot, money, onPress, contained = false }: {
+export function WorkspaceSummaryCard({ snapshot, money, onPress, contained = false, compact = false }: {
   snapshot: ReturnType<typeof workspaceSnapshot>;
-  money: (amount: number) => string; onPress?: () => void; contained?: boolean;
+  money: (amount: number) => string; onPress?: () => void; contained?: boolean; compact?: boolean;
 }) {
   const theme = useTheme<ExtendedMD3Theme>(), c = theme.colors;
-  return <View style={{ backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 20, padding: contained ? 0 : 16, gap: 18 }}>
+  return <View style={{ backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 20, padding: contained ? 0 : 16, gap: compact ? 12 : 18 }}>
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
       {([['Income', snapshot.income, theme.semantic.income], ['Expenses', snapshot.spent, theme.semantic.expense]] as const).map(([label, amount, color]) =>
-        <View key={label} style={{ flex: 1, minWidth: 120, gap: 6 }}>
+        <View key={label} style={{ flex: 1, minWidth: compact ? 90 : 120, gap: 6 }}>
           <Text style={{ fontSize: 12, color: c.onSurfaceVariant }}>{label}</Text>
-          <Text style={{ fontSize: 20, fontWeight: "800", color }}>{money(amount)}</Text>
+          <Text numberOfLines={compact ? 1 : undefined} adjustsFontSizeToFit={compact} style={{ fontSize: compact ? 17 : 20, fontWeight: "800", color }}>{money(amount)}</Text>
         </View>)}
     </View>
     <View accessible accessibilityLabel={`Income ${money(snapshot.income)}, expenses ${money(snapshot.spent)}`}
@@ -35,10 +35,10 @@ export function WorkspaceSummaryCard({ snapshot, money, onPress, contained = fal
     </View>
     {onPress ? <Pressable accessibilityRole="button"
       accessibilityLabel="Explore workspace summary"
-      onPress={onPress} style={({ pressed }) => ({ minHeight: 48, borderRadius: 24,
-        backgroundColor: c.secondaryContainer, paddingHorizontal: 16, flexDirection: "row", gap: 8,
+      onPress={onPress} style={({ pressed }) => ({ minHeight: compact ? 44 : 48, borderRadius: 24,
+        alignSelf: compact ? "flex-start" : "stretch", backgroundColor: c.secondaryContainer, paddingHorizontal: 16, flexDirection: "row", gap: 8,
         alignItems: "center", justifyContent: "space-between", opacity: pressed ? 0.7 : 1 })}>
-      <Text style={{ flex: 1, fontWeight: "700", color: c.onSecondaryContainer }}>Explore summary</Text>
+      <Text style={{ flex: compact ? undefined : 1, fontWeight: "700", color: c.onSecondaryContainer }}>Explore summary</Text>
       <Icon name="arrow-right" size={20} color={c.onSecondaryContainer} />
     </Pressable> : null}
   </View>;

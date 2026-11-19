@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { transactionRowSurface } from "@/theme/surfaceTreatment";
 import { AlertModal } from "@/components/alert/AlertModal";
 import { toast } from "@/components/toast/ToastProvider";
@@ -46,6 +47,7 @@ interface TransactionRowProps {
   disableLongPress?: boolean;
   homeReveal?: boolean;
   groupCount?: number;
+  compact?: boolean;
 }
 
 function TransactionRowComponent({
@@ -58,8 +60,10 @@ function TransactionRowComponent({
   disableLongPress = false,
   homeReveal = false,
   groupCount,
+  compact = false,
 }: TransactionRowProps) {
   const theme = useTheme<ExtendedMD3Theme>();
+  const tablet = useTabletLayout() && compact;
   const RowText = homeReveal ? HomeText : Text;
   const RowDesignText = homeReveal ? HomeText : DesignText;
   const RowDateText = homeReveal ? HomeDateText : DesignText;
@@ -158,12 +162,13 @@ function TransactionRowComponent({
               flexDirection: "row",
               alignItems: "center",
               gap: 10,
-              minHeight: 64,
-              padding: 10,
+              minHeight: tablet ? 56 : 64,
+              padding: tablet ? 8 : 10,
             }}
           >
             <RowIconReveal>
             <CategoryIconBadge
+              style={tablet ? { width: 32, height: 32, borderRadius: 11 } : undefined}
               categoryName={transaction.category}
               icon={
                 categoryIcon as React.ComponentProps<
@@ -177,7 +182,7 @@ function TransactionRowComponent({
               <RowDesignText
                 numberOfLines={1}
                 style={{
-                  fontSize: 16,
+                  fontSize: tablet ? 14 : 16,
                   fontWeight: "700",
                   color: theme.colors.onSurface,
                 }}
@@ -198,7 +203,7 @@ function TransactionRowComponent({
             <RowDesignText
               numberOfLines={1}
               style={{
-                fontSize: 16,
+                fontSize: tablet ? 14 : 16,
                 fontWeight: "700",
                 color: amountColor,
                 flexShrink: 1,

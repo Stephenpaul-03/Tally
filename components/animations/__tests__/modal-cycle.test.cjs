@@ -36,12 +36,17 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
     },
   };
   let height = 844;
+  const keyboardListeners = new Map();
   const native = {
+    ScrollView: "ScrollView",
     useWindowDimensions: () => ({ width: windowWidth, height }),
     Platform: { OS: "android" },
     StyleSheet: { absoluteFillObject: {}, flatten: (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) },
     BackHandler: { addEventListener: () => ({ remove() {} }) },
-    Keyboard: { dismiss() {}, addListener: () => ({ remove() {} }) },
+    Keyboard: { dismiss() {}, addListener: (event, callback) => {
+      keyboardListeners.set(event, callback);
+      return { remove: () => keyboardListeners.delete(event) };
+    } },
   };
   const aliases = {
     react: React,
@@ -107,7 +112,7 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
     return { ...node, props: { ...node.props, children: node.props.children.map(renderComponents) } };
   }
   return {
-    render(visible, windowHeight = 844, onHidden) {
+    render(visible, windowHeight = 844, onHidden, extraProps = {}) {
       cursor = 0;
       height = windowHeight;
       return renderComponents(loaded.exports.AnimatedPaperModal({
@@ -116,7 +121,11 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
         onHidden,
         presentation: "sheet",
         children: "content",
+        ...extraProps,
       }));
+    },
+    keyboard(event, coordinates) {
+      keyboardListeners.get(event)?.({ endCoordinates: coordinates });
     },
     flush() {
       while (effects.length) effects.shift()();
@@ -135,6 +144,22 @@ function findNode(node, predicate) {
   return null;
 }
 const flattenStyle = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+
+test("tablet auto-height dialogs get a bounded scroll surface without changing phone sheets", () => {
+  for (const [windowWidth, windowHeight] of [[1200, 800], [800, 1200]]) {
+    const tree = harness({ windowWidth }).render(true, windowHeight, undefined, { scrollable: true });
+    const scroll = findNode(tree, node => node.type === "ScrollView");
+    assert.ok(scroll);
+    assert.equal(scroll.props.nestedScrollEnabled, true);
+    assert.equal(flattenStyle(scroll.props.style).minHeight, 0);
+    assert.equal(scroll.props.contentContainerStyle.flexGrow, 0);
+    const panel = flattenStyle(findNode(tree, node => Boolean(node.props?.onLayout)).props.style);
+    assert.equal(panel.maxHeight, windowHeight - 48);
+    assert.equal(panel.height, undefined);
+  }
+  const phone = harness().render(true, 844, undefined, { scrollable: true });
+  assert.equal(findNode(phone, node => node.type === "ScrollView"), null);
+});
 
 test("dialog content drops tablet insets while phones and full screens retain them", () => {
   let dimensions = { width: 800, height: 1200 };
@@ -298,4 +323,24 @@ test("an after-exit reopen starts once after the old panel unmounts", () => {
   h.render(visible, 844, reopen);
   h.flush();
   assert.equal(h.timings.filter((t) => t.value === 1).length, 2);
+});
+
+
+test("centered keyboard-aware dialogs reserve only the keyboard overlap and restore on hide", () => {
+  const h = harness({ windowWidth: 1200 });
+  h.render(true, 800, undefined, { keyboardAware: true });
+  h.flush();
+  h.keyboard("keyboardDidShow", { height: 360, screenY: 440 });
+  let tree = h.render(true, 800, undefined, { keyboardAware: true });
+  const frame = () => flattenStyle(findNode(tree, node => node.props?.pointerEvents === "box-none").props.style);
+  assert.equal(frame().marginBottom, 360);
+  h.keyboard("keyboardDidHide");
+  tree = h.render(true, 800, undefined, { keyboardAware: true });
+  assert.equal(frame().marginBottom, 0);
+  // A window already resized by Android must not subtract the keyboard twice.
+  h.render(true, 600, undefined, { keyboardAware: true });
+  h.flush();
+  h.keyboard("keyboardDidShow", { height: 360, screenY: 600 });
+  tree = h.render(true, 600, undefined, { keyboardAware: true });
+  assert.equal(frame().marginBottom, 0);
 });

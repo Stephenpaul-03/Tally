@@ -5,6 +5,7 @@ import { AppState, Pressable, View, useWindowDimensions } from "react-native";
 import { useTheme } from "react-native-paper";
 import { HomeDateText as Text } from "./HomeText";
 import { HomeWelcome } from "./HomeWelcome";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 
 export function HomeGreetingCards({
   active,
@@ -16,11 +17,13 @@ export function HomeGreetingCards({
   const theme = useTheme();
   const { colors: c } = theme;
   const classic = useClassicHome();
+  const tablet = useTabletLayout();
   const homeCardShape = useHomeCardShape();
   const [greetingBackground] = homeCardTone("greeting", theme);
   const [dateBackground, dateForeground] = homeCardTone("date", theme);
   const { width } = useWindowDimensions();
   const [rowWidth, setRowWidth] = React.useState(width - 32);
+  const dateWidth = tablet ? Math.min(108, (rowWidth - 10) * 0.3) : (rowWidth - 10) * 0.3;
   const [now, setNow] = React.useState(() => new Date());
   React.useEffect(() => {
     if (!active) return;
@@ -101,8 +104,9 @@ export function HomeGreetingCards({
     >
       <View
         style={{
-          width: (rowWidth - 10) * 0.7,
-          minHeight: (rowWidth - 10) * 0.3,
+          flex: 1,
+          minWidth: 0,
+          minHeight: dateWidth,
           padding: 14,
           ...homeCardShape("greeting"),
           backgroundColor: classic ? c.surface : greetingBackground,
@@ -123,7 +127,7 @@ export function HomeGreetingCards({
           year: "numeric",
         })}
         style={{
-          width: (rowWidth - 10) * 0.3,
+          width: dateWidth,
           aspectRatio: 1,
           ...homeCardShape("date"),
           backgroundColor: classic ? c.surface : dateBackground,

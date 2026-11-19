@@ -1,4 +1,5 @@
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { SettingsDetailContext, SettingsDetailWidthContext } from "@/modules/Settings/Layouts/SettingsDetailContext";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { sortCategories } from "@/utils/category-order";
@@ -91,6 +92,7 @@ function CategoryListContent({
   renderHeader,
 }: ListScreenProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
+  const tabletPicker = useTabletLayout() && pickerMode;
   const embedded = React.useContext(SettingsDetailContext);
   const detailWidth = React.useContext(SettingsDetailWidthContext);
   const { getWorkspaceDefaults } = useWorkspaceDefaults();
@@ -202,7 +204,8 @@ function CategoryListContent({
     () => buildRows(incomeCategories),
     [incomeCategories],
   );
-  const pickerViewportHeight = listHeight + 36;
+  const pickerListHeight = tabletPicker ? Math.max(80, (management.selectedType === "income" ? incomeRows.length : expenseRows.length) * 72 + 8) : listHeight;
+  const pickerViewportHeight = pickerListHeight + 36;
   const pickerModalHeight = pickerViewportHeight + 64;
 
   const entranceProgress = useManagementEntranceProgress();
@@ -334,7 +337,7 @@ function CategoryListContent({
               management.selectedType === "income" ? incomeRows : expenseRows
             }
             pageWidth={pageWidth}
-            listHeight={listHeight}
+            listHeight={pickerListHeight}
             normalizedQuery={normalizedQuery}
             selectedValue={selectedValue}
               selectedValues={selectedValues}

@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { RecurringControl, RECURRING_PILL_WIDTH } from "@/modules/Recurring/RecurringControl";
 import { HistorySuggestionPill } from "./Molecules/HistorySuggestionPill";
 import { suggestTransactionDetails } from "../../suggestions";
@@ -80,7 +81,8 @@ import {
 import { TransactionFormData, TransactionType } from "@/utils/Types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Animated, Keyboard, Pressable, ScrollView, View } from "react-native";
+import { Animated, Keyboard, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Portal, TextInput, useTheme } from "react-native-paper";
 import { useModalInsets } from "@/hooks/use-modal-insets";
 import { DebouncedTextInput } from "./Molecules/DebouncedTextInput";
@@ -175,8 +177,11 @@ export function TransactionModal({
     ],
   );
 
+  const tablet = useTabletLayout();
+  const { height: screenHeight } = useWindowDimensions();
   const isEditMode = modalMode === "edit";
   const isViewMode = modalMode === "view";
+  const tabletEditor = tablet && theme.expressive && !isViewMode;
   const [controlsWidth,setControlsWidth] = useState(0);
   const [recurringExpanded,setRecurringExpanded] = useState(false);
   const [recurringEnabled,setRecurringEnabled] = useState(false);
@@ -968,73 +973,7 @@ export function TransactionModal({
     [selectedCurrency, theme, isViewMode, amountColor],
   );
 
-  const content = (
-    <ScrollView
-      style={{ flexShrink: 1 }}
-      keyboardShouldPersistTaps="handled"
-      scrollEnabled={!recurringExpanded}
-      showsVerticalScrollIndicator={false}
-      bounces={false}
-      contentContainerStyle={[
-        mainContent.iosShell,
-        {
-          backgroundColor: theme.colors.background,
-          paddingBottom: 18 + bottom,
-        },
-        isMobileLayout && { paddingTop: 0 },
-      ]}
-      onTouchStart={(event) => {
-        if (
-          (noteFocused || titleFocused) &&
-          event.target === event.currentTarget
-        )
-          blurInputs();
-      }}
-    >
-      {isMobileLayout ? (
-        <View style={modal.sheetHandleZone} accessibilityLabel="Drag handle">
-          <View
-            style={[
-              modal.sheetHandle,
-              { backgroundColor: theme.colors.onSurface },
-            ]}
-          />
-        </View>
-      ) : null}
-      {readOnlySourceLabel ? <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: "center", marginBottom: 12 }}>{readOnlySourceLabel}</Text> : null}
-      <Animated.View
-        style={[
-          mainContent.iosTopBar,
-          {
-            opacity: headerEntrance,
-            transform: [
-              {
-                translateY: headerEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          onPress={handleRequestClose}
-          style={({ pressed }) => [
-            mainContent.iosCircleButton,
-            { opacity: pressed ? 0.68 : 1 },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="close"
-            size={28}
-            color={theme.colors.onSurface}
-          />
-        </Pressable>
-
-        <View
+  const modeControl = (        <View
           style={{
             alignItems: "center",
             height: 54,
@@ -1044,6 +983,7 @@ export function TransactionModal({
             position: "absolute",
             top: 0,
             width: 180,
+            ...(tabletEditor ? { position: "relative" as const, left: undefined, marginLeft: 0, top: undefined } : {}),
             ...(recurringOccurrence ? { position: "relative" as const, left: undefined, marginLeft: 0, width: undefined, flex: 1 } : {}),
           }}
         >
@@ -1117,97 +1057,12 @@ export function TransactionModal({
             </View>
           </Animated.View>
         </View>
-
-        {recurringOccurrence ? <Pressable accessibilityRole="checkbox" accessibilityLabel="Use this amount for future occurrences" accessibilityState={{ checked: updateFutureAmount }} onPress={() => setUpdateFutureAmount(value => !value)}
-          style={({ pressed }) => ({ height: 54, paddingHorizontal: 12, borderRadius: 27, flexDirection: "row", alignItems: "center", gap: 5,
-            backgroundColor: updateFutureAmount ? theme.colors.secondaryContainer : tonalButtonSurface(theme), borderWidth: 1, borderColor: updateFutureAmount ? theme.colors.primary : theme.colors.outlineVariant, opacity: pressed ? 0.7 : 1 })}>
-          <MaterialCommunityIcons name={updateFutureAmount ? "check" : "update"} size={17} color={updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant} />
-          <Text style={{ fontSize: 11, fontWeight: "700", color: updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant }}>Future</Text>
-        </Pressable> : <>
-        {isViewMode && !readOnlyTransaction ? (
-          <Animated.View
-            style={{
-              marginLeft: "auto",
-              opacity: modeTransition,
-              transform: [
-                {
-                  scale: modeTransition.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.72, 1],
-                  }),
-                },
-              ],
-            }}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Edit transaction title and details"
-              onPress={handleSwitchToEdit}
-              style={({ pressed }) => [
-                mainContent.iosCircleButton,
-                { opacity: pressed ? 0.68 : 1 },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="pencil-outline"
-                size={23}
-                color={theme.colors.primary}
-              />
-            </Pressable>
-          </Animated.View>
-        ) : (
-          <View style={mainContent.iosTopSpacer} />
-        )}
-
-        {!readOnlyTransaction && (isEditMode || isViewMode || Boolean(activeDraft)) ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              isEditMode || isViewMode ? "Delete transaction" : "Delete draft"
-            }
-            onPress={() => setIsDeleteConfirmOpen(true)}
-            style={({ pressed }) => [
-              mainContent.iosCircleButton,
-              { opacity: pressed ? 0.68 : 1 },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="trash-can-outline"
-              size={23}
-              color={theme.colors.error}
-            />
-          </Pressable>
-        ) : (
-          <View style={mainContent.iosTopSpacer} />
-        )}
-        </>}
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          mainContent.iosCard,
-          {
-            opacity: cardEntrance,
-            transform: [
-              {
-                translateY: cardEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-              {
-                scale: cardEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.97, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+  );
+  const categorySection = (<>
         <Animated.View
           style={[
             mainContent.iosAccountRow,
+            tabletEditor && { flexShrink: 1, minWidth: 0, justifyContent: "flex-start", flexWrap: "wrap", gap: 8 },
             sectionEntranceStyle(cardSectionEntrances[0]),
           ]}
         >
@@ -1221,6 +1076,7 @@ export function TransactionModal({
             disabled={isViewMode}
             style={({ pressed }) => [
               mainContent.iosCategoryPill,
+              tabletEditor && { maxWidth: 220, flexShrink: 1 },
               theme.expressive && { backgroundColor: categoryBackground },
               { opacity: pressed ? 0.72 : 1 },
             ]}
@@ -1274,6 +1130,7 @@ export function TransactionModal({
             disabled={isViewMode}
             style={({ pressed }) => [
               mainContent.iosAccountPill,
+              tabletEditor && { maxWidth: 180, flexShrink: 1 },
               theme.expressive && { backgroundColor: accountBackground },
               { opacity: pressed ? 0.72 : 1 },
             ]}
@@ -1298,7 +1155,7 @@ export function TransactionModal({
                 />
               </View>
             )}
-            <View style={mainContent.iosAccountText}>
+            <View style={[mainContent.iosAccountText, tabletEditor && { flexShrink: 1 }]}>
               <Text
                 numberOfLines={1}
                 style={[
@@ -1319,6 +1176,8 @@ export function TransactionModal({
           </Pressable>
         </Animated.View>
 
+  </>);
+  const amountSection = (<>
         <Animated.View
           style={[
             mainContent.iosAmountWrap,
@@ -1440,6 +1299,8 @@ export function TransactionModal({
           </View>
         </Animated.View>
 
+  </>);
+  const titleSection = (<>
         <Animated.View
           style={[
             mainContent.iosUtilityRow,
@@ -1468,6 +1329,8 @@ export function TransactionModal({
         </Animated.View>
 
 
+  </>);
+  const keypadSection = (<>
         {!isViewMode ? (
           <Animated.View
             style={[sectionEntranceStyle(cardSectionEntrances[3])]}
@@ -1515,10 +1378,13 @@ export function TransactionModal({
           </Animated.View>
         ) : null}
 
+  </>);
+  const footerSection = (<>
         {!isViewMode ? (
           <Animated.View
             style={[
               mainContent.iosBottomRow,
+              tabletEditor && { justifyContent: "flex-end", flexShrink: 0 },
               { gap: 8 },
               sectionEntranceStyle(cardSectionEntrances[4]),
             ]}
@@ -1561,6 +1427,175 @@ export function TransactionModal({
             </Pressable>
           </Animated.View>
         ) : null}
+  </>);
+
+  const EditorScrollView = tablet ? KeyboardAwareScrollView : ScrollView;
+  const content = (
+    <EditorScrollView
+      {...(tablet ? { bottomOffset: 24 } : {})}
+      style={{ flexShrink: 1, minHeight: 0, maxHeight: tablet ? screenHeight - 96 : undefined }}
+      keyboardShouldPersistTaps="handled"
+      scrollEnabled={tablet || !recurringExpanded}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+      contentContainerStyle={[
+        mainContent.iosShell,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: 18 + bottom,
+        },
+        isMobileLayout && { paddingTop: 0 },
+      ]}
+      onTouchStart={(event) => {
+        if (
+          (noteFocused || titleFocused) &&
+          event.target === event.currentTarget
+        )
+          blurInputs();
+      }}
+    >
+      {isMobileLayout && !tablet ? (
+        <View style={modal.sheetHandleZone} accessibilityLabel="Drag handle">
+          <View
+            style={[
+              modal.sheetHandle,
+              { backgroundColor: theme.colors.onSurface },
+            ]}
+          />
+        </View>
+      ) : null}
+      {readOnlySourceLabel ? <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: "center", marginBottom: 12 }}>{readOnlySourceLabel}</Text> : null}
+      <Animated.View
+        style={[
+          mainContent.iosTopBar,
+          {
+            opacity: headerEntrance,
+            transform: [
+              {
+                translateY: headerEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-12, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          onPress={handleRequestClose}
+          style={({ pressed }) => [
+            mainContent.iosCircleButton,
+            { opacity: pressed ? 0.68 : 1 },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={28}
+            color={theme.colors.onSurface}
+          />
+        </Pressable>
+
+        {tabletEditor ? <Text style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: "700", color: theme.colors.onSurface }}>{isEditMode ? "Edit transaction" : "Add transaction"}</Text> : modeControl}
+
+        {recurringOccurrence ? <Pressable accessibilityRole="checkbox" accessibilityLabel="Use this amount for future occurrences" accessibilityState={{ checked: updateFutureAmount }} onPress={() => setUpdateFutureAmount(value => !value)}
+          style={({ pressed }) => ({ height: 54, paddingHorizontal: 12, borderRadius: 27, flexDirection: "row", alignItems: "center", gap: 5,
+            backgroundColor: updateFutureAmount ? theme.colors.secondaryContainer : tonalButtonSurface(theme), borderWidth: 1, borderColor: updateFutureAmount ? theme.colors.primary : theme.colors.outlineVariant, opacity: pressed ? 0.7 : 1 })}>
+          <MaterialCommunityIcons name={updateFutureAmount ? "check" : "update"} size={17} color={updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant} />
+          <Text style={{ fontSize: 11, fontWeight: "700", color: updateFutureAmount ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant }}>Future</Text>
+        </Pressable> : <>
+        {isViewMode && !readOnlyTransaction ? (
+          <Animated.View
+            style={{
+              marginLeft: "auto",
+              opacity: modeTransition,
+              transform: [
+                {
+                  scale: modeTransition.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.72, 1],
+                  }),
+                },
+              ],
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit transaction title and details"
+              onPress={handleSwitchToEdit}
+              style={({ pressed }) => [
+                mainContent.iosCircleButton,
+                { opacity: pressed ? 0.68 : 1 },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={23}
+                color={theme.colors.primary}
+              />
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <View style={mainContent.iosTopSpacer} />
+        )}
+
+        {!readOnlyTransaction && (isEditMode || isViewMode || Boolean(activeDraft)) ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isEditMode || isViewMode ? "Delete transaction" : "Delete draft"
+            }
+            onPress={() => setIsDeleteConfirmOpen(true)}
+            style={({ pressed }) => [
+              mainContent.iosCircleButton,
+              { opacity: pressed ? 0.68 : 1 },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="trash-can-outline"
+              size={23}
+              color={theme.colors.error}
+            />
+          </Pressable>
+        ) : (
+          <View style={mainContent.iosTopSpacer} />
+        )}
+        </>}
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          mainContent.iosCard,
+          {
+            opacity: cardEntrance,
+            transform: [
+              {
+                translateY: cardEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              },
+              {
+                scale: cardEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.97, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        {tabletEditor ? <View style={{ gap: 20 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 24 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 16 }}>{amountSection}{titleSection}</View>
+            <View style={{ flex: 1.15, minWidth: 0 }}>{keypadSection}</View>
+          </View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+            <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 440, minWidth: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>{modeControl}{categorySection}</View>
+            <View style={{ marginLeft: "auto" }}>{footerSection}</View>
+          </View>
+        </View> : <>{categorySection}{amountSection}{titleSection}{keypadSection}{footerSection}</>}
       </Animated.View>
 
       <LazyModalContent visible={isDatePickerOpen}>
@@ -1590,12 +1625,12 @@ export function TransactionModal({
         onCloseAccount={closeAccountPicker}
         onCloseCategory={closeCategoryPicker}
       />
-    </ScrollView>
+    </EditorScrollView>
   );
 
   return (
     <>
-      {isMobileLayout ? (
+      {isMobileLayout && !tablet ? (
         <AnimatedPaperModal
           key={presentation.presentationId}
           visible={presentation.visible}
@@ -1610,7 +1645,7 @@ export function TransactionModal({
           contentContainerStyle={[
             modal.sheetContent,
             {
-              backgroundColor: "transparent",
+              backgroundColor: tablet ? theme.colors.background : "transparent",
               paddingBottom: 0,
               width: "100%",
             },
@@ -1628,15 +1663,17 @@ export function TransactionModal({
           dismissDuration={220}
           onDismiss={handleRequestClose}
           presentation="modal"
+          keyboardAware={tablet}
           escapeEnabled={!isDatePickerOpen}
           zIndex={1000}
           contentContainerStyle={[
             modal.modalContent,
             {
-              backgroundColor: "transparent",
+              backgroundColor: tablet ? theme.colors.background : "transparent",
               borderColor: theme.colors.outlineVariant,
               width: "100%",
-              overflow: "visible",
+              overflow: tablet ? "hidden" : "visible",
+              maxWidth: tabletEditor ? 960 : undefined,
             },
           ]}
         >

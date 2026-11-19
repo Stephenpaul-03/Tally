@@ -1,3 +1,5 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { TabletTransactionHeading } from "./TabletTransactionHeading";
 import { MainEntrance } from "@/components/animations/MainEntrance";
 import React from "react";
 import {
@@ -40,7 +42,9 @@ import {
   settledTabIndex,
 } from "./pagerGeometry";
 import { MonthPickerSheet } from "./MonthPickerSheet";
-import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTabBarHidden } from "@/components/tabbar/TabBarContext";
 
 type Controls = {
   group?: GestureControlButtonConfig;
@@ -57,6 +61,7 @@ export function ClassicMainScreen({
   symbol,
   onMonth,
   onEdit,
+  entryCount,
   children,
   controlButtons,
 }: {
@@ -66,18 +71,23 @@ export function ClassicMainScreen({
   symbol: string;
   onMonth: (month: string) => void;
   onEdit: (id: string) => void;
+  entryCount: number;
   children: React.ReactNode;
   controlButtons: Controls;
 }) {
   const { colors: c } = useTheme();
+  const sidebar = useTabletLandscape();
   const tablet = useTabletLayout();
+  const { bottom } = useSafeAreaInsets();
+  const hidden = useTabBarHidden();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const shell = useAppShell();
   const motion = useMotionEnabled();
   const focused = useIsFocused();
   const { registerDriver } = shell;
-  const { width: fallbackWidth } = useWindowDimensions();
-  const [width, setWidth] = React.useState(0);
+  const { width: fallbackWidth, height: fallbackHeight } = useWindowDimensions();
+  const [viewport, setViewport] = React.useState({ width: 0, height: 0 });
+  const { width, height } = viewport;
   const [picker, setPicker] = React.useState(false);
   const [searchExpanded, setSearchExpanded] = React.useState(false);
   const [toolbarWidth, setToolbarWidth] = React.useState(fallbackWidth - 40);
@@ -146,7 +156,7 @@ export function ClassicMainScreen({
     );
   };
   const pan = Gesture.Pan()
-    .enabled(width > 0 && focused)
+    .enabled(!sidebar && width > 0 && focused)
     .activeOffsetX([-18, 18])
     .failOffsetY([-14, 14])
     .onStart(() => {
@@ -179,7 +189,10 @@ export function ClassicMainScreen({
       finish(origin.value);
     });
   const pages = useAnimatedStyle(() => ({
-    transform: [{ translateX: -position.value * width }],
+    transform: [
+      { translateX: sidebar ? 0 : -position.value * width },
+      { translateY: sidebar ? -position.value * height : 0 },
+    ],
     opacity: width > 0 ? 1 : 0,
   }));
   const control = (button: GestureControlButtonConfig | undefined) =>
@@ -230,16 +243,22 @@ export function ClassicMainScreen({
     ) : null;
   const search = controlButtons.rightMiddle?.search;
   const pageWidth = width || fallbackWidth;
+  const pageHeight = height || fallbackHeight;
   return (
     <MotionEntranceScope>
       <View
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setViewport({ width, height });
+        }}
         style={{ flex: 1, overflow: "hidden", backgroundColor: c.background }}
       >
         <GestureDetector gesture={pan}>
           <Animated.View
             style={[
-              { flex: 1, flexDirection: "row", width: pageWidth * 3 },
+              sidebar
+                ? { flexDirection: "column", width: pageWidth, height: pageHeight * 3, flexShrink: 0 }
+                : { flex: 1, flexDirection: "row", width: pageWidth * 3 },
               pages,
             ]}
           >
@@ -248,6 +267,7 @@ export function ClassicMainScreen({
                 key={tab}
                 style={{
                   width: pageWidth,
+                  height: sidebar ? pageHeight : undefined,
                   flexShrink: 0,
                   flexGrow: 0,
                   overflow: "hidden",
@@ -284,11 +304,12 @@ export function ClassicMainScreen({
                     <SpotlightTarget id="transaction-heading">
                       <View
                         style={{
-                          paddingHorizontal: 20,
-                          paddingTop: 8,
+                          paddingHorizontal: tablet ? 24 : 20,
+                          paddingTop: tablet ? 0 : 8,
                           paddingBottom: 12,
                         }}
                       >
+                        {tablet ? <View style={{ marginHorizontal: -24 }}><TabletTransactionHeading month={month} count={entryCount} onMonth={() => setPicker(true)} /></View> : <>
                         <View
                           style={{
                             flexDirection: "row",
@@ -303,6 +324,7 @@ export function ClassicMainScreen({
                             adjustsFontSizeToFit
                             style={{
                               ...typography.editorial.hero,
+                              ...(tablet ? { fontSize: 28, lineHeight: 36 } : {}),
                               flex: 1,
                               color: c.onSurface,
                             }}
@@ -353,7 +375,7 @@ export function ClassicMainScreen({
                               color={c.onSurfaceVariant}
                             />
                           </Pressable>
-                          {!tablet ? <Pressable
+                          {!sidebar ? <Pressable
                             accessibilityRole="button"
                             accessibilityLabel="Settings"
                             onPress={() => navigation.navigate("Settings")}
@@ -371,6 +393,7 @@ export function ClassicMainScreen({
                             />
                           </Pressable> : null}
                         </View>
+                        </>}
                         <SpotlightTarget id="entry-controls">
                           <View
                             onLayout={(event) =>
@@ -382,7 +405,12 @@ export function ClassicMainScreen({
                               height: 44,
                             }}
                           >
-                            <Animated.View
+                            {tablet ? <View style={{ flexDirection: "row", gap: 6, marginRight: 8 }}>
+                              {control(controlButtons.left)}
+                              {control(controlButtons.group)}
+                              {control(controlButtons.leftMiddle)}
+                              {control(controlButtons.right)}
+                            </View> : <Animated.View
                               pointerEvents={searchExpanded ? "none" : "auto"}
                               accessibilityElementsHidden={searchExpanded}
                               importantForAccessibility={
@@ -403,8 +431,19 @@ export function ClassicMainScreen({
                                 {control(controlButtons.leftMiddle)}
                                 {control(controlButtons.right)}
                               </View>
-                            </Animated.View>
-                            {search ? (
+                            </Animated.View>}
+                            {search && tablet ? <View style={{ flex: 1, minWidth: 0, height: 44, flexDirection: "row", alignItems: "center",
+                              paddingHorizontal: 12, borderRadius: 14, backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.outlineVariant }}>
+                              <Icon name="magnify" size={20} color={c.primary} />
+                              <TextInput value={search.value} onChangeText={search.onChangeText}
+                                accessibilityLabel="Search transactions" placeholder="Search" placeholderTextColor={c.onSurfaceVariant}
+                                returnKeyType="search" style={{ flex: 1, minWidth: 0, height: 44, paddingHorizontal: 8,
+                                  fontSize: 14, color: c.onSurface, fontFamily: typography.body.fontFamily }} />
+                              {search.value ? <Pressable accessibilityRole="button" accessibilityLabel="Clear transaction search"
+                                onPress={() => search.onChangeText("")} style={{ width: 36, height: 44, alignItems: "center", justifyContent: "center" }}>
+                                <Icon name="close" size={18} color={c.onSurfaceVariant} />
+                              </Pressable> : null}
+                            </View> : search ? (
                               <View
                                 style={{
                                   flex: 1,
@@ -509,6 +548,15 @@ export function ClassicMainScreen({
             ))}
           </Animated.View>
         </GestureDetector>
+        {sidebar && shell.activeTab === "calendar" && focused && !hidden && controlButtons.middle ?
+          <Pressable accessibilityRole="button" accessibilityLabel="Add transaction"
+            onPress={controlButtons.middle.onPress}
+            style={({ pressed }) => ({ position: "absolute", right: 16, bottom: 24 + bottom, height: 56,
+              paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+              borderRadius: 28, backgroundColor: c.primary, opacity: pressed ? 0.65 : 1 })}>
+            <Icon name="plus" size={24} color={c.onPrimary} />
+            <Text style={{ ...typography.bodyMedium, fontSize: 16, color: c.onPrimary }}>Add</Text>
+          </Pressable> : null}
         <MonthPickerSheet
           visible={picker}
           month={month}

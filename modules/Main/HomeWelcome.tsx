@@ -16,15 +16,17 @@ const NAME_KEY = "tally.homeWelcomeName.v1";
 export function HomeWelcome({
   active,
   hour,
+  compact = false,
 }: {
   active: boolean;
   hour: number;
+  compact?: boolean;
 }) {
   const theme = useTheme();
   const { colors: c } = theme;
   const classic = useClassicHome();
   const [background, foreground] = homeCardTone("greeting", theme);
-  const nameColor = classic ? c.onSurface : Color(c.onPrimaryContainer).contrast(Color(background)) >= 4.5 ? c.onPrimaryContainer : foreground;
+  const nameColor = compact || classic ? c.onSurface : Color(c.onPrimaryContainer).contrast(Color(background)) >= 4.5 ? c.onPrimaryContainer : foreground;
   const [name, setName] = React.useState("");
   const [draft, setDraft] = React.useState("");
   const [editing, setEditing] = React.useState(false);
@@ -54,10 +56,10 @@ export function HomeWelcome({
     }
   }, [active, editing, commit]);
   return (
-    <View style={{ gap: 0 }}>
+    <View style={{ gap: compact ? 8 : 0, flexDirection: compact ? "row" : "column", alignItems: compact ? "center" : undefined, flexWrap: compact ? "wrap" : undefined }}>
       <Text
         style={{
-          fontSize: 16,
+          fontSize: compact ? 14 : 16,
           fontWeight: "600",
           color: c.onSurface,
           opacity: 0.8,
@@ -139,7 +141,7 @@ export function HomeWelcome({
             adjustsFontSizeToFit
             minimumFontScale={0.2}
             style={{
-              fontSize: classic ? 23 : 28,
+              fontSize: compact ? 16 : classic ? 23 : 28,
               fontWeight: classic ? "700" : "800",
               ...(classic ? typography.bodyStrong : {}),
               color: nameColor,

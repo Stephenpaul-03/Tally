@@ -332,6 +332,7 @@ export function SortOptionSheet({
 
   return (
     <AnimatedPaperModal
+      scrollable
       visible={visible}
       onDismiss={onDismiss}
       dismissable={!suspended}

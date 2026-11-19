@@ -1,4 +1,5 @@
 import { TonalSummaryTile } from "./TonalSummaryTile";
+import { useCardWidth } from "@/components/CardWidthContext";
 import { categoryTone } from "@/theme/sage";
 import { sortCategories } from "@/utils/category-order";
 import { CategoryIconBadge } from "@/components/CategoryIconBadge";
@@ -55,7 +56,8 @@ export function CategorySection({
   expressive?: boolean;
 }) {
   const theme = useTheme();
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useCardWidth();
   const stacked = width < 380 || fontScale > 1.25;
   const rows = sortCategories(
     groups.filter(

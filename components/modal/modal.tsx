@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -49,6 +50,8 @@ type Props = {
   animationDuration?: number;
   dismissDuration?: number;
   reduceMotion?: boolean;
+  /** Let tablet dialogs grow naturally, scrolling only beyond the available height. */
+  scrollable?: boolean;
 };
 
 /** One UI-thread timeline owns the panel, backdrop and drag. No nested Paper fade. */
@@ -67,6 +70,7 @@ export function AnimatedPaperModal(props: Props) {
   }
   return <SettingsDetailContext.Provider value={false}>
     <AnimatedPaperModalPresentation {...props}
+      contentWrapperStyle={[props.contentWrapperStyle, tablet && { flexShrink: 1, minHeight: 0 }]}
       presentation={tablet ? "modal" : props.presentation}
       style={[props.style, tablet && {
         justifyContent: "center", padding: 24,
@@ -80,7 +84,12 @@ export function AnimatedPaperModal(props: Props) {
           maxHeight: height - insets.top - insets.bottom - 48, overflow: "hidden",
           padding: 8, paddingTop: 8, paddingBottom: 8, paddingLeft: 8, paddingRight: 8 },
       ]}
-    />
+    >
+      {tablet && props.scrollable ? <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled"
+        style={{ flexShrink: 1, minHeight: 0 }} contentContainerStyle={{ flexGrow: 0 }}>
+        {props.children}
+      </ScrollView> : props.children}
+    </AnimatedPaperModalPresentation>
   </SettingsDetailContext.Provider>;
 }
 
@@ -107,7 +116,8 @@ function AnimatedPaperModalPresentation({
   const systemReducedMotion = useReducedMotion();
   const reduceMotion =
     requestedReducedMotion || systemReducedMotion || !animationsEnabled;
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const tablet = Math.min(width, height) >= 600 && width >= 768;
   const { top, bottom } = useSafeAreaInsets();
   const theme = useTheme();
   const [rendered, setRendered] = useState(visible);
@@ -258,11 +268,13 @@ function AnimatedPaperModalPresentation({
       setKeyboardHeight(0);
       return;
     }
-    if (!keyboardAware || presentation !== "sheet") return;
+    if (!keyboardAware || (presentation !== "sheet" && !tablet)) return;
     const show = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (event) => {
-        if (visibleRef.current) setKeyboardHeight(event.endCoordinates.height);
+        if (visibleRef.current) setKeyboardHeight(presentation === "sheet"
+          ? event.endCoordinates.height
+          : Math.max(0, height - event.endCoordinates.screenY));
       },
     );
     const hide = Keyboard.addListener(
@@ -275,7 +287,7 @@ function AnimatedPaperModalPresentation({
       show.remove();
       hide.remove();
     };
-  }, [keyboardAware, presentation, rendered]);
+  }, [height, keyboardAware, presentation, rendered, tablet]);
 
   const pan = Gesture.Pan()
     .enabled(presentation === "sheet" && dismissable && visible)
@@ -395,6 +407,9 @@ function AnimatedPaperModalPresentation({
               marginBottom: presentation === "sheet" ? 0 : bottom,
             },
             style,
+            tablet && keyboardAware && presentation !== "sheet" && keyboardHeight > 0 && {
+              marginBottom: Math.max(Number(StyleSheet.flatten(style)?.marginBottom) || bottom, keyboardHeight),
+            },
           ]}
         >
           <GestureDetector gesture={pan}>
@@ -432,7 +447,7 @@ function AnimatedPaperModalPresentation({
                   contentWrapperStyle,
                 ]}
               >
-                {keyboardAware && presentation !== "sheet" ? (
+                {keyboardAware && presentation !== "sheet" && !tablet ? (
                   <KeyboardAvoidingView
                     style={{ flexShrink: 1, minHeight: 0 }}
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -440,9 +455,7 @@ function AnimatedPaperModalPresentation({
                   >
                     {presentedChildren}
                   </KeyboardAvoidingView>
-                ) : (
-                  presentedChildren
-                )}
+                ) : presentedChildren}
               </View>
             </Animated.View>
           </GestureDetector>

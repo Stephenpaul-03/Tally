@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { AnimatedPaperModal } from "@/components/modal/modal";
 import options from "@/data/management-options.json";
 import { useBreakpoint } from "@/hooks/use-breakpoints";
@@ -38,6 +39,7 @@ export function CategoryManagementModal({
   onSelectCategory,
 }: Props) {
   const theme = useTheme();
+  const tablet = useTabletLayout();
   const { height, width, isMobileLayout: isMobile } = useBreakpoint();
   const allColors = options.colors;
   const allIcons = options.categoryIcons;
@@ -207,6 +209,7 @@ export function CategoryManagementModal({
         initialColor={localColor}
       />
       <AnimatedPaperModal
+        scrollable={screen === "list"}
         visible={isOpen}
         onDismiss={handleClose}
         presentation={isMobile ? "sheet" : "modal"}
@@ -235,7 +238,7 @@ export function CategoryManagementModal({
           },
         ]}
       >
-        {isMobile && (
+        {isMobile && !tablet && (
           <View style={CategoryManagementStyles.dragHandleWrap}>
             <View
               style={[

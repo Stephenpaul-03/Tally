@@ -213,7 +213,7 @@ export function ExpressiveOverview({
   );
 }
 /** Two clipped native arcs keep the ring smooth without a new native dependency. */
-function ProgressRing({ percent }: { percent: number }) {
+export function ProgressRing({ percent }: { percent: number }) {
   const enabled = useMotionEnabled();
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;

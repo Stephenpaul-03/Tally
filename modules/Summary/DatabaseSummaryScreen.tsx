@@ -24,10 +24,14 @@ import { MonthPickerSheet } from "@/modules/Main/MonthPickerSheet";
 import { monthKey, monthLabel, shiftMonth } from "@/modules/Insights/calculations";
 import { ledgerMoney } from "@/modules/Main/presentation";
 import { databaseSummary } from "./model";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
 
 export function DatabaseSummaryScreen() {
   const theme = useTheme<ExtendedMD3Theme>();
   const c = theme.colors;
+  const tablet = useTabletLayout();
+  const landscape = useTabletLandscape();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootParamList, "DatabaseSummary">>();
   const workspace = useAppSelector(selectActiveWorkspace);
@@ -72,6 +76,12 @@ export function DatabaseSummaryScreen() {
     reportData.expenseComparison, reportData.incomeComparison, undefined, undefined, undefined,
     `${periodLabel} · ${workspace?.name || "Workspace"} · ${currency}`, { accounts: reportData.accounts, transactions: reportData.transactions, reportTitle: "Summary", recordedPeriodDescription: `${periodLabel} · ${workspace?.name || "Workspace"} · ${currency}` });
   const card = { backgroundColor: c.surface, borderRadius: theme.expressive ? 28 : 16, padding: 18, gap: 12 };
+  const overview = <View style={{ gap: 12 }}>
+    {tablet ? <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>WORKSPACE OVERVIEW</Text> : null}
+        <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>{workspace?.name || "Workspace"} · {periodLabel} · {currency}</Text>
+          <WorkspaceSummaryCard snapshot={workspaceSnapshot(rows, currency, workspace?.currencyCode || currency, month)}
+            money={money} compact={tablet} />
+  </View>;
   return <SettingsPage style={{ backgroundColor: c.background }}>
     <SettingsHeader title="Summary" onBack={() => navigation.goBack()}
       query={query} onQueryChange={setQuery} searchOpen={searchOpen} onSearchOpenChange={setSearchOpen}
@@ -83,14 +93,14 @@ export function DatabaseSummaryScreen() {
         <IconButton icon="share-variant-outline" size={20} style={{ margin: 0, backgroundColor: c.surface }}
           accessibilityLabel="Share Summary PDF" onPress={() => setShareOpen(true)} />
       </View>} />
-    <FlatList data={entries} keyExtractor={row => row.id} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 0, gap: 3, paddingBottom: 40 }}
+    <View style={{ flex: 1, minHeight: 0, width: "100%", maxWidth: tablet ? 1200 : undefined, alignSelf: "center", flexDirection: landscape ? "row" : "column", gap: landscape ? 20 : 0, paddingHorizontal: tablet ? 24 : 0 }}>
+      {landscape ? <View style={{ width: "32%", maxWidth: 360 }}>{overview}</View> : null}
+    <FlatList style={{ flex: 1, minWidth: 0 }} data={entries} keyExtractor={row => row.id} contentContainerStyle={{ paddingHorizontal: tablet ? 0 : 16, paddingTop: 0, gap: tablet ? 8 : 3, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={() => setRetry(value => value + 1)} tintColor={c.primary} />}
       ListHeaderComponent={<View style={{ gap: 14, paddingBottom: 14 }}>
         {!!error && <View style={card}><Text accessibilityRole="alert" style={{ color: c.error }}>Could not load the summary: {error}</Text><Button onPress={() => setRetry(value => value + 1)}>Retry</Button></View>}
         {loading && !rows.length ? <ActivityIndicator /> : null}
-        <Text style={{ color: c.onSurfaceVariant, fontSize: 12 }}>{workspace?.name || "Workspace"} · {periodLabel} · {currency}</Text>
-          <WorkspaceSummaryCard snapshot={workspaceSnapshot(rows, currency, workspace?.currencyCode || currency, month)}
-            money={money} />
+        {!landscape ? overview : null}
         <Text style={{ color: c.onSurface, fontSize: 20, fontWeight: "800" }}>Transactions · {entries.length}</Text>
         <SlidingPillToggle value={type} onChange={setType} options={[
           { key: "all", label: "All", icon: "format-list-bulleted", color: c.primary },
@@ -105,6 +115,7 @@ export function DatabaseSummaryScreen() {
           <Text style={{ color: item.type === "income" ? theme.semantic.income : theme.semantic.expense, fontWeight: "800" }}>{item.type === "income" ? "+" : "−"}{money(Math.abs(item.amount))}</Text>
         </View>
       </Pressable>} />
+    </View>
     <ControlsSheet visible={optionsOpen} title="Currency and period" displayTitle suspended={picker} onClose={() => setOptionsOpen(false)}>
       <Text style={{ color: c.onSurface, fontWeight: "800", fontSize: 16 }}>Currency</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

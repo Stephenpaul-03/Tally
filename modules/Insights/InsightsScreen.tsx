@@ -1,9 +1,13 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { TabletCard, TabletMetrics, TabletWorkspaceButton } from "@/modules/Main/TabletDashboard";
+import { TabletInsightsDashboard } from "./components/TabletInsightsDashboard";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { WorkspaceSummaryCard } from "@/modules/Summary/WorkspaceSummaryCard";
 import { workspaceSnapshot } from "@/modules/Summary/snapshot";
 import { InsightsLayoutContext } from "./components/InsightsLayoutContext";
 import { useMainDesign } from "@/hooks/use-main-design";
-import { useTabletLayout } from "@/hooks/use-tablet-layout";
+import { useTabletLandscape } from "@/hooks/use-tablet-landscape";
+import { TabletCardGrid } from "@/components/TabletCardGrid";
 import { useQuickShareInsights } from "@/hooks/use-quickshare-insights";
 import { ClassicSpending } from "./components/ClassicSpending";
 import { Gesture } from "react-native-gesture-handler";
@@ -100,6 +104,7 @@ function WorkspaceInsights({
 }: InsightsProps & {
   workspaceCurrency: string;
 }) {
+  const columns = useTabletLandscape();
   const tablet = useTabletLayout();
   const { activeTab, requestTab } = useAppShell();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -345,7 +350,7 @@ function WorkspaceInsights({
     <View style={{ gap: 8 }}>
               <View
                 style={{
-                  flexDirection: expressive ? "row" : "column",
+                  flexDirection: expressive && !tablet ? "row" : "column",
                   flexWrap: "wrap",
                   gap: 8,
                 }}
@@ -375,7 +380,7 @@ function WorkspaceInsights({
                         (row) => row.type === "expense",
                       ),
                     });
-                  return expressive ? (
+                  return expressive && !tablet ? (
                     <TonalSummaryTile
                       key={account.name}
                       index={index}
@@ -504,6 +509,35 @@ function WorkspaceInsights({
       onTransaction={(id) => dispatch(openViewModal(id))}
     />
   );
+  const tabletDashboard = <TabletInsightsDashboard landscape={columns} expressive={theme.expressive}
+    monthly={hasEntries ? <TabletCard title="Month summary">
+      <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{monthLabel(a.month)} / {a.currency}</Text>
+      <TabletMetrics compact income={a.data.income} spent={a.data.expense} balance={a.data.remaining} money={money}
+        onIncome={showIncome} onSpent={showSpending} percent={a.data.usedPercent} />
+    </TabletCard> : null}
+    spending={showExpenses ? <TabletCard title={theme.expressive ? "Expense" : "Spending"} action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("expense")}>
+      <ClassicSpending compact groups={a.data.expenseCategories} total={a.data.expense} money={money}
+        icons={a.icons} colors={a.colors} onSelect={group => showCategory(group, "expense")} onShowAll={() => setBrowse("expense")} />
+    </TabletCard> : null}
+    income={showIncomeCard ? <TabletCard title="Income" action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("income")}>
+      <ClassicSpending compact showChart={classicB || theme.expressive} type="income" groups={a.data.incomeCategories} total={a.data.income} money={money}
+        icons={a.icons} colors={a.colors} onSelect={group => showCategory(group, "income")} onShowAll={() => setBrowse("income")} />
+    </TabletCard> : null}
+    activity={hasEntries ? <TabletCard title={theme.expressive ? "Monthly" : "Activity"} headerAction={<View style={{ flexShrink: 0 }}>
+        <ActivityTypeToggle pagePan={pagePan} dragProgress={activityProgress} value={activityType} onChange={setActivityType} />
+      </View>}>
+      <ActivityHeatmap compact days={a.data.days} type={activityType} dragProgress={activityProgress} money={money}
+        onDay={day => setDetail(dailyActivityDetail(day, activityType, money))} />
+    </TabletCard> : null}
+    accounts={accounts.length ? <TabletCard title={theme.expressive ? "Accounts" : "Accounts · Spent"} action={theme.expressive ? "All" : undefined} onAction={() => setBrowse("accounts")}>{accountRows()}</TabletCard> : null}
+    summary={<TabletCard title="Workspace summary">
+      <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{reportWorkspace?.name || "Workspace"} · All time · {a.currency}</Text>
+      <WorkspaceSummaryCard snapshot={workspaceOverview} contained compact money={money}
+        onPress={() => navigation.navigate("DatabaseSummary", { currency: a.currency })} />
+    </TabletCard>}
+    year={hasEntries && hasYearEntries ? <TabletCard title="Yearly" action={a.data.year.label} onAction={() => setBrowse("year")}>
+      <YearOverview fill={theme.expressive} year={a.data.year} selectedMonth={a.month} money={money} onShowTotals={() => setBrowse("year")} />
+    </TabletCard> : null} />;
   return (
     <View style={{ flex: 1, minHeight: 0 }}>
       <ScrollView
@@ -512,10 +546,10 @@ function WorkspaceInsights({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: expressive ? 16 : 20,
-          paddingTop: expressive ? 16 : 6,
+          paddingHorizontal: tablet ? 24 : expressive ? 16 : 20,
+          paddingTop: tablet ? 24 : expressive ? 16 : 6,
           paddingBottom:
-            (expressive ? Math.max(tabBarHeight, 76) : tabBarHeight) +
+            (columns ? 0 : expressive ? Math.max(tabBarHeight, 76) : tabBarHeight) +
             bottom +
             32,
         }}
@@ -538,7 +572,7 @@ function WorkspaceInsights({
                 style={{
                   ...(theme.expressive
                     ? {
-                        fontSize: 34,
+                        fontSize: tablet ? 28 : 34,
                         fontWeight: "800" as const,
                         letterSpacing: -1,
                       }
@@ -549,6 +583,7 @@ function WorkspaceInsights({
               >
                 Insights
               </Text>
+              {tablet ? <TabletWorkspaceButton /> : null}
               <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel={`Choose month, ${monthLabel(a.month)}`}
@@ -608,7 +643,7 @@ function WorkspaceInsights({
                   color={theme.colors.onSurface}
                 />
               </MotionPressable>
-              {!tablet ? <MotionPressable
+              {!columns ? <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel="Settings"
                 onPress={() => navigation.navigate("Settings")}
@@ -656,12 +691,14 @@ function WorkspaceInsights({
             ))}
           </View>
         ) : null}
-        <SpotlightTarget
+        {tablet && !theme.expressive && hasEntries ? <TabletMetrics income={a.data.income} spent={a.data.expense} balance={a.data.remaining}
+          money={money} onIncome={showIncome} onSpent={showSpending} percent={a.data.usedPercent} /> : null}
+        {!tablet && !columns ? <SpotlightTarget
           id="overview"
           enabled={(!expressive && !standalone) || activeTab === "insights"}
         >
           {hasEntries ? overview : null}
-        </SpotlightTarget>
+        </SpotlightTarget> : null}
         {!hasEntries ? (
           <InsightsEmptyState
             expanded={expanded}
@@ -680,6 +717,8 @@ function WorkspaceInsights({
           importantForAccessibility={expanded ? "auto" : "no-hide-descendants"}
           style={[{ gap: 12, paddingTop: 14 }, bodyMotion]}
         >
+          {tablet ? tabletDashboard : <TabletCardGrid columns={columns}>
+          {columns && hasEntries ? <SpotlightTarget id="overview" enabled={activeTab === "insights"}>{overview}</SpotlightTarget> : null}
           <InsightCard title="Workspace summary" icon="layers-triple-outline"
             active={expanded} initiallyVisible={expressive || standalone} headerGap={8}>
             <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>{reportWorkspace?.name || "Workspace"} · All time · {a.currency}</Text>
@@ -795,6 +834,7 @@ function WorkspaceInsights({
               />
             </InsightCard>
           ) : null}
+          </TabletCardGrid>}
         </Animated.View>
       </ScrollView>
       {details}

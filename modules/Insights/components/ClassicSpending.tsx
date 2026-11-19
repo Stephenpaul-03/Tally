@@ -1,4 +1,5 @@
 import React from "react";
+import { useCardWidth } from "@/components/CardWidthContext";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
 import { richerCategoryColor } from "@/theme/expressivePalette";
 import { categoryTone } from "@/theme/sage";
@@ -94,8 +95,12 @@ export function ClassicSpending({
   onSelect,
   onShowAll,
   type = "expense",
+  compact = false,
+  showChart = false,
 }: {
   type?: "expense" | "income";
+  compact?: boolean;
+  showChart?: boolean;
   groups: Group[];
   total: number;
   money: (value: number) => string;
@@ -106,8 +111,9 @@ export function ClassicSpending({
 }) {
   const theme = useTheme<ExtendedMD3Theme>();
   const { colors: c } = theme;
-  const { width, fontScale } = useWindowDimensions();
-  const stacked = width < 370 || fontScale > 1.2;
+  const { fontScale } = useWindowDimensions();
+  const width = useCardWidth();
+  const stacked = width < (compact ? 310 : 400) || fontScale > 1.2;
   const items = spendingRingItems(groups);
   const categoryColors = items.map((item) =>
     item.group
@@ -123,7 +129,7 @@ export function ClassicSpending({
     return theme.dark ? chartColor : richerCategoryColor(chartColor);
   });
   const arcs = ringArcs(segments.map((item) => item.share));
-  const size = stacked ? 152 : 128;
+  const size = compact ? 96 : stacked ? 152 : 128;
   if (!items.length)
     return (
       <CardEmptyState
@@ -143,7 +149,7 @@ export function ClassicSpending({
           gap: 12,
         }}
       >
-        <View
+        {!(compact && type === "income" && !showChart) ? <View
           accessible
           accessibilityRole="image"
           accessibilityLabel={`${type === "income" ? "Income" : "Spending"} breakdown, ${money(total)} total. ${segments.map((item) => `${item.label} ${percentLabel(item.share * 100)}`).join(", ")}`}
@@ -178,8 +184,8 @@ export function ClassicSpending({
             adjustsFontSizeToFit
             style={{
               ...typography.bodyStrong,
-              fontSize: 18,
-              maxWidth: size - 42,
+              fontSize: compact ? 14 : 18,
+              maxWidth: size - 30,
               color: c.onSurface,
             }}
           >
@@ -194,10 +200,10 @@ export function ClassicSpending({
           >
             {type === "income" ? "Total income" : "Total spent"}
           </Text>
-        </View>
+        </View> : null}
         <View
           style={{
-            flex: stacked ? undefined : 1,
+            flex: compact && type === "income" && !showChart ? 1 : stacked ? undefined : 1,
             width: stacked ? "100%" : undefined,
             minWidth: 0,
           }}
@@ -212,7 +218,7 @@ export function ClassicSpending({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 6,
-                minHeight: 54,
+                minHeight: compact ? 48 : 54,
                 paddingVertical: 5,
               }}
             >
@@ -250,6 +256,9 @@ export function ClassicSpending({
                 >
                   {percentLabel(item.share * 100)}
                 </Text>
+                {compact && type === "expense" ? <View style={{ height: 3, borderRadius: 2, backgroundColor: c.surfaceVariant, overflow: "hidden" }}>
+                  <View style={{ height: 3, width: `${Math.max(0, Math.min(100, item.share * 100))}%`, backgroundColor: categoryColors[index] }} />
+                </View> : null}
               </View>
               <Text
                 numberOfLines={1}

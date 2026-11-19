@@ -85,7 +85,7 @@ function InterfaceContent({ onBack }: { onBack: () => void }) {
         <SectionLabel label="Interface" />
         <SheetCard theme={theme}>
           <ActionRow icon="dock-left" label="Tablet navigation"
-            description="Choose which side holds the navigation rail"
+            description="Choose the sidebar side in tablet landscape"
             theme={theme} showChevron={false}
             onPress={() => setTabletNavigationSide(tabletNavigationSide === "left" ? "right" : "left")}
             rightElement={<SegmentedButtons value={tabletNavigationSide}

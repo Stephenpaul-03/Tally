@@ -219,7 +219,7 @@ function TabItem({
           caption,
         ]}
       >
-        <Text
+        {captionWidth > 0 ? <Text
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.8}
@@ -230,7 +230,7 @@ function TabItem({
           }}
         >
           {label}
-        </Text>
+        </Text> : null}
       </Animated.View>
       </MainEntrance>
     </Pressable>

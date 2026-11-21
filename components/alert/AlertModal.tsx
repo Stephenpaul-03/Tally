@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { useMotionEnabled } from "@/components/animations/Motion";
 import { LazyModalContent } from "@/components/modal/LazyModalContent";
@@ -288,7 +289,7 @@ function AlertModalContent({
     }, 220);
   }, [displayOpen, onCancel]);
 
-  const tablet = Math.min(width, height) >= 600 && width >= 768;
+  const tablet = useTabletLayout();
   const isMobile = !forceModal && !tablet && (Platform.OS !== "web" || width < 768);
 
   const modalWidth = Math.min(modalMaxWidth, width - 48);

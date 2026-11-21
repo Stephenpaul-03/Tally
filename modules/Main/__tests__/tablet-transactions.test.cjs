@@ -38,12 +38,12 @@ test("drafts remain in their matching column and empty sides have no phantom sec
 });
 
 test("two columns are limited to tablet landscape, including after rotation", () => {
-  let dimensions = { width: 1280, height: 800 };
+  let dimensions = { width: 1152, height: 680 };
   const { useTabletLandscape } = loader({
-    "react-native": { useWindowDimensions: () => dimensions },
+    "react-native": { Platform: { OS: "android" }, Dimensions: { get: () => dimensions }, useWindowDimensions: () => dimensions },
   })("hooks/use-tablet-landscape.ts");
   assert.equal(useTabletLandscape(), true);
-  dimensions = { width: 800, height: 1280 };
+  dimensions = { width: 720, height: 1112 };
   assert.equal(useTabletLandscape(), false);
   dimensions = { width: 844, height: 390 };
   assert.equal(useTabletLandscape(), false);

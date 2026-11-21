@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import React, { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   BackHandler,
@@ -60,7 +61,7 @@ export function AnimatedPaperModal(props: Props) {
   const theme = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const tablet = Math.min(width, height) >= 600 && width >= 768;
+  const tablet = useTabletLayout();
   if (inline) {
     return props.visible ? (
       <InlineSettingsModalContext.Provider value={false}>
@@ -116,8 +117,8 @@ function AnimatedPaperModalPresentation({
   const systemReducedMotion = useReducedMotion();
   const reduceMotion =
     requestedReducedMotion || systemReducedMotion || !animationsEnabled;
-  const { width, height } = useWindowDimensions();
-  const tablet = Math.min(width, height) >= 600 && width >= 768;
+  const { height } = useWindowDimensions();
+  const tablet = useTabletLayout();
   const { top, bottom } = useSafeAreaInsets();
   const theme = useTheme();
   const [rendered, setRendered] = useState(visible);

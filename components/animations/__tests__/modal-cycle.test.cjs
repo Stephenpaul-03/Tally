@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const Module = require("node:module");
+const { loader } = require("../../../scripts/test-support/load-ts.cjs");
 function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0, right: 0 } } = {}) {
   let cursor = 0;
   const slots = [],
@@ -36,10 +37,12 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
     },
   };
   let height = 844;
+  let screen;
   const keyboardListeners = new Map();
   const native = {
     ScrollView: "ScrollView",
     useWindowDimensions: () => ({ width: windowWidth, height }),
+    Dimensions: { get: () => screen || { width: windowWidth, height } },
     Platform: { OS: "android" },
     StyleSheet: { absoluteFillObject: {}, flatten: (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) },
     BackHandler: { addEventListener: () => ({ remove() {} }) },
@@ -49,6 +52,7 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
     } },
   };
   const aliases = {
+    "@/hooks/use-tablet-layout": loader({ "react-native": native })("hooks/use-tablet-layout.ts"),
     react: React,
     "react-native": native,
     "react-native-paper": {
@@ -115,6 +119,7 @@ function harness({ windowWidth = 390, safeInsets = { top: 0, bottom: 0, left: 0,
     render(visible, windowHeight = 844, onHidden, extraProps = {}) {
       cursor = 0;
       height = windowHeight;
+      screen ??= { width: windowWidth, height: windowHeight };
       return renderComponents(loaded.exports.AnimatedPaperModal({
         visible,
         onDismiss() {},
@@ -146,7 +151,7 @@ function findNode(node, predicate) {
 const flattenStyle = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
 
 test("tablet auto-height dialogs get a bounded scroll surface without changing phone sheets", () => {
-  for (const [windowWidth, windowHeight] of [[1200, 800], [800, 1200]]) {
+  for (const [windowWidth, windowHeight] of [[1200, 800], [800, 1200], [720, 1112]]) {
     const tree = harness({ windowWidth }).render(true, windowHeight, undefined, { scrollable: true });
     const scroll = findNode(tree, node => node.type === "ScrollView");
     assert.ok(scroll);
@@ -166,14 +171,15 @@ test("dialog content drops tablet insets while phones and full screens retain th
   const insets = { top: 24, bottom: 34, left: 12, right: 8 };
   const file = path.resolve(__dirname, "../../../hooks/use-modal-insets.ts");
   const loaded = new Module(file, module);
-  loaded.require = (id) => id === "react-native"
-    ? { useWindowDimensions: () => dimensions }
-    : { useSafeAreaInsets: () => insets };
+  const native = { Platform: { OS: "android" }, Dimensions: { get: () => dimensions }, useWindowDimensions: () => dimensions };
+  const tabletHook = loader({ "react-native": native })("hooks/use-tablet-layout.ts");
+  loaded.require = (id) => id === "./use-tablet-layout" ? tabletHook
+    : id === "react-native" ? native : { useSafeAreaInsets: () => insets };
   loaded._compile(ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, file);
   const readInsets = loaded.exports.useModalInsets;
-  for (const [width, height] of [[800, 1200], [1200, 800]]) {
+  for (const [width, height] of [[800, 1200], [1200, 800], [720, 1112]]) {
     dimensions = { width, height };
     assert.deepEqual(readInsets(), { top: 0, bottom: 0, left: 0, right: 0 });
     assert.equal(readInsets(false), insets);

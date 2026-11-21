@@ -2,11 +2,11 @@ import type { RootParamList } from "@/navigation/types";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import React from "react";
 import { SettingsNavigator } from "./Navigation";
-import { useWindowDimensions } from "react-native";
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { TabletSettingsLayout } from "./Layouts/TabletSettingsLayout";
 
 export function SettingsScreen() {
-  const { width, height } = useWindowDimensions();
+  const tablet = useTabletLayout();
   const route = useRoute<RouteProp<RootParamList, "Settings">>();
   const initialRouteName =
     route.params?.section === "notification-reminders"
@@ -19,7 +19,7 @@ export function SettingsScreen() {
           ? "Budget"
           : "SettingsHome";
 
-  if (Math.min(width, height) >= 600 && width >= 768) {
+  if (tablet) {
     return <TabletSettingsLayout initialPage={initialRouteName} />;
   }
   return (

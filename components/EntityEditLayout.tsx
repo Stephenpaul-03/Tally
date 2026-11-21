@@ -1,3 +1,4 @@
+import { useTabletLayout } from "@/hooks/use-tablet-layout";
 import { tonalButtonSurface } from "@/theme/surfaceTreatment";
 import { categoryTone } from "@/theme/sage";
 import type { ExtendedMD3Theme } from "@/theme/buildPaperTheme";
@@ -158,8 +159,9 @@ export function EntityEditLayout({
 }: EntityEditLayoutProps) {
   const { minimalIconsEnabled } = useAddonPrefs();
   const { bottom, top } = useModalInsets(presentation === "modal");
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const tabletModal = presentation === "modal" && Math.min(windowWidth, windowHeight) >= 600 && windowWidth >= 768;
+  const { width: windowWidth } = useWindowDimensions();
+  const tablet = useTabletLayout();
+  const tabletModal = presentation === "modal" && tablet;
   const width = tabletModal ? Math.min(560, windowWidth - 48) - 16 : windowWidth;
   const c = theme.colors;
 

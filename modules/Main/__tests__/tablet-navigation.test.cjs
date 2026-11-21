@@ -84,11 +84,21 @@ test("unknown saved navigation sides fall back to the left", async () => {
   } finally { h.close(); }
 });
 
-test("tablet rails are used in both tablet orientations while phone landscape retains its bottom bar", () => {
+test("tablet device detection covers 600-720dp portrait displays and excludes phones", () => {
   let dimensions;
-  const readTablet = loader({ "react-native": { useWindowDimensions: () => dimensions } })("hooks/use-tablet-layout.ts").useTabletLayout;
-  for (const [width, height, expected] of [[800, 1280, true], [1280, 800, true], [390, 844, false], [844, 390, false]]) {
+  const readTablet = loader({ "react-native": { Platform: { OS: "android" }, Dimensions: { get: () => dimensions }, useWindowDimensions: () => dimensions } })("hooks/use-tablet-layout.ts").useTabletLayout;
+  for (const [width, height, expected] of [[720, 1152, true], [1152, 720, true], [600, 960, true], [800, 1280, true], [1280, 800, true], [390, 844, false], [844, 390, false]]) {
     dimensions = { width, height };
     assert.equal(readTablet(), expected);
   }
+});
+
+test("a smaller native window does not turn the tablet into a phone; browser layouts use the viewport", () => {
+  const platform = { OS: "android" };
+  let window = { width: 720, height: 400 };
+  const readTablet = loader({ "react-native": { Platform: platform, Dimensions: { get: () => ({ width: 720, height: 1152 }) }, useWindowDimensions: () => window } })("hooks/use-tablet-layout.ts").useTabletLayout;
+  assert.equal(readTablet(), true);
+  window = { width: 1152, height: 400 };assert.equal(readTablet(), true);
+  platform.OS = "web";assert.equal(readTablet(), false);
+  window = { width: 720, height: 1152 };assert.equal(readTablet(), true);
 });
